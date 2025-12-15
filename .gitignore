@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+
+# Virtual env
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime artifacts
+artifacts/
+*.log
+run_log.jsonl
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# DB
+*.db
+*.sqlite
+*.sqlite3
+
+# Playwright traces/videos (if you add later)
+test-results/
+playwright-report/
