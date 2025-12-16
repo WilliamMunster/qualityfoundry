@@ -8,7 +8,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-
 jobs:
   e2e-smoke:
     runs-on: windows-latest
@@ -31,6 +30,9 @@ jobs:
           python -m pip install playwright
           python -m playwright install chromium
 
+      # ----------------------------
+      # Debug：确认 CI 使用的是仓库里的 generator，而不是其它路径/缓存
+      # ----------------------------
       - name: Debug backend code origin (generator)
         shell: pwsh
         run: |
@@ -43,24 +45,50 @@ jobs:
           $env:PYTHONPATH = "${{ github.workspace }}\backend\app"
           python -c "import qualityfoundry.services.generation.generator as g, inspect; print('generator_file=', g.__file__); print('has_smoke_branch=', '_extract_url_and_expect' in inspect.getsource(g))"
 
-
-      - name: Start API server
+      # ----------------------------
+      # 启动 API：自动选择可用端口（8000 优先），并写入 .qf_port/.server_pid
+      # ----------------------------
+      - name: Start API server (auto port)
+        id: start_api
         shell: pwsh
         run: |
-          # 强制优先加载仓库源码（避免被 site-packages 里的旧版本覆盖）
-          $env:PYTHONPATH = "${{ github.workspace }}\backend\app"
+          function Test-PortFree([int]$port) {
+            try {
+              Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort $port -State Listen -ErrorAction Stop | Out-Null
+              return $false
+            } catch { return $true }
+          }
 
-          # 启动 uvicorn（不使用 --reload，CI 更稳定）
+          # 1) 找可用端口：8000 起，最多尝试 30 个
+          $port = 8000
+          $found = $false
+          for ($i=0; $i -lt 30; $i++) {
+            if (Test-PortFree $port) { $found = $true; break }
+            $port++
+          }
+
+          if (-not $found) {
+            Write-Host "未找到可用端口（从 8000 起尝试 30 个）"
+            exit 1
+          }
+
+          Write-Host "Selected port=$port"
+          Set-Content -Path .\.qf_port -Value $port -Encoding ascii
+
+          # 2) 启动服务（CI 不建议 --reload）
           $p = Start-Process -FilePath python -ArgumentList @(
             "-m","uvicorn","qualityfoundry.main:app",
-            "--host","127.0.0.1","--port","8000"
+            "--host","127.0.0.1","--port",("$port")
           ) -PassThru
 
-          # 等待服务就绪（最多等 30 秒）
+          Set-Content -Path .\.server_pid -Value $p.Id -Encoding ascii
+
+          # 3) 等待就绪（最多 45 秒）
+          $health = "http://127.0.0.1:$port/healthz"
           $ready = $false
-          for ($i=0; $i -lt 30; $i++) {
+          for ($i=0; $i -lt 45; $i++) {
             try {
-              Invoke-RestMethod -Uri "http://127.0.0.1:8000/healthz" -Method GET -TimeoutSec 2 | Out-Null
+              Invoke-RestMethod -Uri $health -Method GET -TimeoutSec 2 | Out-Null
               $ready = $true
               break
             } catch {
@@ -69,38 +97,53 @@ jobs:
           }
 
           if (-not $ready) {
-            Write-Host "服务未能在 30 秒内就绪，终止进程：$($p.Id)"
+            Write-Host "服务未能在 45 秒内就绪，终止进程：PID=$($p.Id)"
             Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
             exit 1
           }
 
-          Set-Content -Path .\server.pid -Value $p.Id -Encoding ascii
-          Write-Host "服务已启动，PID=$($p.Id)"
+          # 4) 输出给后续 step 使用
+          "port=$port"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "health=$health" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "READY: $health (PID=$($p.Id))"
 
-      - name: Run smoke (execute_bundle)
+      # ----------------------------
+      # 冒烟 1：execute_bundle（脚本已支持自动读取 .qf_port）
+      # ----------------------------
+      - name: Run smoke execute_bundle
+        id: smoke_exec
         shell: pwsh
         run: |
           Set-ExecutionPolicy -Scope Process Bypass
-          .\scripts\smoke_execute_bundle.ps1 -Base "http://127.0.0.1:8000" -TimeoutSec 180
+          .\scripts\smoke_execute_bundle.ps1 -TimeoutSec 180
 
+      # ----------------------------
+      # 冒烟 2：compile_bundle -> execute（显式传入 start_api 的端口，避免写死 8000）
+      # ----------------------------
       - name: Run smoke (scripts/smoke_bundle.ps1)
         id: smoke
         shell: pwsh
         run: |
           Set-ExecutionPolicy -Scope Process Bypass
-          .\scripts\smoke_bundle.ps1 -Base "http://127.0.0.1:8000"
+          .\scripts\smoke_bundle.ps1 -Base "http://127.0.0.1:${{ steps.start_api.outputs.port }}" -TimeoutSec 180
 
+      # ----------------------------
+      # 停服：永远执行，避免占用 runner 资源
+      # ----------------------------
       - name: Stop API server
         if: always()
         shell: pwsh
         run: |
-          if (Test-Path .\server.pid) {
-            $serverPid = Get-Content .\server.pid
-            Write-Host "停止服务 PID=$serverPid"
+          if (Test-Path .\.server_pid) {
+            $serverPid = (Get-Content .\.server_pid | Select-Object -First 1).Trim()
+            Write-Host "Stopping PID=$serverPid"
             Stop-Process -Id $serverPid -Force -ErrorAction SilentlyContinue
           }
 
-      - name: Upload artifacts (if exists)
+      # ----------------------------
+      # 上传产物：只上传 artifacts 目录，避免上传系统锁文件导致 EBUSY
+      # ----------------------------
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
