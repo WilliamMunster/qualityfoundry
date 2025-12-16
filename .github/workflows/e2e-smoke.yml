@@ -33,10 +33,20 @@ jobs:
           python -c "import qualityfoundry, inspect; import qualityfoundry.services.generation.generator as g; print('qualityfoundry.__file__=', getattr(qualityfoundry,'__file__',None)); print('generator_file=', g.__file__); src=inspect.getsource(g.generate_bundle).splitlines(); print('generate_bundle_head='); print('\n'.join(src[:60]))"
           python -m pip show qualityfoundry || echo "pip show qualityfoundry: not found"
 
-      - name: Start API server
+      - name: Debug generator origin
         shell: pwsh
         run: |
           $env:PYTHONPATH = "${{ github.workspace }}\backend\app"
+          python -c "import qualityfoundry.services.generation.generator as g, inspect; print('generator_file=', g.__file__); print('has_smoke_branch=', '_extract_url_and_expect' in inspect.getsource(g))"
+
+
+      - name: Start API server
+        shell: pwsh
+        run: |
+          # 强制优先加载仓库源码（避免被 site-packages 里的旧版本覆盖）
+          $env:PYTHONPATH = "${{ github.workspace }}\backend\app"
+
+          # 启动 uvicorn（不使用 --reload，CI 更稳定）
           $p = Start-Process -FilePath python -ArgumentList @(
             "-m","uvicorn","qualityfoundry.main:app",
             "--host","127.0.0.1","--port","8000"
@@ -60,7 +70,6 @@ jobs:
             exit 1
           }
 
-          # 把 PID 写到文件，供后续 step 停服
           Set-Content -Path .\server.pid -Value $p.Id -Encoding ascii
           Write-Host "服务已启动，PID=$($p.Id)"
 
@@ -81,10 +90,10 @@ jobs:
             Stop-Process -Id $serverPid -Force -ErrorAction SilentlyContinue
           }
 
-      - name: Upload artifacts (this run)
+      - name: Upload artifacts (if exists)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: artifacts
-          path: ${{ steps.smoke.outputs.artifact_dir }}/**
+          path: artifacts/**
           if-no-files-found: ignore
