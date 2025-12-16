@@ -19,10 +19,18 @@ Ok "healthz reachable"
 $genUrl = "$Base/api/v1/generate"
 Info "generate: POST $genUrl"
 
-$genBody = @{
+$genBodyObj = @{
   title = "Example Domain"
   text  = "Open https://example.com and see Example Domain."
-} | ConvertTo-Json -Depth 10
+}
+$genBody = $genBodyObj | ConvertTo-Json -Depth 10
+
+Info ("generate payload(title) = " + $genBodyObj.title)
+Info ("generate payload(text)  = " + $genBodyObj.text)
+Info ("generate payload(json)  = " + $genBody)
+
+$bundle = Invoke-RestMethod -Method POST -Uri $genUrl -ContentType "application/json" -Body $genBody -TimeoutSec $TimeoutSec
+
 $bundle = Invoke-RestMethod -Method POST -Uri $genUrl -ContentType "application/json" -Body $genBody -TimeoutSec $TimeoutSec
 
 if (-not $bundle) { Fail "generate returned empty" }

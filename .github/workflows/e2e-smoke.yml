@@ -27,10 +27,16 @@ jobs:
           python -m pip install playwright
           python -m playwright install chromium
 
+      - name: Debug backend code origin (generator)
+        shell: pwsh
+        run: |
+          python -c "import qualityfoundry, inspect; import qualityfoundry.services.generation.generator as g; print('qualityfoundry.__file__=', getattr(qualityfoundry,'__file__',None)); print('generator_file=', g.__file__); src=inspect.getsource(g.generate_bundle).splitlines(); print('generate_bundle_head='); print('\n'.join(src[:60]))"
+          python -m pip show qualityfoundry || echo "pip show qualityfoundry: not found"
+
       - name: Start API server
         shell: pwsh
         run: |
-          # 启动 uvicorn（不使用 --reload，CI 更稳定）
+          $env:PYTHONPATH = "${{ github.workspace }}\backend\app"
           $p = Start-Process -FilePath python -ArgumentList @(
             "-m","uvicorn","qualityfoundry.main:app",
             "--host","127.0.0.1","--port","8000"
