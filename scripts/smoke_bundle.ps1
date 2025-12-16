@@ -20,14 +20,18 @@ $genUrl = "$Base/api/v1/generate"
 Info "generate: POST $genUrl"
 
 $genBody = @{
-  title="Example Domain";
-  text="Open https://example.com and see Example Domain."
+  title = "Example Domain"
+  text  = "Open https://example.com and see Example Domain."
 } | ConvertTo-Json -Depth 10
 $bundle = Invoke-RestMethod -Method POST -Uri $genUrl -ContentType "application/json" -Body $genBody -TimeoutSec $TimeoutSec
 
 if (-not $bundle) { Fail "generate returned empty" }
 if (-not $bundle.cases -or $bundle.cases.Count -lt 1) { Fail "generate returned no cases" }
 Ok ("generate ok, cases=" + $bundle.cases.Count)
+# 防呆：CI 冒烟必须是 smoke case（Open/See），否则属于配置错误
+if ($bundle.cases.Count -ne 1 -or $bundle.cases[0].title -notmatch "Open\s+https?://") {
+  Fail ("generate 结果不是冒烟用例（当前 cases=" + $bundle.cases.Count + "），请检查 smoke_bundle.ps1 的 generate 入参是否被改回 Login 模板")
+}
 
 # 2) compile_bundle
 $compileUrl = "$Base/api/v1/compile_bundle"
