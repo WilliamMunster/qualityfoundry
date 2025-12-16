@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import re
 import uuid
+from typing import Optional
+
 from qualityfoundry.models.schemas import (
     RequirementInput,
     TestModule,
@@ -12,8 +15,88 @@ from qualityfoundry.models.schemas import (
     Priority,
 )
 
+
 def _uid(prefix: str) -> str:
+    """生成短 ID，便于前后端/日志定位。"""
     return f"{prefix}_{uuid.uuid4().hex[:10]}"
+
+
+def _extract_url_and_expect(text: str) -> tuple[Optional[str], Optional[str]]:
+    """
+    从需求文本中提取：
+    - url: https://example.com
+    - expect: Example Domain（用于断言）
+
+    支持：
+    - 英文：Open https://... and see XXX.
+    - 中文：打开 https://... ，应看到/看到/显示 XXX
+    """
+    text = text or ""
+
+    # 提取 URL
+    m = re.search(r"(https?://\S+)", text)
+    url = m.group(1) if m else None
+
+    # 提取期望文本（英文 see）
+    expect = None
+    m2 = re.search(r"\bsee\s+(.+?)(?:[.。]?$)", text, flags=re.IGNORECASE)
+    if m2:
+        expect = m2.group(1).strip().strip('"').strip("'")
+
+    # 提取期望文本（中文）
+    if not expect:
+        m3 = re.search(r"(应看到|看到|显示)\s*(.+)$", text)
+        if m3:
+            expect = m3.group(2).strip().strip('"').strip("'")
+
+    return url, expect
+
+
+def _generate_smoke_bundle(req: RequirementInput, url: str, expect: str) -> CaseBundle:
+    """
+    生成“可稳定执行”的冒烟 bundle：
+    - steps 固定为：Open <url> / See <text>
+    - 用于 CI/E2E 全链路验证（generate -> compile_bundle -> execute）
+    """
+    mod = TestModule(
+        id=_uid("mod"),
+        name="Smoke",
+        description="Stable executable smoke bundle (Open URL + See text)",
+    )
+    obj = TestObjective(
+        id=_uid("obj"),
+        module_id=mod.id,
+        name="Open & See",
+        description="Open a URL then assert a visible text",
+    )
+    tp = TestPoint(
+        id=_uid("tp"),
+        objective_id=obj.id,
+        name="Basic availability",
+        tags=["smoke"],
+    )
+    case = TestCase(
+        id=_uid("case"),
+        objective_id=obj.id,
+        title=f"Open {url} and see '{expect}'",
+        preconditions=[],
+        data={},
+        priority=Priority.P0,
+        tags=["smoke", "ui"],
+        steps=[
+            TestStep(step=f"Open {url}", expected="Page is displayed"),
+            TestStep(step=f"See {expect}", expected=f"Text '{expect}' is visible"),
+        ],
+    )
+
+    return CaseBundle(
+        requirement=req,
+        modules=[mod],
+        objectives=[obj],
+        test_points=[tp],
+        cases=[case],
+    )
+
 
 def generate_bundle(req: RequirementInput) -> CaseBundle:
     """MVP generator (deterministic, no LLM).
@@ -23,6 +106,13 @@ def generate_bundle(req: RequirementInput) -> CaseBundle:
     - JSON-only outputs validated by Pydantic
     - Optional RAG injection (Qdrant) for business rules/risks/components
     """
+
+    # ====== 关键：优先走“URL 冒烟分支”（用于 CI 稳定全链路）======
+    url, expect = _extract_url_and_expect(req.text)
+    if url and expect:
+        return _generate_smoke_bundle(req, url=url, expect=expect)
+
+    # ====== 原逻辑：登录模板（fallback，不影响你后续扩展）======
     mod_func = TestModule(
         id=_uid("mod"),
         name="Functional",
