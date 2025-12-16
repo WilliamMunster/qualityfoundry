@@ -131,3 +131,68 @@ class ExecutionResult(BaseModel):
     finished_at: str
     artifact_dir: str
     evidence: list[StepEvidence]
+
+
+# -----------------------------
+# Execute Bundle（一键：bundle -> compile -> execute）
+# -----------------------------
+
+
+class ExecuteBundleCompileOptions(BaseModel):
+    """
+    编译选项（与 compile_bundle 的 options 对齐）
+    - target 预留：未来可支持不同编译目标（如 playwright_dsl_v1 / selenium_dsl_v1）
+    - strict=True：出现任何无法编译步骤即失败（更利于 CI 稳定）
+    """
+    target: str = "playwright_dsl_v1"
+    strict: bool = True
+    default_timeout_ms: int = 15000
+
+
+class ExecuteBundleRunOptions(BaseModel):
+    """
+    执行选项：
+    - base_url：用于执行上下文/相对路径/回归一致性（为空时会从 actions 推断）
+    - headless：CI 默认 True
+    """
+    base_url: Optional[str] = None
+    headless: bool = True
+
+
+class ExecuteBundleCompiledCase(BaseModel):
+    """
+    返回给调用方的“编译结果”（方便调试）：
+    - actions：最终下发给执行器的 DSL
+    - warnings：编译阶段的告警（strict=False 时可能存在）
+    """
+    case_id: str
+    title: str
+    actions: list[dict[str, Any]] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ExecuteBundleRequest(BaseModel):
+    """
+    一键执行请求：
+    - bundle：来自 /generate 的完整输出
+    - case_index：要执行 bundle 中第几条 case（默认 0）
+    - compile_options/run：可选覆盖
+    """
+    bundle: "CaseBundle"
+    case_index: int = 0
+    compile_options: ExecuteBundleCompileOptions = Field(default_factory=ExecuteBundleCompileOptions)
+    run: ExecuteBundleRunOptions = Field(default_factory=ExecuteBundleRunOptions)
+
+
+class ExecuteBundleResponse(BaseModel):
+    """
+    一键执行响应：
+    - ok：整体是否成功（以 execution.ok 为准）
+    - compiled：可选返回编译后的 actions 便于排查（默认返回）
+    - execution：执行结果（证据、artifact_dir）
+    - error：失败原因概述（更适合前端直接显示）
+    """
+    ok: bool
+    compiled: Optional[ExecuteBundleCompiledCase] = None
+    execution: dict[str, Any]
+    error: Optional[str] = None

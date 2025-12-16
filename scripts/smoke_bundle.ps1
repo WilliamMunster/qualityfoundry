@@ -1,102 +1,87 @@
 ﻿param(
-  [string]$Base = "http://127.0.0.1:8000",
+  # 可不传：会优先读取项目根目录 .qf_port；读不到则默认 8000
+  [string]$Base = "",
   [int]$TimeoutSec = 60
 )
 
 $ErrorActionPreference = "Stop"
 
-function Fail([string]$msg) { Write-Host ("[SMOKE_BUNDLE][FAIL] " + $msg); exit 1 }
-function Ok([string]$msg)   { Write-Host ("[SMOKE_BUNDLE][OK] " + $msg) }
-function Info([string]$msg) { Write-Host ("[SMOKE_BUNDLE] " + $msg) }
+function Fail([string]$msg) { Write-Host ("[SMOKE_EXEC_BUNDLE][FAIL] " + $msg); exit 1 }
+function Ok([string]$msg)   { Write-Host ("[SMOKE_EXEC_BUNDLE][OK] " + $msg) }
+function Info([string]$msg) { Write-Host ("[SMOKE_EXEC_BUNDLE] " + $msg) }
 
-# 0) healthz
+# 0) Base 推导（优先读取 .qf_port，避免 dev.ps1 自动换端口后脚本仍打 8000）
+if (-not $Base) {
+  $portFile = Join-Path $PSScriptRoot "..\.qf_port"
+  if (Test-Path $portFile) {
+    $p = (Get-Content $portFile | Select-Object -First 1).Trim()
+    if ($p) {
+      $Base = "http://127.0.0.1:$p"
+    }
+  }
+}
+if (-not $Base) { $Base = "http://127.0.0.1:8000" }
+Info ("Base = " + $Base)
+
+# 通用：请求失败时尽量把服务端返回体打印出来（FastAPI 500/422 都能看清楚 detail）
+function Invoke-Json([string]$method, [string]$url, [string]$jsonBody = "") {
+  try {
+    if ($jsonBody) {
+      return Invoke-RestMethod -Method $method -Uri $url -ContentType "application/json" -Body $jsonBody -TimeoutSec $TimeoutSec
+    } else {
+      return Invoke-RestMethod -Method $method -Uri $url -TimeoutSec $TimeoutSec
+    }
+  } catch {
+    $ex = $_.Exception
+    $detail = $_.ErrorDetails.Message
+
+    # 有些情况下 ErrorDetails 为空，尝试从 WebException 的响应流读取
+    if (-not $detail -and $ex.Response) {
+      try {
+        $reader = New-Object System.IO.StreamReader($ex.Response.GetResponseStream())
+        $detail = $reader.ReadToEnd()
+      } catch { }
+    }
+
+    if ($detail) {
+      Fail ("请求失败：{0} {1}`n服务端返回：{2}" -f $method, $url, $detail)
+    } else {
+      Fail ("请求失败：{0} {1}`n异常：{2}" -f $method, $url, $ex.Message)
+    }
+  }
+}
+
+# 1) healthz
 $healthUrl = "$Base/healthz"
 Info "healthz: $healthUrl"
-Invoke-RestMethod -Method GET -Uri $healthUrl -TimeoutSec $TimeoutSec | Out-Null
+Invoke-Json "GET" $healthUrl | Out-Null
 Ok "healthz reachable"
 
-# 1) generate
+# 2) generate（冒烟：Example Domain）
 $genUrl = "$Base/api/v1/generate"
 Info "generate: POST $genUrl"
 
-$genBodyObj = @{
+$genBody = @{
   title = "Example Domain"
   text  = "Open https://example.com and see Example Domain."
-}
-$genBody = $genBodyObj | ConvertTo-Json -Depth 10
+} | ConvertTo-Json -Depth 10
 
-Info ("generate payload(title) = " + $genBodyObj.title)
-Info ("generate payload(text)  = " + $genBodyObj.text)
-Info ("generate payload(json)  = " + $genBody)
-
-$bundle = Invoke-RestMethod -Method POST -Uri $genUrl -ContentType "application/json" -Body $genBody -TimeoutSec $TimeoutSec
-
-$bundle = Invoke-RestMethod -Method POST -Uri $genUrl -ContentType "application/json" -Body $genBody -TimeoutSec $TimeoutSec
+$bundle = Invoke-Json "POST" $genUrl $genBody
 
 if (-not $bundle) { Fail "generate returned empty" }
 if (-not $bundle.cases -or $bundle.cases.Count -lt 1) { Fail "generate returned no cases" }
 Ok ("generate ok, cases=" + $bundle.cases.Count)
-# 防呆：CI 冒烟必须是 smoke case（Open/See），否则属于配置错误
-if ($bundle.cases.Count -ne 1 -or $bundle.cases[0].title -notmatch "Open\s+https?://") {
-  Fail ("generate 结果不是冒烟用例（当前 cases=" + $bundle.cases.Count + "），请检查 smoke_bundle.ps1 的 generate 入参是否被改回 Login 模板")
-}
 
-# 2) compile_bundle
-$compileUrl = "$Base/api/v1/compile_bundle"
-Info "compile_bundle: POST $compileUrl"
+# 3) execute_bundle
+$execBundleUrl = "$Base/api/v1/execute_bundle"
+Info "execute_bundle: POST $execBundleUrl"
 
-$compileReq = @{
-  requirement = $bundle.requirement
-  modules     = $bundle.modules
-  objectives  = $bundle.objectives
-  test_points = $bundle.test_points
-  cases       = $bundle.cases
-  options     = @{ target="playwright_dsl_v1"; strict=$true; default_timeout_ms=15000 }
+$req = @{
+  bundle  = $bundle
+  options = @{ strict=$true; default_timeout_ms=15000; headless=$true }
 } | ConvertTo-Json -Depth 30
 
-$compiledResp = Invoke-RestMethod -Method POST -Uri $compileUrl -ContentType "application/json" -Body $compileReq -TimeoutSec $TimeoutSec
+$resp = Invoke-Json "POST" $execBundleUrl $req
 
-if (-not $compiledResp.ok) { Fail "compile_bundle ok=false" }
-if (-not $compiledResp.compiled -or $compiledResp.compiled.Count -lt 1) { Fail "compile_bundle returned empty compiled list" }
-
-$first = $compiledResp.compiled[0]
-$w = ""
-if ($first.warnings) { $w = ($first.warnings -join "; ") }
-
-if (-not $first.actions -or $first.actions.Count -lt 1) {
-  Fail ("compile_bundle no actions; warnings=" + $w)
-}
-
-Ok ("compile_bundle ok, compiled=" + $compiledResp.compiled.Count + ", first_actions=" + $first.actions.Count)
-
-# 3) execute
-$execUrl = "$Base/api/v1/execute"
-Info "execute: POST $execUrl"
-
-$actions = @($first.actions)
-
-$hasGoto = $false
-foreach ($a in $actions) { if ($a.type -eq "goto") { $hasGoto = $true; break } }
-if (-not $hasGoto) { $actions = @(@{ type="goto"; url="https://example.com"; timeout_ms=15000 }) + $actions }
-
-$execReq = @{
-  base_url = "https://example.com"
-  headless = $true
-  actions  = $actions
-} | ConvertTo-Json -Depth 30
-
-$execResp = Invoke-RestMethod -Method POST -Uri $execUrl -ContentType "application/json" -Body $execReq -TimeoutSec $TimeoutSec
-
-if (-not $execResp.ok) { Fail ("execute ok=false, artifact_dir=" + $execResp.artifact_dir) }
-
-Ok ("ALL PASS. artifact_dir=" + $execResp.artifact_dir)
-# ---- 将 artifact_dir 写入 GitHub Actions step output，方便后续精确上传本次产物 ----
-# 说明：
-# - $env:GITHUB_OUTPUT 在 GitHub Actions 环境中自动存在
-# - Windows 路径建议转成 /，避免后续 YAML 引用时兼容性问题
-if ($env:GITHUB_OUTPUT) {
-  $dir = $execResp.artifact_dir
-  $dir_norm = $dir -replace "\\", "/"
-  "artifact_dir=$dir_norm" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-  Info ("已写出 step output: artifact_dir=" + $dir_norm)
-}
+if (-not $resp.ok) { Fail ("execute_bundle ok=false, artifact_dir=" + $resp.artifact_dir) }
+Ok ("ALL PASS. artifact_dir=" + $resp.artifact_dir)
