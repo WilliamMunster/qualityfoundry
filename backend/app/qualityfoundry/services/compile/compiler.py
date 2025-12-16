@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-"""
-QualityFoundry - Step Compiler (Deterministic)
+import re
+from typing import Any
 
-职责：
-- 将自然语言步骤（step）编译为受控 DSL（actions 列表）
-- 规则优先级明确、确定性强、可测试、可扩展
-- 不依赖 LLM，作为 MVP 稳定基座
-
-设计原则：
-1) 先匹配“更确定、更具体”的规则（如 Open URL / See text），再匹配泛化规则
-2) 编译失败时不抛异常，只返回 warnings；是否严格失败由上层（compile_bundle strict）决定
-3) 输出 action 结构应与 runner 侧 schemas 对齐（type、locator、timeout_ms 等）
-"""
+# QualityFoundry - Step Compiler (Deterministic)
+#
+# 职责：
+# - 将自然语言步骤（step）编译为受控 DSL（actions 列表）
+# - 规则优先级明确、确定性强、可测试、可扩展
+# - 不依赖 LLM，作为 MVP 稳定基座
+#
+# 设计原则：
+# 1) 先匹配“更确定、更具体”的规则（如 Open URL / See text），再匹配泛化规则
+# 2) 编译失败时不抛异常，只返回 warnings；是否严格失败由上层（compile_bundle strict）决定
+# 3) 输出 action 结构应与 runner 侧 schemas 对齐（type、locator、timeout_ms 等）
 
 import re
 from typing import Any
