@@ -15,10 +15,6 @@ from typing import Any
 # 2) 编译失败时不抛异常，只返回 warnings；是否严格失败由上层（compile_bundle strict）决定
 # 3) 输出 action 结构应与 runner 侧 schemas 对齐（type、locator、timeout_ms 等）
 
-import re
-from typing import Any
-
-
 # -----------------------------
 # Action builders（统一封装 DSL 输出）
 # -----------------------------
