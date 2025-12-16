@@ -73,6 +73,12 @@ jobs:
           Set-Content -Path .\server.pid -Value $p.Id -Encoding ascii
           Write-Host "服务已启动，PID=$($p.Id)"
 
+      - name: Run smoke (execute_bundle)
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -Scope Process Bypass
+          .\scripts\smoke_execute_bundle.ps1 -Base "http://127.0.0.1:8000" -TimeoutSec 180
+
       - name: Run smoke (scripts/smoke_bundle.ps1)
         id: smoke
         shell: pwsh
