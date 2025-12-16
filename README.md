@@ -46,3 +46,20 @@ qf run --url "https://example.com"
 - Extensible placeholders for RAG and controlled self-healing
 
 > Note: LLM integration is intentionally provider-agnostic in this scaffold.
+
+## Windows 快速开始（本地开发）
+
+> 首次运行建议在 PowerShell 执行策略允许的情况下运行脚本（仅对当前窗口生效）：
+> `Set-ExecutionPolicy -Scope Process Bypass`
+
+1. 一键初始化环境（创建 .venv + 安装依赖，可选安装 Playwright 浏览器）
+   - 安装浏览器（可跑 UI 自动化 execute）：
+     - `.\scripts\setup.ps1`
+   - 不安装浏览器（仅启动 API/开发调试）：
+     - `.\scripts\setup.ps1 -InstallPlaywright:$false`
+
+2. 启动服务（默认 8000）
+   - `.\scripts\dev.ps1`
+
+3. 冒烟自检（需要服务已启动）
+   - `.\scripts\smoke.ps1`
