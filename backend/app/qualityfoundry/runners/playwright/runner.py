@@ -5,8 +5,7 @@ from pathlib import Path
 from typing import List
 
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeoutError
-
-from qualityfoundry.models.schemas import Action, ActionType, ExecutionRequest, StepEvidence, Locator
+from qualityfoundry.models.schemas import ActionType, ExecutionRequest, StepEvidence, Locator
 
 def _resolve_locator(page, loc: Locator):
     strategy = loc.strategy
