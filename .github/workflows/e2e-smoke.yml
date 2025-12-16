@@ -58,11 +58,12 @@ jobs:
           Set-Content -Path .\server.pid -Value $p.Id -Encoding ascii
           Write-Host "服务已启动，PID=$($p.Id)"
 
-      - name: Run smoke (scripts/smoke.ps1)
+      - name: Run smoke (scripts/smoke_bundle.ps1)
+        id: smoke
         shell: pwsh
         run: |
           Set-ExecutionPolicy -Scope Process Bypass
-          .\scripts\smoke.ps1 -Base "http://127.0.0.1:8000"
+          .\scripts\smoke_bundle.ps1 -Base "http://127.0.0.1:8000"
 
       - name: Stop API server
         if: always()
@@ -74,10 +75,10 @@ jobs:
             Stop-Process -Id $serverPid -Force -ErrorAction SilentlyContinue
           }
 
-      - name: Upload artifacts (if exists)
+      - name: Upload artifacts (this run)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: artifacts
-          path: artifacts/**
+          path: ${{ steps.smoke.outputs.artifact_dir }}/**
           if-no-files-found: ignore
