@@ -69,9 +69,9 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path .\server.pid) {
-            $pid = Get-Content .\server.pid
-            Write-Host "停止服务 PID=$pid"
-            Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+            $serverPid = Get-Content .\server.pid
+            Write-Host "停止服务 PID=$serverPid"
+            Stop-Process -Id $serverPid -Force -ErrorAction SilentlyContinue
           }
 
       - name: Upload artifacts (if exists)
