@@ -45,6 +45,15 @@ try {
   Info "安装后端依赖（editable）：python -m pip install -e .\backend"
   python -m pip install -e .\backend
   Ok "后端依赖安装完成"
+  # 4.1) 安装开发依赖（ruff/pytest），用于本地与 CI 的一致性
+  $devReq = Join-Path $repoRoot "backend\requirements-dev.txt"
+  if (Test-Path $devReq) {
+    Info "安装开发依赖（ruff/pytest）..."
+    python -m pip install -r $devReq
+    Ok "开发依赖安装完成"
+  } else {
+    Info "未发现 backend\requirements-dev.txt，跳过开发依赖安装"
+  }
 
   # 5) 可选：安装 Playwright 浏览器
   if ($InstallPlaywright) {
