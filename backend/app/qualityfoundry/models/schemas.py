@@ -3,6 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field, ConfigDict
+from datetime import datetime
 
 
 # --------------------------
@@ -109,6 +110,18 @@ class Action(BaseModel):
     url: Optional[str] = None
     value: Optional[str] = None
     timeout_ms: int = 15000
+
+
+class ExecutionResponse(BaseModel):
+    """
+    Execute / Execute Bundle 的通用执行结果结构。
+    目标：让接口返回具备一致的“执行摘要 + evidence”能力，便于后续生成报告。
+    """
+    ok: bool
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    artifact_dir: str | None = None
+    evidence: list["StepEvidence"] = Field(default_factory=list)
 
 
 class ExecutionRequest(BaseModel):

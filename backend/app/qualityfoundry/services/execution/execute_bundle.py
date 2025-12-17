@@ -19,6 +19,7 @@ from qualityfoundry.models.schemas import (
 )
 from qualityfoundry.services.compile.compiler import compile_step_to_actions
 from qualityfoundry.services.execution.executor import execute  # 复用你现有的执行器
+from qualityfoundry.models.schemas import ExecutionResponse
 
 
 @dataclass
