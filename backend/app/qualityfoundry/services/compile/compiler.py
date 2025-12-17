@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+
 # QualityFoundry - Step Compiler (Deterministic)
 #
 # 职责：
@@ -70,7 +71,7 @@ def compile_step_to_actions(step_text: str, timeout_ms: int) -> tuple[list[dict[
 
     if not s:
         warnings.append("步骤为空，无法编译")
-        return ([], warnings)
+        return [], warnings
 
     # ============================================================
     # A. 英文规则（用于 CI 冒烟与通用英文步骤）
@@ -79,19 +80,19 @@ def compile_step_to_actions(step_text: str, timeout_ms: int) -> tuple[list[dict[
     # A1) Open <url>
     m = re.search(r"^open\s+(https?://\S+)\s*$", s, flags=re.IGNORECASE)
     if m:
-        return ([_action_goto(m.group(1), timeout_ms)], warnings)
+        return [_action_goto(m.group(1), timeout_ms)], warnings
 
     # A2) See <text>
     m = re.search(r"^see\s+(.+)$", s, flags=re.IGNORECASE)
     if m:
         text = m.group(1).strip().strip('"').strip("'")
-        return ([_action_assert_text(text, timeout_ms)], warnings)
+        return [_action_assert_text(text, timeout_ms)], warnings
 
     # A3) Click <text>
     m = re.search(r"^click\s+(.+)$", s, flags=re.IGNORECASE)
     if m:
         text = m.group(1).strip().strip('"').strip("'")
-        return ([_action_click_text(text, timeout_ms)], warnings)
+        return [_action_click_text(text, timeout_ms)], warnings
 
     # ============================================================
     # B. 中文规则（常见句式）
@@ -100,30 +101,30 @@ def compile_step_to_actions(step_text: str, timeout_ms: int) -> tuple[list[dict[
     # B1) 打开/访问/进入/跳转到 + URL
     m = re.search(r"(https?://\S+)", s)
     if re.search(r"^(打开|访问|进入|跳转到)\b", s) and m:
-        return ([_action_goto(m.group(1), timeout_ms)], warnings)
+        return [_action_goto(m.group(1), timeout_ms)], warnings
 
     # B2) 点击/单击 + 文本（同时兼容 click）
     m = re.search(r"^(点击|单击|click)\s+(.+)$", s, flags=re.IGNORECASE)
     if m:
         text = m.group(2).strip().strip('"').strip("'")
-        return ([_action_click_text(text, timeout_ms)], warnings)
+        return [_action_click_text(text, timeout_ms)], warnings
 
     # B3) 输入/填写（按 placeholder）
     m = re.search(r"^(在)?\s*(.+?)\s*(输入|填写)\s*(.+)$", s)
     if m:
         placeholder = m.group(2).strip().strip('"').strip("'")
         value = m.group(4).strip().strip('"').strip("'")
-        return ([_action_fill_placeholder(placeholder, value, timeout_ms)], warnings)
+        return [_action_fill_placeholder(placeholder, value, timeout_ms)], warnings
 
     # B4) 断言文本出现：应看到/看到/显示
     m = re.search(r"^(应看到|看到|显示)\s*(.+)$", s)
     if m:
         text = m.group(2).strip().strip('"').strip("'")
-        return ([_action_assert_text(text, timeout_ms)], warnings)
+        return [_action_assert_text(text, timeout_ms)], warnings
 
     # ============================================================
     # C. 兜底策略
     # ============================================================
 
     warnings.append(f"无法编译步骤：{s}")
-    return ([], warnings)
+    return [], warnings
