@@ -1,9 +1,3 @@
-"""
-routes_execute_bundle
-king 
-2025/12/16
-qualityfoundry
-"""
 from __future__ import annotations
 
 from fastapi import APIRouter
@@ -15,10 +9,6 @@ router = APIRouter()
 
 
 @router.post("/execute_bundle", response_model=ExecuteBundleResponse)
-def execute_bundle_api(req: ExecuteBundleRequest) -> ExecuteBundleResponse:
-    """
-    一键执行 Bundle：
-    - 服务端内部完成：compile_bundle -> execute
-    - 客户端只需传 bundle，无需自己拼 actions
-    """
+def run_execute_bundle(req: ExecuteBundleRequest) -> ExecuteBundleResponse:
+    """一键：bundle -> compile -> execute"""
     return execute_bundle(req)

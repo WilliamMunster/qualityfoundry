@@ -24,19 +24,30 @@ jobs:
       - name: Install project (editable) + dev tools
         shell: pwsh
         run: |
+          python -V
+          python -m pip -V
           python -m pip install -U pip setuptools wheel
           python -m pip install -e .\backend
           python -m pip install ruff pytest
 
+          Write-Host "[CI] pip show qualityfoundry"
+          python -m pip show qualityfoundry || echo "pip show qualityfoundry: not found"
+
+          Write-Host "[CI] tool versions"
+          ruff --version
+          pytest --version
+
       - name: Lint (ruff)
         shell: pwsh
         run: |
-          ruff --version
+          Write-Host "[CI] ruff check start"
           ruff check .
+          Write-Host "[CI] ruff check done"
 
       - name: Unit tests (pytest)
         shell: pwsh
         run: |
+          Write-Host "[CI] pytest start"
           pytest -q
           if ($LASTEXITCODE -eq 5) { exit 0 }  # 没有收集到测试用例也视为通过
           exit $LASTEXITCODE

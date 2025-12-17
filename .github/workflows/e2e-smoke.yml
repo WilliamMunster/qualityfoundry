@@ -103,19 +103,25 @@ jobs:
           }
 
           # 4) 输出给后续 step 使用
-          "port=$port"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "port=$port"     | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "health=$health" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "READY: $health (PID=$($p.Id))"
 
       # ----------------------------
-      # 冒烟 1：execute_bundle（脚本已支持自动读取 .qf_port）
+      # 冒烟 1：execute_bundle（显式传入 start_api 的端口，避免读取 .qf_port 出现不一致）
       # ----------------------------
       - name: Run smoke execute_bundle
         id: smoke_exec
         shell: pwsh
         run: |
           Set-ExecutionPolicy -Scope Process Bypass
-          .\scripts\smoke_execute_bundle.ps1 -TimeoutSec 180
+          $port = "${{ steps.start_api.outputs.port }}"
+          $health = "${{ steps.start_api.outputs.health }}"
+          $base = "http://127.0.0.1:$port"
+          Write-Host "[E2E] start_api.port=$port"
+          Write-Host "[E2E] start_api.health=$health"
+          Write-Host "[E2E] smoke_execute_bundle base=$base"
+          .\scripts\smoke_execute_bundle.ps1 -Base $base -TimeoutSec 180
 
       # ----------------------------
       # 冒烟 2：compile_bundle -> execute（显式传入 start_api 的端口，避免写死 8000）
@@ -125,7 +131,13 @@ jobs:
         shell: pwsh
         run: |
           Set-ExecutionPolicy -Scope Process Bypass
-          .\scripts\smoke_bundle.ps1 -Base "http://127.0.0.1:${{ steps.start_api.outputs.port }}" -TimeoutSec 180
+          $port = "${{ steps.start_api.outputs.port }}"
+          $health = "${{ steps.start_api.outputs.health }}"
+          $base = "http://127.0.0.1:$port"
+          Write-Host "[E2E] start_api.port=$port"
+          Write-Host "[E2E] start_api.health=$health"
+          Write-Host "[E2E] smoke_bundle base=$base"
+          .\scripts\smoke_bundle.ps1 -Base $base -TimeoutSec 180
 
       # ----------------------------
       # 停服：永远执行，避免占用 runner 资源
@@ -143,10 +155,10 @@ jobs:
       # ----------------------------
       # 上传产物：只上传 artifacts 目录，避免上传系统锁文件导致 EBUSY
       # ----------------------------
-      - name: Upload artifacts
+      - name: Upload artifacts (this run only)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: artifacts
-          path: artifacts/**
+          path: ${{ steps.smoke.outputs.artifact_dir }}
           if-no-files-found: ignore

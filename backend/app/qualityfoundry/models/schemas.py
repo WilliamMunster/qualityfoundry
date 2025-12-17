@@ -1,16 +1,25 @@
+"""QualityFoundry - Pydantic Schemas（数据契约）
+
+说明：
+- 本文件定义系统对外/对内的数据结构（API 请求/响应、测试资产、DSL、执行结果等）
+- 约束：imports 必须位于文件顶部（ruff E402）
+"""
+
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 from typing import Any, Literal, Optional
-from pydantic import BaseModel, Field, ConfigDict
-from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
-# --------------------------
-# Test Asset Schemas
-# --------------------------
+# ============================================================
+# 1) Test Asset Schemas（结构化测试资产）
+# ============================================================
 
 class Priority(str, Enum):
+    """用例优先级（用于筛选/冒烟/回归分层）"""
     P0 = "P0"
     P1 = "P1"
     P2 = "P2"
@@ -18,24 +27,28 @@ class Priority(str, Enum):
 
 
 class CaseStatus(str, Enum):
+    """用例状态（草稿/已评审/定版）"""
     DRAFT = "draft"
     REVIEWED = "reviewed"
     FINAL = "final"
 
 
 class RequirementInput(BaseModel):
+    """输入：原始需求文本（PRD/用户故事/说明文档片段）"""
     title: str = Field(..., min_length=1, description="Requirement title")
     text: str = Field(..., min_length=1, description="Raw requirement text (PRD/user story/spec)")
     domain: Optional[str] = Field(default=None, description="Optional business domain")
 
 
 class TestModule(BaseModel):
+    """测试模块（一级分类）"""
     id: str = Field(..., description="Stable ID (uuid or slug)")
     name: str
     description: str | None = None
 
 
 class TestObjective(BaseModel):
+    """测试目标（模块下的二级分类）"""
     id: str
     module_id: str
     name: str
@@ -43,6 +56,7 @@ class TestObjective(BaseModel):
 
 
 class TestPoint(BaseModel):
+    """测试点（目标下的测试覆盖点）"""
     id: str
     objective_id: str
     name: str
@@ -51,12 +65,15 @@ class TestPoint(BaseModel):
 
 
 class TestStep(BaseModel):
+    """步骤：step / expected 1:1 对齐"""
     model_config = ConfigDict(extra="forbid")
+
     step: str = Field(..., description="Action step in natural language")
     expected: str = Field(..., description="Expected result, must correspond 1:1 with step")
 
 
 class TestCase(BaseModel):
+    """用例：结构化测试资产中的可执行单元（自然语言步骤）"""
     id: str
     objective_id: str
     title: str
@@ -69,6 +86,7 @@ class TestCase(BaseModel):
 
 
 class CaseBundle(BaseModel):
+    """生成结果：一份需求对应的一组结构化测试资产"""
     requirement: RequirementInput
     modules: list[TestModule]
     objectives: list[TestObjective]
@@ -76,12 +94,12 @@ class CaseBundle(BaseModel):
     cases: list[TestCase]
 
 
-# --------------------------
-# Execution DSL Schemas
-# --------------------------
+# ============================================================
+# 2) Execution DSL Schemas（确定性执行 DSL）
+# ============================================================
 
 class Locator(BaseModel):
-    """A controlled locator abstraction. Prefer stable strategies first."""
+    """受控定位器抽象：优先稳定策略（role/label/testid），再到 text/css/xpath"""
     model_config = ConfigDict(extra="forbid")
 
     strategy: Literal["role", "label", "text", "testid", "css", "xpath"] = "role"
@@ -91,6 +109,7 @@ class Locator(BaseModel):
 
 
 class ActionType(str, Enum):
+    """动作类型：逐步扩充，但要保持语义稳定"""
     GOTO = "goto"
     CLICK = "click"
     FILL = "fill"
@@ -103,6 +122,7 @@ class ActionType(str, Enum):
 
 
 class Action(BaseModel):
+    """单步 DSL 动作（Compile 的输出 / Execute 的输入）"""
     model_config = ConfigDict(extra="forbid")
 
     type: ActionType
@@ -112,25 +132,15 @@ class Action(BaseModel):
     timeout_ms: int = 15000
 
 
-class ExecutionResponse(BaseModel):
-    """
-    Execute / Execute Bundle 的通用执行结果结构。
-    目标：让接口返回具备一致的“执行摘要 + evidence”能力，便于后续生成报告。
-    """
-    ok: bool
-    started_at: datetime | None = None
-    finished_at: datetime | None = None
-    artifact_dir: str | None = None
-    evidence: list["StepEvidence"] = Field(default_factory=list)
-
-
 class ExecutionRequest(BaseModel):
+    """执行请求：给 runner 的 DSL actions"""
     base_url: str | None = None
     actions: list[Action]
     headless: bool = True
 
 
 class StepEvidence(BaseModel):
+    """单步证据：用于报告/溯源"""
     index: int
     action: Action | None = None
     ok: bool
@@ -138,24 +148,69 @@ class StepEvidence(BaseModel):
     error: str | None = None
 
 
-class ExecutionResult(BaseModel):
+class ExecutionResponse(BaseModel):
+    """
+    统一的执行返回结构（单条执行结果）。
+    - ok：整体是否成功
+    - started_at/finished_at：UTC 或本地均可，但建议服务端统一输出 UTC
+    - artifact_dir：产物目录（截图、log、trace 等）
+    - evidence：逐步证据
+    """
     ok: bool
-    started_at: str
-    finished_at: str
-    artifact_dir: str
-    evidence: list[StepEvidence]
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    artifact_dir: str | None = None
+    evidence: list[StepEvidence] = Field(default_factory=list)
 
 
-# -----------------------------
-# Execute Bundle（一键：bundle -> compile -> execute）
-# -----------------------------
+# 兼容旧命名：历史代码可能还在使用 ExecutionResult
+# 不再定义第二套结构，避免“同名不同字段”造成长期维护灾难
+ExecutionResult = ExecutionResponse
 
+
+# ============================================================
+# 3) Compile Bundle（bundle -> compiled actions）
+#    注：如果你已有单独的 compile_bundle 契约，可以按需保留/迁移
+# ============================================================
+
+class CompileOptions(BaseModel):
+    """编译选项（与 /compile_bundle 对齐）"""
+    target: Literal["playwright_dsl_v1"] = "playwright_dsl_v1"
+    strict: bool = True
+    default_timeout_ms: int = 15000
+
+
+class CompiledCase(BaseModel):
+    """单条用例编译结果（供调试/执行）"""
+    case_id: str
+    title: str
+    actions: list[dict[str, Any]] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class CompileBundleRequest(BaseModel):
+    """编译 bundle 请求：通常来自 /generate 的 bundle 输出"""
+    requirement: RequirementInput
+    modules: list[TestModule]
+    objectives: list[TestObjective]
+    test_points: list[TestPoint]
+    cases: list[TestCase]
+    options: CompileOptions = Field(default_factory=CompileOptions)
+
+
+class CompileBundleResponse(BaseModel):
+    """编译 bundle 返回"""
+    ok: bool
+    compiled: list[CompiledCase] = Field(default_factory=list)
+
+
+# ============================================================
+# 4) Execute Bundle（一键：bundle -> compile -> execute）
+# ============================================================
 
 class ExecuteBundleCompileOptions(BaseModel):
     """
-    编译选项（与 compile_bundle 的 options 对齐）
-    - target 预留：未来可支持不同编译目标（如 playwright_dsl_v1 / selenium_dsl_v1）
-    - strict=True：出现任何无法编译步骤即失败（更利于 CI 稳定）
+    一键执行中的编译选项（与 compile_bundle 的 options 对齐）
     """
     target: str = "playwright_dsl_v1"
     strict: bool = True
@@ -164,9 +219,7 @@ class ExecuteBundleCompileOptions(BaseModel):
 
 class ExecuteBundleRunOptions(BaseModel):
     """
-    执行选项：
-    - base_url：用于执行上下文/相对路径/回归一致性（为空时会从 actions 推断）
-    - headless：CI 默认 True
+    一键执行中的运行选项
     """
     base_url: Optional[str] = None
     headless: bool = True
@@ -174,9 +227,8 @@ class ExecuteBundleRunOptions(BaseModel):
 
 class ExecuteBundleCompiledCase(BaseModel):
     """
-    返回给调用方的“编译结果”（方便调试）：
-    - actions：最终下发给执行器的 DSL
-    - warnings：编译阶段的告警（strict=False 时可能存在）
+    供调试/排查用：bundle 内某条 case 的编译结果
+    注意：这不是执行结果，执行结果统一用 ExecutionResponse。
     """
     case_id: str
     title: str
@@ -184,28 +236,36 @@ class ExecuteBundleCompiledCase(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class CaseExecutionResult(BaseModel):
+    """
+    Bundle 中单条 Case 的执行结果。
+    - execution：若进入执行阶段，返回统一 ExecutionResponse（包含 artifact_dir/evidence）
+    """
+    case_id: str
+    title: str
+    ok: bool
+    warnings: list[str] = Field(default_factory=list)
+    error: str | None = None
+    execution: ExecutionResponse | None = None
+
+
 class ExecuteBundleRequest(BaseModel):
     """
     一键执行请求：
-    - bundle：来自 /generate 的完整输出
-    - case_index：要执行 bundle 中第几条 case（默认 0）
-    - compile_options/run：可选覆盖
+    - bundle：/generate 的输出
+    - case_index：执行第几条（默认 0，冒烟用例）
+    - compile_options/run：可覆盖
     """
-    bundle: "CaseBundle"
+    bundle: CaseBundle
     case_index: int = 0
     compile_options: ExecuteBundleCompileOptions = Field(default_factory=ExecuteBundleCompileOptions)
     run: ExecuteBundleRunOptions = Field(default_factory=ExecuteBundleRunOptions)
 
 
 class ExecuteBundleResponse(BaseModel):
-    """
-    一键执行响应：
-    - ok：整体是否成功（以 execution.ok 为准）
-    - compiled：可选返回编译后的 actions 便于排查（默认返回）
-    - execution：执行结果（证据、artifact_dir）
-    - error：失败原因概述（更适合前端直接显示）
-    """
+    """一键执行返回：results 内每条复用统一的 ExecutionResponse"""
     ok: bool
-    compiled: Optional[ExecuteBundleCompiledCase] = None
-    execution: dict[str, Any]
-    error: Optional[str] = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    artifact_dir: str | None = None
+    results: list[CaseExecutionResult] = Field(default_factory=list)
