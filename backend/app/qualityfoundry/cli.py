@@ -67,8 +67,16 @@ def _ok(msg: str) -> None:
 
 
 def _fail(msg: str, code: int = 1) -> NoReturn:
+    """
+    统一失败出口：
+    - 打印 FAIL 信息
+    - 抛出 typer.Exit(code)
+    - 额外在异常对象上附加 qf_message，便于 smoke 生成 summary.json
+    """
     print(f"[red][QF][FAIL][/red] {msg}")
-    raise typer.Exit(code)
+    e = typer.Exit(code)
+    setattr(e, "qf_message", msg)
+    raise e
 
 
 # ============================================================
@@ -107,10 +115,10 @@ def _read_text(path: Path) -> str:
 # 小工具：HTTP（stdlib，避免额外依赖）
 # ============================================================
 def _http_json(
-        method: str,
-        url: str,
-        payload: Optional[dict[str, Any]] = None,
-        timeout_sec: int = 30,
+    method: str,
+    url: str,
+    payload: Optional[dict[str, Any]] = None,
+    timeout_sec: int = 30,
 ) -> Any:
     data = None
     headers = {"Accept": "application/json"}
@@ -138,23 +146,33 @@ def _http_json(
 
 def _wait_ready(base: str, timeout_sec: int = 45) -> None:
     """
-    等待服务就绪：
-    - 优先探测 /healthz
-    - 若无 healthz，则探测 /openapi.json
+    等待服务就绪（质量闸门语义）：
+    - 优先探测 /health（你已新增）
+    - 兼容探测 /healthz（旧约定）
+    - 兜底探测 /openapi.json
+    超时：exit code = 10
     """
-    health_url = f"{base}/healthz"
+    health_url = f"{base}/health"
+    healthz_url = f"{base}/healthz"
     openapi_url = f"{base}/openapi.json"
 
     start = time.time()
     while True:
-        # 1) healthz
+        # 1) /health
         try:
             _http_json("GET", health_url, None, timeout_sec=2)
             return
         except Exception:
             pass
 
-        # 2) openapi
+        # 2) /healthz（兼容）
+        try:
+            _http_json("GET", healthz_url, None, timeout_sec=2)
+            return
+        except Exception:
+            pass
+
+        # 3) /openapi.json（兜底）
         try:
             _http_json("GET", openapi_url, None, timeout_sec=2)
             return
@@ -162,7 +180,10 @@ def _wait_ready(base: str, timeout_sec: int = 45) -> None:
             pass
 
         if time.time() - start > timeout_sec:
-            _fail(f"服务未能在 {timeout_sec}s 内就绪：{health_url} 或 {openapi_url}")
+            _fail(
+                f"服务未能在 {timeout_sec}s 内就绪：{health_url} / {healthz_url} / {openapi_url}",
+                code=10,
+            )
         time.sleep(1)
 
 
@@ -181,7 +202,6 @@ def _detect_api_prefix(base: str) -> str:
     if "/generate" in paths:
         return ""
 
-    # 有些项目把前缀写成 /api 或 /v1，这里给一个更安全的探测
     for candidate in ("/api/v1", "/v1", "/api"):
         if f"{candidate}/generate" in paths:
             return candidate
@@ -202,9 +222,9 @@ def serve(host: str = "127.0.0.1", port: int = 8000):
 
 @app.command()
 def generate(
-        title: str = typer.Option(..., help="Requirement title"),
-        text: str = typer.Option(..., help="Requirement text"),
-        out: Path = typer.Option(Path("../../../bundle.json"), help="Output JSON file"),
+    title: str = typer.Option(..., help="Requirement title"),
+    text: str = typer.Option(..., help="Requirement text"),
+    out: Path = typer.Option(Path("../../../bundle.json"), help="Output JSON file"),
 ):
     """Generate a structured case bundle (MVP deterministic generator)."""
     bundle = generate_bundle(RequirementInput(title=title, text=text))
@@ -214,8 +234,8 @@ def generate(
 
 @app.command()
 def run(
-        url: str = typer.Option("https://example.com", help="Target URL"),
-        headless: bool = typer.Option(True, help="Headless mode"),
+    url: str = typer.Option("https://example.com", help="Target URL"),
+    headless: bool = typer.Option(True, help="Headless mode"),
 ):
     """Run a minimal example against a URL (DSL -> Playwright)."""
     req = ExecutionRequest(
@@ -238,15 +258,15 @@ def run(
 # ============================================================
 @app.command()
 def dev(
-        host: str = typer.Option("127.0.0.1", "--host", help="Bind host"),
-        port: int = typer.Option(8000, "--port", help="Preferred port"),
-        max_port_try: int = typer.Option(20, "--max-port-try", help="Max port scan attempts"),
-        log_file: Path = typer.Option(LOG_FILE_DEFAULT, "--log-file", help="Uvicorn log file"),
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind host"),
+    port: int = typer.Option(8000, "--port", help="Preferred port"),
+    max_port_try: int = typer.Option(20, "--max-port-try", help="Max port scan attempts"),
+    log_file: Path = typer.Option(LOG_FILE_DEFAULT, "--log-file", help="Uvicorn log file"),
 ):
     """
     本地开发启动（后台启动）：
     - 自动找端口（优先 --port）
-    - 等待服务就绪（healthz 或 openapi）
+    - 等待服务就绪（health/healthz/openapi）
     - 成功后写 .qf_port / .server_pid
     - 日志写入 --log-file
     """
@@ -287,7 +307,6 @@ def dev(
         logf.close()
         _fail(f"启动 uvicorn 失败：{e}")
 
-    # 等待就绪：成功后再写 PID/PORT，避免脏文件
     _wait_ready(base, timeout_sec=45)
 
     _write_text(PORT_FILE, str(final_port))
@@ -343,12 +362,14 @@ def stop():
 
 @app.command()
 def smoke(
-        base: str = typer.Option("", "--base", help="Server base URL, e.g. http://127.0.0.1:8000"),
-        url: str = typer.Option("https://example.com", "--url", help="Target URL"),
-        headless: bool = typer.Option(True, "--headless/--no-headless", help="Headless mode"),
-        timeout_sec: int = typer.Option(180, "--timeout-sec", help="HTTP timeout"),
-        mode: str = typer.Option("execute", "--mode", help="execute|bundle|both"),
-        case_index: int = typer.Option(0, "--case-index", help="Which case to execute in bundle mode"),
+    base: str = typer.Option("", "--base", help="Server base URL, e.g. http://127.0.0.1:8000"),
+    url: str = typer.Option("https://example.com", "--url", help="Target URL"),
+    headless: bool = typer.Option(True, "--headless/--no-headless", help="Headless mode"),
+    timeout_sec: int = typer.Option(180, "--timeout-sec", help="HTTP timeout"),
+    wait_ready: int = typer.Option(45, "--wait-ready", help="Wait server ready seconds (0 to skip)"),
+    json_out: Optional[Path] = typer.Option(None, "--json", help="Write smoke summary JSON to file"),
+    mode: str = typer.Option("execute", "--mode", help="execute|bundle|both"),
+    case_index: int = typer.Option(0, "--case-index", help="Which case to execute in bundle mode"),
 ):
     """
     冒烟：仅验证 executor 最小链路，不覆盖自然语言编译能力
@@ -363,95 +384,165 @@ def smoke(
             base = f"http://127.0.0.1:{port_s}"
 
     if not base:
-        _fail("未提供 --base，且未找到 .qf_port；请先 qf dev 或传入 --base。")
+        _fail("未提供 --base，且未找到 .qf_port；请先 qf dev 或传入 --base。", code=2)
 
-    _info(f"Base = {base}")
-    _wait_ready(base, timeout_sec=45)
-    _ok("server reachable")
+    started_at = time.time()
 
-    prefix = _detect_api_prefix(base)
-    _info(f"api prefix = '{prefix or '/'}'")
+    summary: dict[str, Any] = {
+        "ok": False,
+        "base": base,
+        "mode": (mode or "").strip().lower(),
+        "api_prefix": None,
+        "checks": [],
+        "artifact_dir": None,
+        "exit_code": None,
+        "error": None,
+        "duration_ms": None,
+    }
 
-    mode_norm = (mode or "").strip().lower()
-    if mode_norm not in {"execute", "bundle", "both"}:
-        _fail(f"--mode 仅支持 execute|bundle|both，当前={mode}")
+    def _write_summary() -> None:
+        if json_out is None:
+            return
+        try:
+            json_out.parent.mkdir(parents=True, exist_ok=True)
+            json_out.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+            _info(f"wrote summary json: {json_out}")
+        except Exception as e:
+            # summary 写失败不应覆盖主流程退出码；仅输出 warning
+            _info(f"[WARN] 写入 summary json 失败：{e}")
 
-    # ------------------------------------------------------------------
-    # A) execute 最小链路：直接调用 /execute（你们现有执行器已支持）
-    # ------------------------------------------------------------------
-    def _smoke_execute() -> None:
-        exec_url = f"{base}{prefix}/execute"
-        _info(f"execute: POST {exec_url}")
-        exec_req = {
-            "base_url": url,
-            "headless": headless,
-            "actions": [
-                {"type": "goto", "url": url},
-                {
-                    "type": "assert_text",
-                    "locator": {"strategy": "text", "value": "Example Domain", "exact": False},
-                    "value": "Example Domain",
-                },
+    try:
+        _info(f"Base = {base}")
 
-            ],
+        if wait_ready > 0:
+            _wait_ready(base, timeout_sec=wait_ready)
+
+        _ok("server reachable")
+        summary["checks"].append({"name": "server_reachable", "ok": True})
+
+        prefix = _detect_api_prefix(base)
+        summary["api_prefix"] = prefix
+        _info(f"api prefix = '{prefix or '/'}'")
+
+        mode_norm = summary["mode"]
+        if mode_norm not in {"execute", "bundle", "both"}:
+            _fail(f"--mode 仅支持 execute|bundle|both，当前={mode}", code=2)
+
+        # ------------------------------------------------------------------
+        # A) execute 最小链路：直接调用 /execute
+        # ------------------------------------------------------------------
+        def _smoke_execute() -> None:
+            exec_url = f"{base}{prefix}/execute"
+            _info(f"execute: POST {exec_url}")
+            exec_req = {
+                "base_url": url,
+                "headless": headless,
+                "actions": [
+                    {"type": "goto", "url": url},
+                    {
+                        "type": "assert_text",
+                        "locator": {"strategy": "text", "value": "Example Domain", "exact": False},
+                        "value": "Example Domain",
+                    },
+                ],
+            }
+            exec_resp = _http_json("POST", exec_url, exec_req, timeout_sec=timeout_sec)
+            if not (exec_resp or {}).get("ok"):
+                _fail(
+                    f"execute ok=false, resp={json.dumps(exec_resp, ensure_ascii=False)[:1200]}",
+                    code=30,
+                )
+
+            raw = (exec_resp or {}).get("artifact_dir")
+            summary["artifact_dir_raw"] = raw
+            summary["artifact_dir"] = (raw or "").replace("\\", "/")
+            summary["checks"].append({"name": "execute_ok", "ok": True})
+
+
+            _ok(f"execute PASS. artifact_dir={summary['artifact_dir']}")
+
+        # ------------------------------------------------------------------
+        # B) bundle 链路：generate + execute_bundle（当前可能失败，both 下为 warning）
+        # ------------------------------------------------------------------
+        def _smoke_bundle(strict: bool) -> None:
+            gen_url = f"{base}{prefix}/generate"
+            gen_body = {"title": "Smoke", "text": f"Open {url} and verify basic availability."}
+            _info(f"generate: POST {gen_url}")
+            bundle = _http_json("POST", gen_url, gen_body, timeout_sec=timeout_sec)
+
+            cases = (bundle or {}).get("cases") or []
+            if not cases:
+                msg = "generate 返回 cases=0（冒烟要求至少为 1）"
+                if strict:
+                    _fail(msg, code=20)
+                _info(f"[WARN] {msg}")
+                return
+
+            if case_index < 0 or case_index >= len(cases):
+                msg = f"case_index={case_index} 越界：cases={len(cases)}"
+                if strict:
+                    _fail(msg, code=20)
+                _info(f"[WARN] {msg}")
+                return
+
+            _ok(f"generate ok, cases={len(cases)}, use case_index={case_index}")
+
+            exec_bundle_url = f"{base}{prefix}/execute_bundle"
+            _info(f"execute_bundle: POST {exec_bundle_url}")
+            exec_bundle_req = {"bundle": bundle, "case_index": case_index, "headless": headless}
+            exec_bundle_resp = _http_json(
+                "POST",
+                exec_bundle_url,
+                exec_bundle_req,
+                timeout_sec=timeout_sec,
+            )
+
+            if not (exec_bundle_resp or {}).get("ok"):
+                msg = f"execute_bundle ok=false, resp={json.dumps(exec_bundle_resp, ensure_ascii=False)[:1200]}"
+                if strict:
+                    _fail(msg, code=30)
+                _info(f"[WARN] {msg}")
+                return
+
+            # bundle 成功时也可更新 artifact_dir（不覆盖 execute 的也行，这里选择覆盖为最新一次）
+            summary["artifact_dir"] = (exec_bundle_resp or {}).get("artifact_dir")
+            summary["checks"].append({"name": "execute_bundle_ok", "ok": True})
+
+            _ok(f"execute_bundle PASS. artifact_dir={summary['artifact_dir']}")
+
+        # 执行模式
+        if mode_norm == "execute":
+            _smoke_execute()
+        elif mode_norm == "bundle":
+            _smoke_bundle(strict=True)
+        else:
+            _smoke_execute()
+            _smoke_bundle(strict=False)
+
+        summary["ok"] = True
+        summary["exit_code"] = 0
+
+    except typer.Exit as e:
+        code = int(getattr(e, "exit_code", 1) or 1)
+        summary["ok"] = False
+        summary["exit_code"] = code
+        summary["error"] = {
+            "type": "typer.Exit",
+            "message": getattr(e, "qf_message", "smoke failed"),
         }
-        exec_resp = _http_json("POST", exec_url, exec_req, timeout_sec=timeout_sec)
-        if not (exec_resp or {}).get("ok"):
-            _fail(f"execute ok=false, resp={json.dumps(exec_resp, ensure_ascii=False)[:1200]}")
-        _ok(f"execute PASS. artifact_dir={(exec_resp or {}).get('artifact_dir')}")
+        raise
 
-    # ------------------------------------------------------------------
-    # B) bundle 链路：generate + execute_bundle（当前会因编译器不支持而失败）
-    # ------------------------------------------------------------------
-    def _smoke_bundle(strict: bool) -> None:
-        gen_url = f"{base}{prefix}/generate"
-        gen_body = {"title": "Smoke", "text": f"Open {url} and verify basic availability."}
-        _info(f"generate: POST {gen_url}")
-        bundle = _http_json("POST", gen_url, gen_body, timeout_sec=timeout_sec)
+    except Exception as e:
+        summary["ok"] = False
+        summary["exit_code"] = 1
+        summary["error"] = {"type": type(e).__name__, "message": str(e)}
+        _fail(f"unexpected error: {e}", code=1)
 
-        cases = (bundle or {}).get("cases") or []
-        if not cases:
-            msg = "generate 返回 cases=0（冒烟要求至少为 1）"
-            if strict:
-                _fail(msg)
-            _info(f"[WARN] {msg}")
-            return
-
-        if case_index < 0 or case_index >= len(cases):
-            msg = f"case_index={case_index} 越界：cases={len(cases)}"
-            if strict:
-                _fail(msg)
-            _info(f"[WARN] {msg}")
-            return
-
-        _ok(f"generate ok, cases={len(cases)}, use case_index={case_index}")
-
-        exec_bundle_url = f"{base}{prefix}/execute_bundle"
-        _info(f"execute_bundle: POST {exec_bundle_url}")
-        exec_bundle_req = {"bundle": bundle, "case_index": case_index, "headless": headless}
-        exec_bundle_resp = _http_json("POST", exec_bundle_url, exec_bundle_req, timeout_sec=timeout_sec)
-
-        if not (exec_bundle_resp or {}).get("ok"):
-            msg = f"execute_bundle ok=false, resp={json.dumps(exec_bundle_resp, ensure_ascii=False)[:1200]}"
-            if strict:
-                _fail(msg)
-            _info(f"[WARN] {msg}")
-            return
-
-        _ok(f"execute_bundle PASS. artifact_dir={(exec_bundle_resp or {}).get('artifact_dir')}")
-
-    # 执行模式
-    if mode_norm == "execute":
-        _smoke_execute()
-        return
-
-    if mode_norm == "bundle":
-        _smoke_bundle(strict=True)
-        return
-
-    # both
-    _smoke_execute()
-    _smoke_bundle(strict=False)
+    finally:
+        summary["duration_ms"] = int((time.time() - started_at) * 1000)
+        if summary["exit_code"] is None:
+            summary["exit_code"] = 0 if summary["ok"] else 1
+        _write_summary()
 
 
 if __name__ == "__main__":
