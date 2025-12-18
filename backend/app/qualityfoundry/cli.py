@@ -71,7 +71,7 @@ def _fail(msg: str, code: int = 1) -> NoReturn:
     统一失败出口：
     - 打印 FAIL 信息
     - 抛出 typer.Exit(code)
-    - 额外在异常对象上附加 qf_message，便于 smoke 生成 summary.json
+    - 额外在异常对象上附加 qf_message，便于 smoke 生成 summary.json / junit.xml
     """
     print(f"[red][QF][FAIL][/red] {msg}")
     e = typer.Exit(code)
@@ -144,6 +144,16 @@ def _http_json(
         raise RuntimeError(f"Network error for {method} {url}: {e}") from e
 
 
+def _utc_run_id(prefix: str) -> str:
+    # e.g. smoke_20251218T040102Z
+    return time.strftime(f"{prefix}_%Y%m%dT%H%M%SZ", time.gmtime())
+
+
+def _write_json_file(path: Path, obj: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def _wait_ready(base: str, timeout_sec: int = 45) -> None:
     """
     等待服务就绪（质量闸门语义）：
@@ -207,6 +217,55 @@ def _detect_api_prefix(base: str) -> str:
             return candidate
 
     return "/api/v1"
+
+
+# ============================================================
+# 小工具：JUnit XML（无第三方依赖）
+# ============================================================
+def _xml_escape(s: str) -> str:
+    return (
+        s.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
+    )
+
+
+def _write_junit_xml(
+    path: Path,
+    *,
+    suite_name: str,
+    case_name: str,
+    ok: bool,
+    duration_sec: float,
+    failure_message: Optional[str] = None,
+    system_out: Optional[str] = None,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tests = 1
+    failures = 0 if ok else 1
+    errors = 0
+    time_attr = f"{duration_sec:.3f}"
+
+    parts: list[str] = []
+    parts.append('<?xml version="1.0" encoding="UTF-8"?>')
+    parts.append(
+        f'<testsuite name="{_xml_escape(suite_name)}" tests="{tests}" failures="{failures}" errors="{errors}" time="{time_attr}">'
+    )
+    parts.append(
+        f'  <testcase classname="{_xml_escape(suite_name)}" name="{_xml_escape(case_name)}" time="{time_attr}">'
+    )
+    if not ok:
+        msg = _xml_escape(failure_message or "smoke failed")
+        parts.append(f'    <failure message="{msg}">{msg}</failure>')
+    if system_out:
+        out = _xml_escape(system_out)
+        parts.append(f"    <system-out>{out}</system-out>")
+    parts.append("  </testcase>")
+    parts.append("</testsuite>")
+
+    path.write_text("\n".join(parts), encoding="utf-8")
 
 
 # ============================================================
@@ -368,6 +427,12 @@ def smoke(
     timeout_sec: int = typer.Option(180, "--timeout-sec", help="HTTP timeout"),
     wait_ready: int = typer.Option(45, "--wait-ready", help="Wait server ready seconds (0 to skip)"),
     json_out: Optional[Path] = typer.Option(None, "--json", help="Write smoke summary JSON to file"),
+    junit_out: Optional[Path] = typer.Option(None, "--junit", help="Write JUnit XML report to file"),
+    artifacts_dir: Optional[Path] = typer.Option(
+        None,
+        "--artifacts-dir",
+        help="Write smoke artifacts under this directory (creates a timestamped run subdir)",
+    ),
     mode: str = typer.Option("execute", "--mode", help="execute|bundle|both"),
     case_index: int = typer.Option(0, "--case-index", help="Which case to execute in bundle mode"),
 ):
@@ -388,13 +453,27 @@ def smoke(
 
     started_at = time.time()
 
+    # 2) 本次 smoke 运行目录（用于 request/response evidence）
+    run_id = _utc_run_id("smoke")
+    run_dir: Optional[Path] = None
+
+    # 若用户只传了 --json，则默认把 artifacts 放在 summary.json 同目录下（更省心）
+    if artifacts_dir is None and json_out is not None:
+        artifacts_dir = json_out.parent
+
+    if artifacts_dir is not None:
+        run_dir = artifacts_dir / run_id
+        (run_dir / "http").mkdir(parents=True, exist_ok=True)
+
     summary: dict[str, Any] = {
         "ok": False,
         "base": base,
         "mode": (mode or "").strip().lower(),
         "api_prefix": None,
         "checks": [],
-        "artifact_dir": None,
+        "artifact_dir": None,       # normalized (/) for contract
+        "artifact_dir_raw": None,   # raw value from server (Windows may contain '\')
+        "smoke_artifacts_dir": (str(run_dir).replace("\\", "/") if run_dir else None),
         "exit_code": None,
         "error": None,
         "duration_ms": None,
@@ -408,8 +487,40 @@ def smoke(
             json_out.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
             _info(f"wrote summary json: {json_out}")
         except Exception as e:
-            # summary 写失败不应覆盖主流程退出码；仅输出 warning
             _info(f"[WARN] 写入 summary json 失败：{e}")
+
+    def _write_junit() -> None:
+        if junit_out is None:
+            return
+        try:
+            duration_sec = max(0.0, time.time() - started_at)
+            case_name = f"smoke:{summary.get('mode','execute')}"
+            msg = None
+            if not summary.get("ok"):
+                err = summary.get("error") or {}
+                msg = err.get("message") or "smoke failed"
+
+            _write_junit_xml(
+                junit_out,
+                suite_name="qualityfoundry.smoke",
+                case_name=case_name,
+                ok=bool(summary.get("ok")),
+                duration_sec=duration_sec,
+                failure_message=msg,
+                system_out=json.dumps(summary, ensure_ascii=False, indent=2),
+            )
+            _info(f"wrote junit xml: {junit_out}")
+        except Exception as e:
+            _info(f"[WARN] 写入 junit.xml 失败：{e}")
+
+    def _dump_http(name: str, req_obj: Any, resp_obj: Any) -> None:
+        if run_dir is None:
+            return
+        try:
+            _write_json_file(run_dir / "http" / f"{name}.request.json", req_obj)
+            _write_json_file(run_dir / "http" / f"{name}.response.json", resp_obj)
+        except Exception as e:
+            _info(f"[WARN] 写入 HTTP evidence 失败：{e}")
 
     try:
         _info(f"Base = {base}")
@@ -447,6 +558,10 @@ def smoke(
                 ],
             }
             exec_resp = _http_json("POST", exec_url, exec_req, timeout_sec=timeout_sec)
+
+            # evidence：无论 ok/false 都落盘，便于定位
+            _dump_http("execute", exec_req, exec_resp)
+
             if not (exec_resp or {}).get("ok"):
                 _fail(
                     f"execute ok=false, resp={json.dumps(exec_resp, ensure_ascii=False)[:1200]}",
@@ -458,8 +573,7 @@ def smoke(
             summary["artifact_dir"] = (raw or "").replace("\\", "/")
             summary["checks"].append({"name": "execute_ok", "ok": True})
 
-
-            _ok(f"execute PASS. artifact_dir={summary['artifact_dir']}")
+            _ok(f"execute PASS. artifact_dir={raw}")
 
         # ------------------------------------------------------------------
         # B) bundle 链路：generate + execute_bundle（当前可能失败，both 下为 warning）
@@ -469,6 +583,7 @@ def smoke(
             gen_body = {"title": "Smoke", "text": f"Open {url} and verify basic availability."}
             _info(f"generate: POST {gen_url}")
             bundle = _http_json("POST", gen_url, gen_body, timeout_sec=timeout_sec)
+            _dump_http("generate", gen_body, bundle)
 
             cases = (bundle or {}).get("cases") or []
             if not cases:
@@ -490,12 +605,8 @@ def smoke(
             exec_bundle_url = f"{base}{prefix}/execute_bundle"
             _info(f"execute_bundle: POST {exec_bundle_url}")
             exec_bundle_req = {"bundle": bundle, "case_index": case_index, "headless": headless}
-            exec_bundle_resp = _http_json(
-                "POST",
-                exec_bundle_url,
-                exec_bundle_req,
-                timeout_sec=timeout_sec,
-            )
+            exec_bundle_resp = _http_json("POST", exec_bundle_url, exec_bundle_req, timeout_sec=timeout_sec)
+            _dump_http("execute_bundle", exec_bundle_req, exec_bundle_resp)
 
             if not (exec_bundle_resp or {}).get("ok"):
                 msg = f"execute_bundle ok=false, resp={json.dumps(exec_bundle_resp, ensure_ascii=False)[:1200]}"
@@ -504,11 +615,12 @@ def smoke(
                 _info(f"[WARN] {msg}")
                 return
 
-            # bundle 成功时也可更新 artifact_dir（不覆盖 execute 的也行，这里选择覆盖为最新一次）
-            summary["artifact_dir"] = (exec_bundle_resp or {}).get("artifact_dir")
+            raw = (exec_bundle_resp or {}).get("artifact_dir")
+            summary["artifact_dir_raw"] = raw
+            summary["artifact_dir"] = (raw or "").replace("\\", "/")
             summary["checks"].append({"name": "execute_bundle_ok", "ok": True})
 
-            _ok(f"execute_bundle PASS. artifact_dir={summary['artifact_dir']}")
+            _ok(f"execute_bundle PASS. artifact_dir={raw}")
 
         # 执行模式
         if mode_norm == "execute":
@@ -543,6 +655,7 @@ def smoke(
         if summary["exit_code"] is None:
             summary["exit_code"] = 0 if summary["ok"] else 1
         _write_summary()
+        _write_junit()
 
 
 if __name__ == "__main__":
