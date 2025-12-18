@@ -1,4 +1,4 @@
-# QualityFoundry 🏗️🧪
+# QualityFoundry 🏗️ 🧪
 
 QualityFoundry 是一个 Python-first 的测试工具原型，目标是把「需求/规则」更规范地沉淀为**可评审、可执行、可追踪**的测试资产，并在执行过程中产出截图/日志等证据，让回归测试更**可复现、可定位、可维护**。✨
 
@@ -177,10 +177,19 @@ qf smoke --mode execute --base http://127.0.0.1:8000 --wait-ready 45 --json .\ar
 分支保护建议（Rulesets / Branch protection）：
 
 * 对 `main` 启用 `Require status checks to pass`
-* Required checks 选择：`quality-gate / smoke`（以你的工作流/Job 命名为准）
+* Required checks 选择：`smoke`（GitHub Actions 的 job 名；避免出现 `Expected`，不要手填 `quality-gate / smoke`）
 * 建议启用 `Require a pull request before merging`
 
 bundle/编译链路建议先作为非阻断性检查，待编译覆盖稳定后再升级为 gate。
+
+---
+
+## 变更记录 📝
+
+* ✅ 最小门禁已落地：推荐使用 `qf smoke --mode execute` 作为 CI Gate，输出 `summary.json` / `junit.xml` / HTTP request&response 证据目录。
+* 🛡️ main 分支 Ruleset 已启用 Required checks，并已对齐到 `smoke`（GitHub Actions job 名），避免出现 “Expected — Waiting for status to be reported”。
+* 🧪 E2E（bundle/compile/execute_bundle）链路当前属于实验能力，建议仅保留为手动触发（`workflow_dispatch`），避免阻断 PR 合并。
+* ℹ️ README 统一使用 emoji 图标字符，并要求所有代码块围栏成对闭合，避免渲染失效。
 
 ---
 
@@ -322,6 +331,7 @@ qf smoke --mode execute
 
 ```powershell
 qf smoke --mode bundle --case-index 0
+
 qf smoke --mode both --case-index 0
 ```
 
