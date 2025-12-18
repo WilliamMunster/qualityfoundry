@@ -458,8 +458,17 @@ def smoke(
     run_dir: Optional[Path] = None
 
     # 若用户只传了 --json，则默认把 artifacts 放在 summary.json 同目录下（更省心）
+    # 默认行为：不传任何参数，也要生成 smoke 报告与证据，避免 PASS 但门禁文件未更新
+    if json_out is None and junit_out is None and artifacts_dir is None:
+        artifacts_dir = Path("artifacts") / "smoke"
+        json_out = artifacts_dir / "summary.json"
+        junit_out = artifacts_dir / "junit.xml"
+
+    # 若用户只传了 --json/--junit，则默认把 artifacts 放在对应输出文件同目录下（更省心）
     if artifacts_dir is None and json_out is not None:
         artifacts_dir = json_out.parent
+    if artifacts_dir is None and junit_out is not None:
+        artifacts_dir = junit_out.parent
 
     if artifacts_dir is not None:
         run_dir = artifacts_dir / run_id
