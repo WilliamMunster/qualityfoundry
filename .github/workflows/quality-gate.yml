@@ -1,0 +1,68 @@
+name: quality-gate
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install (editable)
+        run: |
+          python -m pip install -U pip
+          pip install -e .
+
+      # 如 execute 依赖 Playwright 浏览器，这一步需要；若不需要可注释掉
+      - name: Install Playwright browsers (optional)
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps
+        continue-on-error: true
+
+      - name: Start server (background)
+        run: |
+          nohup python -m uvicorn qualityfoundry.main:app --host 127.0.0.1 --port 8000 > server.log 2>&1 &
+          echo $! > server.pid
+
+      - name: Run smoke quality gate
+        run: |
+          mkdir -p artifacts/smoke
+          qf smoke --mode execute --base http://127.0.0.1:8000 \
+            --wait-ready 45 \
+            --json artifacts/smoke/summary.json \
+            --junit artifacts/smoke/junit.xml \
+            --artifacts-dir artifacts/smoke
+
+      - name: Upload artifacts (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-artifacts
+          path: |
+            artifacts/smoke
+            server.log
+
+      # 可选：把 summary.json 摘要写到 Actions 的 Job Summary
+      - name: Job summary (always)
+        if: always()
+        run: |
+          echo "## Smoke Summary" >> $GITHUB_STEP_SUMMARY
+          if [ -f artifacts/smoke/summary.json ]; then
+            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+            cat artifacts/smoke/summary.json >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "summary.json not found" >> $GITHUB_STEP_SUMMARY
+          fi
