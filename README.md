@@ -322,6 +322,7 @@ qf smoke --mode execute
 
 ```powershell
 qf smoke --mode bundle --case-index 0
+
 qf smoke --mode both --case-index 0
 ```
 
