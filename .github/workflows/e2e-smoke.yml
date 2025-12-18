@@ -1,7 +1,6 @@
 name: E2E Smoke
 
 on:
-  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -84,7 +83,8 @@ jobs:
           Set-Content -Path .\.server_pid -Value $p.Id -Encoding ascii
 
           # 3) 等待就绪（最多 45 秒）
-          $health = "http://127.0.0.1:$port/healthz"
+          #    NOTE: 当前服务优先支持 /health（本项目 smoke readiness 也是 /health → /healthz → /openapi）
+          $health = "http://127.0.0.1:$port/health"
           $ready = $false
           for ($i=0; $i -lt 45; $i++) {
             try {
@@ -108,7 +108,7 @@ jobs:
           Write-Host "READY: $health (PID=$($p.Id))"
 
       # ----------------------------
-      # 冒烟 1：execute_bundle（显式传入 start_api 的端口，避免读取 .qf_port 出现不一致）
+      # 冒烟 1：execute_bundle（显式传入 start_api 的端口）
       # ----------------------------
       - name: Run smoke execute_bundle
         id: smoke_exec
@@ -124,7 +124,7 @@ jobs:
           .\scripts\smoke_execute_bundle.ps1 -Base $base -TimeoutSec 180
 
       # ----------------------------
-      # 冒烟 2：compile_bundle -> execute（显式传入 start_api 的端口，避免写死 8000）
+      # 冒烟 2：compile_bundle -> execute（显式传入 start_api 的端口）
       # ----------------------------
       - name: Run smoke (scripts/smoke_bundle.ps1)
         id: smoke
@@ -140,7 +140,7 @@ jobs:
           .\scripts\smoke_bundle.ps1 -Base $base -TimeoutSec 180
 
       # ----------------------------
-      # 停服：永远执行，避免占用 runner 资源
+      # 停服：永远执行
       # ----------------------------
       - name: Stop API server
         if: always()
@@ -153,12 +153,15 @@ jobs:
           }
 
       # ----------------------------
-      # 上传产物：只上传 artifacts 目录，避免上传系统锁文件导致 EBUSY
+      # 上传产物：固定上传 artifacts + qf port/pid 文件（永远有 path，不再依赖 step outputs）
       # ----------------------------
       - name: Upload artifacts (this run only)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts
-          path: ${{ steps.smoke.outputs.artifact_dir }}
+          name: e2e-artifacts
+          path: |
+            artifacts
+            .qf_port
+            .server_pid
           if-no-files-found: ignore
