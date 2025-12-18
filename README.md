@@ -24,14 +24,14 @@ QualityFoundry 的思路是把测试流程收敛成一个更清晰的闭环：
 
 | 能力域 | MVP ✅（已稳定可用） | 实验 🧪（可跑但不稳定/覆盖不全） | 规划 🗺️（Roadmap） |
 |---|---|---|---|
-| CLI 工具（qf） | `serve / dev / stop / smoke` 已可用；`smoke --mode execute` 已验证通过 | `smoke --mode bundle/both` 依赖编译覆盖度 | CLI 增强：capabilities、自检输出、报告导出等 |
-| 服务管理 | `qf dev` 后台启动、自动端口、写 `.qf_port/.server_pid`；`qf stop` 可靠停服 | 多实例/多环境管理 | 跨平台脚本统一、守护进程化 |
+| CLI 工具（qf） | `serve / dev / stop / smoke` 已可用；`smoke --mode execute` 已验证通过；支持 `--wait-ready/--json/--junit/--artifacts-dir` | `smoke --mode bundle/both` 依赖编译覆盖度 | CLI 增强：capabilities、自检输出、报告导出等 |
+| 服务管理 | `qf dev` 后台启动、自动端口、写 `.qf_port/.server_pid`；`qf stop` 可靠停服；readiness 探测 `/health → /healthz → /openapi.json` | 多实例/多环境管理 | 跨平台脚本统一、守护进程化 |
 | 后端 API | `/docs`、`/openapi.json` 可用；`/api/v1/execute` 可用 | `/api/v1/generate` 可生成 bundle，但可能超出编译器覆盖范围 | 版本化 API、鉴权、多租户等 |
 | 执行器（executor） | `goto` + `assert_text` 已验证可执行并产出 evidence 📁 | schema 允许更多动作，但 executor 覆盖未完全（例如 `assert_visible` 当前未支持） | 完整动作集、容错策略、并发执行、隔离与重试 |
 | 生成（generate） | 可生成多个 case 的 bundle（用于演进） | 生成的登录类自然语言步骤当前不可稳定编译 | 受控生成：按 executor/编译器能力生成“可编译步骤” |
 | 编译（compile / execute_bundle） | - | 自然语言步骤 → DSL 映射覆盖不足（登录类步骤易失败） | 规则/模板/LLM 混合编译策略；可扩展 mapping registry ⚙️ |
-| 证据产物（artifacts/evidence） | `/execute` 可生成 `artifact_dir` + 步骤截图 | bundle 失败时返回结构化 error（用于诊断） | JUnit/Allure/HTML 报告输出、归档与对比 🔍 |
-| CI 门禁 | 推荐用 `qf smoke --mode execute` 作为最小门禁 ✅ | bundle/编译链路暂不建议做硬 gate | 多层级门禁：smoke / regression / nightly |
+| 证据产物（artifacts/evidence） | `/execute` 可生成 `artifact_dir` + 步骤截图；`smoke` 可落盘 HTTP request/response 证据；输出 `summary.json`/`junit.xml` | bundle 失败时返回结构化 error（用于诊断） | JUnit/Allure/HTML 报告输出增强、归档与对比 🔍 |
+| CI 门禁 | 推荐用 `qf smoke --mode execute` 作为最小门禁 ✅（支持退出码 + summary/junit + evidence 上传） | bundle/编译链路暂不建议做硬 gate | 多层级门禁：smoke / regression / nightly |
 
 > 关键结论：当前推荐把 `smoke --mode execute` 作为**稳定最小门禁**。bundle/编译链路仍在演进阶段，不建议作为强制 gate。
 
@@ -48,7 +48,7 @@ QualityFoundry 提供统一 CLI 入口 `qf`，用于本地开发、服务管理�
 - `qf serve`：前台启动 FastAPI 服务（reload）
 - `qf dev`：后台启动服务（自动端口、写 `.qf_port/.server_pid`，日志写 `.qf_dev.log`）
 - `qf stop`：停止 `qf dev` 启动的服务
-- `qf smoke`：冒烟测试（推荐 `--mode execute`）
+- `qf smoke`：冒烟测试（推荐 `--mode execute`，支持输出门禁产物）
 - `qf generate`：生成 bundle（实验性）
 - `qf run`：本地最小示例执行（本地执行器路径）
 
@@ -60,6 +60,7 @@ QualityFoundry 提供统一 CLI 入口 `qf`，用于本地开发、服务管理�
 
 - `GET /docs`：Swagger UI
 - `GET /openapi.json`：OpenAPI 文档
+- `GET /health`：readiness（若存在则优先）
 - `POST /api/v1/execute`：执行受控 DSL actions（**已验证可用**）
 - `POST /api/v1/generate`：生成 bundle（实验性）
 - `POST /api/v1/compile_bundle` / `POST /api/v1/execute_bundle`：bundle 编译/执行（实验性）
@@ -107,25 +108,77 @@ QualityFoundry 提供统一 CLI 入口 `qf`，用于本地开发、服务管理�
 
 ---
 
-### 6) 本地开发脚本（Windows / PowerShell）🛠️
+### 6) Smoke 质量闸门（最小门禁）🚦（稳定可用 ✅）
+
+`qf smoke` 用于快速验证“服务可达 + /execute 最小链路”，并输出适合 CI 消费的门禁产物。
+
+#### 推荐命令（本地/CI 通用）
+
+```powershell
+qf smoke --mode execute --base http://127.0.0.1:8000 --wait-ready 45 --json .\artifacts\smoke\summary.json --junit .\artifacts\smoke\junit.xml --artifacts-dir .\artifacts\smoke
+````
+
+* readiness 探测顺序：`/health` → `/healthz` → `/openapi.json`
+* 默认验证：`POST /api/v1/execute`（最小动作链路：`goto + assert_text`）
+
+#### Smoke 产物结构（artifacts/smoke）
+
+运行后会生成：
+
+* `artifacts/smoke/summary.json`：门禁主契约（Contract，机读）
+* `artifacts/smoke/junit.xml`：JUnit 报告（便于 CI 展示）
+* `artifacts/smoke/smoke_YYYYMMDDTHHMMSSZ/http/*.json`：HTTP 证据（request/response）
+
+  * `execute.request.json`
+  * `execute.response.json`
+
+`summary.json` 关键字段：
+
+* `ok`：是否通过
+* `exit_code`：退出码（见下）
+* `api_prefix`：自动探测到的 API 前缀（如 `/api/v1`）
+* `artifact_dir`：服务端执行产物目录（路径标准化为 `/`）
+* `artifact_dir_raw`：服务端原始路径（Windows 可能为 `\`）
+* `smoke_artifacts_dir`：本次 smoke 的证据目录（标准化为 `/`）
+* `duration_ms`：耗时（毫秒）
+
+#### 退出码约定（Exit codes）
+
+* `0`：PASS
+* `10`：服务未在 `--wait-ready` 时间内就绪（readiness 超时/不可达）
+* `20`：bundle 模式输入不合法（例如 cases=0、case_index 越界）
+* `30`：执行失败（`execute` / `execute_bundle` 返回 ok=false）
+
+> 推荐：把 `smoke --mode execute` 作为强制 gate；bundle/编译链路先作为非阻断性检查，待覆盖稳定再升级。
+
+---
+
+### 7) 本地开发脚本（Windows / PowerShell）🛠️
 
 仓库提供了脚本以降低本地启动成本（与 CLI 行为对齐）：
 
-- `.\scripts\setup.ps1`：初始化环境（可选安装 Playwright 浏览器）
-- `.\scripts\dev.ps1`：启动服务（自动端口，并写入 `.qf_port`）
-- `.\scripts\smoke_*.ps1`：实验性的 bundle 冒烟脚本（依赖编译覆盖度）
+* `.\scripts\setup.ps1`：初始化环境（可选安装 Playwright 浏览器）
+* `.\scripts\dev.ps1`：启动服务（自动端口，并写入 `.qf_port`）
+* `.\scripts\smoke_*.ps1`：实验性的 bundle 冒烟脚本（依赖编译覆盖度）
 
 > 推荐：即使使用脚本启动服务，冒烟仍建议使用 `qf smoke --mode execute` 作为稳定门禁。
 
 ---
 
-### 7) CI（GitHub Actions）🤖（建议）
+### 8) CI（GitHub Actions）🤖（建议）
 
 当前推荐 CI 门禁用最小可执行链路：
 
-- 起服务（dev/uvicorn）
-- 跑 `qf smoke --mode execute`
-- 关服务（stop）
+* 起服务（dev/uvicorn）
+* 跑 `qf smoke --mode execute`（生成 `summary.json / junit.xml / http evidence`）
+* 上传 artifacts（便于失败定位）
+* 关服务（可选）
+
+分支保护建议（Rulesets / Branch protection）：
+
+* 对 `main` 启用 `Require status checks to pass`
+* Required checks 选择：`quality-gate / smoke`（以你的工作流/Job 命名为准）
+* 建议启用 `Require a pull request before merging`
 
 bundle/编译链路建议先作为非阻断性检查，待编译覆盖稳定后再升级为 gate。
 
@@ -135,13 +188,14 @@ bundle/编译链路建议先作为非阻断性检查，待编译覆盖稳定后�
 
 > 用于帮助理解职责边界，具体以仓库为准。
 
-- `backend/app/qualityfoundry/`
-  - `main.py`：FastAPI 入口
-  - `cli.py`：CLI 入口（qf）
-  - `models/schemas.py`：请求/响应与动作 schema
-  - `services/generation/`：生成（bundle）
-  - `services/execution/`：执行器（Playwright）
-- `scripts/`：Windows / PowerShell 工具脚本
+* `backend/app/qualityfoundry/`
+
+  * `main.py`：FastAPI 入口
+  * `cli.py`：CLI 入口（qf）
+  * `models/schemas.py`：请求/响应与动作 schema
+  * `services/generation/`：生成（bundle）
+  * `services/execution/`：执行器（Playwright）
+* `scripts/`：Windows / PowerShell 工具脚本
 
 ---
 
@@ -149,13 +203,13 @@ bundle/编译链路建议先作为非阻断性检查，待编译覆盖稳定后�
 
 ### 方式 A：Windows 一键脚本（推荐）
 
-1) 初始化环境（可选安装 Playwright 浏览器）
+1. 初始化环境（可选安装 Playwright 浏览器）
 
 ```powershell
 .\scripts\setup.ps1
 # 或者不安装浏览器（只调 API）
 .\scripts\setup.ps1 -InstallPlaywright:$false
-````
+```
 
 2. 启动服务（自动选择可用端口，并写入 `.qf_port`）
 
@@ -192,6 +246,9 @@ source .venv/bin/activate
 python -m pip install -U pip
 python -m pip install -e backend --no-cache-dir
 ```
+
+> 若你使用仓库根目录 `pyproject.toml` 进行打包安装，也可执行：
+> `python -m pip install -e .`
 
 2. 启动服务（后台推荐）
 
