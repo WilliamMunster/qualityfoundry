@@ -5,6 +5,6 @@ app = FastAPI()
 app.include_router(v1_router)
 
 
-@app.get("/health", tags=["health"])
-def health():
-    return {"ok": True, "service": "qualityfoundry"}
+@app.get("/healthz", include_in_schema=False)
+def healthz():
+    return {"ok": True}
