@@ -229,20 +229,3 @@ A：当前自然语言步骤 → DSL 的映射覆盖度不足，尤其是登录�
 ## License
 
 MIT
-
-````
-
----
-
-## 建分支 + 提交 + 推送（你直接照抄执行即可）
-
-在仓库根目录：
-
-```powershell
-cd D:\PycharmProjects\qualityfoundry
-git checkout main
-git pull
-git checkout -b docs/update-readme
-git add README.md
-git commit -m "docs: 更新README（补充前端启动与本地开发指引）"
-git push -u origin docs/update-readme
