@@ -2,9 +2,10 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链，目标是把“**最小可验证链路**”做成可本地复用、可 CI 消费、可持续演进的工程能力。
 
-当前阶段聚焦两件事：
+当前阶段聚焦三件事：
 - **最小门禁（smoke）**：服务可达 + `/execute` 最小链路可执行，并输出 CI 友好的 `summary.json / junit.xml`。
 - **证据产物（artifacts）**：把每次执行的关键证据（截图、HTTP 请求/响应等）结构化落盘，便于回溯与审计。
+- **Web 控制台（frontend）**：提供可视化入口（本地可启动），用于后续扩展管理与报告展示。
 
 > 本 README 已按仓库当前实现的**真实可运行能力**对齐：哪些已稳定可用（MVP ✅），哪些仍属实验（🧪），哪些在规划中（🗺️）。
 
@@ -22,6 +23,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 | 编译（compile / execute_bundle） | — | 自然语言步骤 → DSL 映射覆盖不足（登录类步骤易失败） | 规则/模板/LLM 混合编译；可扩展 mapping registry ⚙️ |
 | 证据产物（artifacts） | `/execute` 生成 `artifacts/run_<TS>/`（含 step 截图）；`smoke` 生成 `summary/junit` 与 HTTP 证据归档 | bundle 失败时返回结构化 error（用于诊断） | JUnit/Allure/HTML 报告增强、差异对比与归档策略 🔍 |
 | CI 门禁 | 推荐用 `qf smoke --mode execute` 作为最小门禁 ✅（退出码可做 Gate 条件） | bundle/编译链路暂不建议做硬门禁 | 多层门禁：smoke / regression / nightly |
+| Web 控制台（frontend） | — | `frontend/` 下可本地 `npm run dev` 启动（Vite），用于页面骨架与后续扩展 | 与后端 API 联调、展示门禁结果与 artifacts 浏览、可视化报告 |
 
 ---
 
@@ -42,6 +44,9 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
   - `api/`：API 路由
   - `services/`：核心服务层（generate / execute / compile 等）
   - `services/execution/executor.py`：执行器（Playwright）与产物落盘
+
+- `frontend/`
+  - Vite + React Web 控制台（本地开发运行：`npm run dev`）
 
 - `scripts/`
   - `setup.ps1`：一键环境初始化
@@ -64,19 +69,42 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 .\scripts\setup.ps1
 # 或者不安装浏览器（只调 API）
 .\scripts\setup.ps1 -InstallPlaywright:$false
-```
+````
 
-2) 启动服务（自动选择可用端口，并写入 `.qf_port/.server_pid`）
+2. 启动后端服务（自动选择可用端口，并写入 `.qf_port/.server_pid`）
 
 ```powershell
 .\scripts\dev.ps1
 ```
 
-3) 停止服务
+3. 停止后端服务
 
 ```powershell
 .\scripts\stop.ps1
 ```
+
+---
+
+## Web 控制台（前端）🖥️
+
+前端工程位于 `frontend/` 目录。
+
+### 启动开发服务器
+
+```powershell
+cd .\frontend
+npm install
+npm run dev
+```
+
+启动成功后会输出访问地址，例如：
+
+* `http://localhost:5175/`
+
+说明：
+
+* Vite 默认端口是 `5173`；如果端口被占用，会自动尝试 `5174、5175...` 并选择可用端口。
+* **请勿在仓库根目录执行 `npm run dev`**（根目录无 `package.json`）。
 
 ---
 
@@ -108,9 +136,10 @@ qf stop
 
 执行成功会返回 `artifact_dir`，并在对应目录下输出步骤证据：
 
-- 目录示例：`artifacts/run_YYYYMMDDTHHMMSSZ/`
-- 常见文件：
-  - `step_000.png / step_001.png ...`（按步骤截图 📸）
+* 目录示例：`artifacts/run_YYYYMMDDTHHMMSSZ/`
+* 常见文件：
+
+  * `step_000.png / step_001.png ...`（按步骤截图 📸）
 
 > 说明：`run_<TS>` 是“执行侧证据”；`smoke` 目录是“门禁侧报告与归档”。
 
@@ -139,26 +168,27 @@ qf smoke --mode execute --base http://127.0.0.1:8000 --wait-ready 45 `
 
 ### 产物结构（`artifacts/smoke`）
 
-- `artifacts/smoke/summary.json`：门禁主契约（Contract，机读）
-- `artifacts/smoke/junit.xml`：JUnit 报告（便于 CI 展示）
-- `artifacts/smoke/smoke_YYYYMMDDTHHMMSSZ/http/*.json`：HTTP 证据（request/response）
-  - `execute.request.json`
-  - `execute.response.json`
+* `artifacts/smoke/summary.json`：门禁主契约（Contract，机读）
+* `artifacts/smoke/junit.xml`：JUnit 报告（便于 CI 展示）
+* `artifacts/smoke/smoke_YYYYMMDDTHHMMSSZ/http/*.json`：HTTP 证据（request/response）
+
+  * `execute.request.json`
+  * `execute.response.json`
 
 ### `summary.json` 关键字段
 
-- `ok`：是否通过
-- `exit_code`：退出码（见下）
-- `api_prefix`：自动探测到的 API 前缀（如 `/api/v1`）
-- `artifact_dir`：本次 `/execute` 返回的产物目录（标准化为 `/`）
-- `artifact_dir_raw`：服务端返回的原始产物目录（Windows 可能包含 `\`）
-- `smoke_artifacts_dir`：本次 smoke 的证据目录（标准化为 `/`）
+* `ok`：是否通过
+* `exit_code`：退出码（见下）
+* `api_prefix`：自动探测到的 API 前缀（如 `/api/v1`）
+* `artifact_dir`：本次 `/execute` 返回的产物目录（标准化为 `/`）
+* `artifact_dir_raw`：服务端返回的原始产物目录（Windows 可能包含 `\`）
+* `smoke_artifacts_dir`：本次 smoke 的证据目录（标准化为 `/`）
 
 ### 退出码约定
 
-- `0`：PASS
-- `1`：FAIL（服务不可达 / execute 失败 / 内部异常等）
-- `2`：参数错误（例如未提供 `--base` 且未找到 `.qf_port`）
+* `0`：PASS
+* `1`：FAIL（服务不可达 / execute 失败 / 内部异常等）
+* `2`：参数错误（例如未提供 `--base` 且未找到 `.qf_port`）
 
 ---
 
@@ -166,17 +196,32 @@ qf smoke --mode execute --base http://127.0.0.1:8000 --wait-ready 45 `
 
 ### Required checks 配置建议
 
-- Required checks 请选择：`smoke`（GitHub Actions 的 job 名）
-- 建议只把 smoke 作为硬门禁：bundle/compile 先保持实验能力（手动触发），避免阻断合并
+* Required checks 请选择：`smoke`（GitHub Actions 的 job 名）
+* 建议只把 smoke 作为硬门禁：bundle/compile 先保持实验能力（手动触发），避免阻断合并
 
 ---
 
 ## 常见问题（FAQ）🧩
 
-### Q1：为什么 `qf smoke` 显示 PASS，但我之前看到 `summary/junit` 没有更新？
+### Q1：为什么在仓库根目录执行 `npm run dev` 会报 ENOENT（找不到 package.json）？
+
+A：根目录不是 Node 工程；前端位于 `frontend/`。请执行：
+
+```powershell
+cd .\frontend
+npm run dev
+```
+
+### Q2：Vite 提示 5173/5174 端口被占用怎么办？
+
+A：无需处理，Vite 会自动尝试下一个端口（如 5175）。访问终端输出的 `Local` 地址即可。
+
+### Q3：为什么 `qf smoke` 显示 PASS，但我之前看到 `summary/junit` 没有更新？
+
 A：已修复。现在 `qf smoke --mode execute` 即使不带参数，也会默认写入 `artifacts/smoke/summary.json` 与 `artifacts/smoke/junit.xml`，并归档 `smoke_<TS>/http` 证据。
 
-### Q2：bundle 模式为什么容易失败？
+### Q4：bundle 模式为什么容易失败？
+
 A：当前自然语言步骤 → DSL 的映射覆盖度不足，尤其是登录类步骤；属于实验能力，建议仅手动触发验证。
 
 ---
@@ -184,3 +229,20 @@ A：当前自然语言步骤 → DSL 的映射覆盖度不足，尤其是登录�
 ## License
 
 MIT
+
+````
+
+---
+
+## 建分支 + 提交 + 推送（你直接照抄执行即可）
+
+在仓库根目录：
+
+```powershell
+cd D:\PycharmProjects\qualityfoundry
+git checkout main
+git pull
+git checkout -b docs/update-readme
+git add README.md
+git commit -m "docs: 更新README（补充前端启动与本地开发指引）"
+git push -u origin docs/update-readme
