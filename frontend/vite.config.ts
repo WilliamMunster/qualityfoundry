@@ -1,11 +1,22 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-/**
- * Vite 配置（MVP）
- * - 先保持最小配置：React 插件
- * - 后续如要做同源代理（避免 CORS），可在这里加 server.proxy
- */
 export default defineConfig({
-  plugins: [react()]
+  plugins: [react()],
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("error", (err, _req, _res) => {
+            // 开发期后端 reload 会触发 ECONNRESET，这里降噪
+            if ((err as any)?.code !== "ECONNRESET") {
+              console.error("[proxy error]", err);
+            }
+          });
+        },
+      },
+    },
+  },
 });
