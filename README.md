@@ -140,7 +140,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 
 ## 快速开始（本地开发）
 
-### 方式 A：Windows 一键脚本（推荐）
+### Windows 一键脚本（推荐）
 
 1. 初始化环境（可选安装 Playwright 浏览器）
    ```powershell
