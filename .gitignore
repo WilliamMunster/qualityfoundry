@@ -20,7 +20,8 @@ venv/
 Thumbs.db
 
 # Runtime artifacts
-artifacts/
+/artifacts/
+/.server_pid
 *.log
 run_log.jsonl
 
