@@ -3,7 +3,7 @@
 AI 模型配置数据模型
 """
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, Text, JSON, Enum as SQLEnum
+from sqlalchemy import Column, String, Boolean, DateTime, JSON
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 import enum

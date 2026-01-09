@@ -13,9 +13,9 @@ from pathlib import Path
 backend_path = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_path / "app"))
 
-from qualityfoundry.database.config import engine, SessionLocal
-from qualityfoundry.database.models import Base, Requirement
-from sqlalchemy import inspect
+from qualityfoundry.database.config import engine, SessionLocal  # noqa: E402
+from qualityfoundry.database.models import Requirement  # noqa: E402
+from sqlalchemy import inspect  # noqa: E402
 
 
 def test_database_connection():
@@ -29,7 +29,7 @@ def test_database_connection():
         inspector = inspect(engine)
         tables = inspector.get_table_names()
         
-        print(f"✅ 数据库连接成功")
+        print("✅ 数据库连接成功")
         print(f"✅ 发现 {len(tables)} 个数据表:")
         for table in tables:
             print(f"   - {table}")
@@ -42,7 +42,7 @@ def test_database_connection():
             print(f"❌ 缺少数据表: {', '.join(missing_tables)}")
             return False
         else:
-            print(f"✅ 所有必要的数据表都存在")
+            print("✅ 所有必要的数据表都存在")
             return True
             
     except Exception as e:
@@ -78,7 +78,7 @@ def test_requirement_crud():
         if found:
             print(f"✅ 查询成功: {found.title}")
         else:
-            print(f"❌ 查询失败")
+            print("❌ 查询失败")
             return False
         
         # 更新需求
@@ -92,15 +92,15 @@ def test_requirement_crud():
         print("\n4. 删除需求...")
         db.delete(found)
         db.commit()
-        print(f"✅ 删除成功")
+        print("✅ 删除成功")
         
         # 验证删除
         deleted = db.query(Requirement).filter(Requirement.id == requirement.id).first()
         if deleted is None:
-            print(f"✅ 验证删除成功")
+            print("✅ 验证删除成功")
             return True
         else:
-            print(f"❌ 删除验证失败")
+            print("❌ 删除验证失败")
             return False
             
     except Exception as e:
@@ -121,16 +121,16 @@ def test_file_upload_service():
         from qualityfoundry.services.file_upload import FileUploadService
         
         service = FileUploadService()
-        print(f"✅ 文件上传服务初始化成功")
+        print("✅ 文件上传服务初始化成功")
         print(f"✅ 上传目录: {service.upload_dir}")
         print(f"✅ 支持的文件类型: {', '.join(service.allowed_extensions)}")
         print(f"✅ 最大文件大小: {service.max_file_size / 1024 / 1024:.1f} MB")
         
         # 检查上传目录是否存在
         if service.upload_dir.exists():
-            print(f"✅ 上传目录已创建")
+            print("✅ 上传目录已创建")
         else:
-            print(f"❌ 上传目录不存在")
+            print("❌ 上传目录不存在")
             return False
         
         return True

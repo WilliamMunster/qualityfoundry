@@ -37,8 +37,8 @@ class AIService:
         if not config:
             # 使用默认配置
             config = db.query(AIConfig).filter(
-                AIConfig.is_default == True,
-                AIConfig.is_active == True
+                AIConfig.is_default,
+                AIConfig.is_active
             ).first()
         
         if not config:
@@ -55,7 +55,7 @@ class AIService:
     def get_config_for_step(db: Session, step: AIStep) -> Optional[AIConfig]:
         """获取步骤绑定的配置"""
         configs = db.query(AIConfig).filter(
-            AIConfig.is_active == True
+            AIConfig.is_active
         ).all()
         
         for config in configs:

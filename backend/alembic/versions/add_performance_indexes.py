@@ -3,7 +3,6 @@
 添加常用查询字段的索引以提升性能
 """
 from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers

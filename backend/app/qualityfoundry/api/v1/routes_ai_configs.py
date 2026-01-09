@@ -27,7 +27,7 @@ def create_ai_config(config_data: AIConfigCreate, db: Session = Depends(get_db))
     """创建 AI 配置"""
     # 如果设置为默认，取消其他默认配置
     if config_data.is_default:
-        db.query(AIConfig).filter(AIConfig.is_default == True).update(
+        db.query(AIConfig).filter(AIConfig.is_default).update(
             {"is_default": False}
         )
     
@@ -96,7 +96,7 @@ def update_ai_config(
     if config_data.is_default:
         db.query(AIConfig).filter(
             AIConfig.id != config_id,
-            AIConfig.is_default == True
+            AIConfig.is_default
         ).update({"is_default": False})
     
     # 更新字段

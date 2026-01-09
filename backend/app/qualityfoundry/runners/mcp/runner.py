@@ -2,11 +2,10 @@
 
 MCP 模式执行器
 """
-import asyncio
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 from qualityfoundry.models.schemas import Action, CompiledCase
@@ -143,12 +142,12 @@ class MCPRunner:
         elif action.type == "assert_text":
             # MCP 可能需要先获取页面内容再断言
             # 这里简化处理，实际需要调用相应的 MCP 工具
-            logger.warning(f"assert_text 在 MCP 模式下需要特殊处理")
+            logger.warning("assert_text 在 MCP 模式下需要特殊处理")
             return {"status": "skipped", "reason": "not implemented in MCP mode"}
         
         elif action.type == "assert_visible":
             # 同上
-            logger.warning(f"assert_visible 在 MCP 模式下需要特殊处理")
+            logger.warning("assert_visible 在 MCP 模式下需要特殊处理")
             return {"status": "skipped", "reason": "not implemented in MCP mode"}
         
         else:

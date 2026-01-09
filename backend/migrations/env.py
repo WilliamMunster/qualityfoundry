@@ -13,10 +13,8 @@ from pathlib import Path
 backend_path = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_path / "app"))
 
-from qualityfoundry.database.models import Base
-from qualityfoundry.database import user_models
-from qualityfoundry.database import ai_config_models  # Ensure AIConfig is registered
-from qualityfoundry.database.config import DATABASE_URL
+from qualityfoundry.database.models import Base  # noqa: E402
+from qualityfoundry.database.config import DATABASE_URL  # noqa: E402
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
