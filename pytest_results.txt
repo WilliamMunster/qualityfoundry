@@ -1,0 +1,255 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.4, pytest-9.0.2, pluggy-1.6.0 -- D:\PycharmProjects\qualityfoundry\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\PycharmProjects\qualityfoundry\backend
+configfile: pyproject.toml
+plugins: anyio-4.12.0, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 67 items
+
+backend\tests\test_approvals_api.py::test_create_approval PASSED         [  1%]
+backend\tests\test_approvals_api.py::test_approve_approval PASSED        [  2%]
+backend\tests\test_approvals_api.py::test_reject_approval PASSED         [  4%]
+backend\tests\test_approvals_api.py::test_list_approvals PASSED          [  5%]
+backend\tests\test_compile_warnings.py::test_empty_step_warning PASSED   [  7%]
+backend\tests\test_compile_warnings.py::test_unsupported_step_warning PASSED [  8%]
+backend\tests\test_compile_warnings.py::test_supported_step_no_warnings PASSED [ 10%]
+backend\tests\test_compile_warnings.py::test_warning_structure PASSED    [ 11%]
+backend\tests\test_compile_warnings.py::test_warning_severity_levels PASSED [ 13%]
+backend\tests\test_compiler.py::test_compile_goto PASSED                 [ 14%]
+backend\tests\test_compiler.py::test_compile_assert_text PASSED          [ 16%]
+backend\tests\test_e2e_compile_execute.py::TestEndToEndCompileExecute::test_login_scenario_compile_to_execute PASSED [ 17%]
+backend\tests\test_e2e_compile_execute.py::TestEndToEndCompileExecute::test_simple_navigation_e2e PASSED [ 19%]
+backend\tests\test_e2e_compile_execute.py::TestEndToEndCompileExecute::test_assert_text_e2e PASSED [ 20%]
+backend\tests\test_e2e_workflow.py::test_complete_workflow_end_to_end FAILED [ 22%]
+backend\tests\test_e2e_workflow.py::test_ai_config_workflow FAILED       [ 23%]
+backend\tests\test_environments_api.py::test_create_environment PASSED   [ 25%]
+backend\tests\test_environments_api.py::test_create_duplicate_environment PASSED [ 26%]
+backend\tests\test_environments_api.py::test_list_environments PASSED    [ 28%]
+backend\tests\test_environments_api.py::test_get_environment PASSED      [ 29%]
+backend\tests\test_environments_api.py::test_update_environment PASSED   [ 31%]
+backend\tests\test_environments_api.py::test_delete_environment PASSED   [ 32%]
+backend\tests\test_environments_api.py::test_filter_active_environments PASSED [ 34%]
+backend\tests\test_executions_api.py::test_create_execution FAILED       [ 35%]
+backend\tests\test_executions_api.py::test_list_executions FAILED        [ 37%]
+backend\tests\test_executions_api.py::test_get_execution FAILED          [ 38%]
+backend\tests\test_executions_api.py::test_get_execution_status FAILED   [ 40%]
+backend\tests\test_executor_actions.py::TestExecutorActions::test_assert_visible_action PASSED [ 41%]
+backend\tests\test_executor_actions.py::TestExecutorActions::test_placeholder_locator_strategy PASSED [ 43%]
+backend\tests\test_executor_actions.py::TestExecutorActions::test_fill_with_css_selector PASSED [ 44%]
+backend\tests\test_integration.py::test_full_workflow FAILED             [ 46%]
+backend\tests\test_integration.py::test_approval_workflow FAILED         [ 47%]
+backend\tests\test_integration.py::test_environment_health_check FAILED  [ 49%]
+backend\tests\test_login_rules.py::TestLoginScenarioRules::test_input_username_variants PASSED [ 50%]
+backend\tests\test_login_rules.py::TestLoginScenarioRules::test_input_username_with_colon PASSED [ 52%]
+backend\tests\test_login_rules.py::TestLoginScenarioRules::test_input_password_variants PASSED [ 53%]
+backend\tests\test_login_rules.py::TestLoginScenarioRules::test_click_login_button_variants PASSED [ 55%]
+backend\tests\test_login_rules.py::TestLoginScenarioRules::test_click_submit_button_variants PASSED [ 56%]
+backend\tests\test_login_rules.py::TestLoginScenarioRules::test_complete_login_flow PASSED [ 58%]
+backend\tests\test_login_rules.py::TestRulePriority::test_specific_rule_over_generic PASSED [ 59%]
+backend\tests\test_requirements_api.py::test_create_requirement PASSED   [ 61%]
+backend\tests\test_requirements_api.py::test_list_requirements PASSED    [ 62%]
+backend\tests\test_requirements_api.py::test_get_requirement PASSED      [ 64%]
+backend\tests\test_requirements_api.py::test_update_requirement PASSED   [ 65%]
+backend\tests\test_requirements_api.py::test_delete_requirement PASSED   [ 67%]
+backend\tests\test_requirements_api.py::test_search_requirements PASSED  [ 68%]
+backend\tests\test_scenarios_api.py::test_generate_scenarios PASSED      [ 70%]
+backend\tests\test_scenarios_api.py::test_create_scenario PASSED         [ 71%]
+backend\tests\test_scenarios_api.py::test_list_scenarios PASSED          [ 73%]
+backend\tests\test_scenarios_api.py::test_get_scenario PASSED            [ 74%]
+backend\tests\test_scenarios_api.py::test_update_scenario PASSED         [ 76%]
+backend\tests\test_scenarios_api.py::test_delete_scenario PASSED         [ 77%]
+backend\tests\test_security.py::test_sql_injection_detection PASSED      [ 79%]
+backend\tests\test_security.py::test_xss_detection PASSED                [ 80%]
+backend\tests\test_security.py::test_safe_input PASSED                   [ 82%]
+backend\tests\test_security.py::test_security_headers FAILED             [ 83%]
+backend\tests\test_stage1.py::test_database_connection PASSED            [ 85%]
+backend\tests\test_stage1.py::test_requirement_crud PASSED               [ 86%]
+backend\tests\test_stage1.py::test_file_upload_service PASSED            [ 88%]
+backend\tests\test_stage2.py::test_approval_workflow PASSED              [ 89%]
+backend\tests\test_stage2.py::test_scenario_crud PASSED                  [ 91%]
+backend\tests\test_stage2.py::test_scenario_approval_integration PASSED  [ 92%]
+backend\tests\test_testcases_api.py::test_generate_testcases PASSED      [ 94%]
+backend\tests\test_testcases_api.py::test_create_testcase PASSED         [ 95%]
+backend\tests\test_testcases_api.py::test_list_testcases PASSED          [ 97%]
+backend\tests\test_testcases_api.py::test_update_testcase PASSED         [ 98%]
+backend\tests\test_testcases_api.py::test_delete_testcase PASSED         [100%]
+
+================================== FAILURES ===================================
+E   sqlite3.OperationalError: no such table: users
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: users
+    [SQL: SELECT users.id AS users_id, users.username AS users_username, users.password_hash AS users_password_hash, users.email AS users_email, users.full_name AS users_full_name, users.role AS users_role, users.is_active AS users_is_active, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+    FROM users 
+    WHERE users.username = ?
+     LIMIT ? OFFSET ?]
+    [parameters: ('testuser', 1, 0)]
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: users
+E   sqlite3.OperationalError: no such table: ai_configs
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: ai_configs
+    [SQL: UPDATE ai_configs SET is_default=?, updated_at=? WHERE ai_configs.is_default = 1]
+    [parameters: (0, '2026-01-09 17:23:23.848930')]
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: ai_configs
+E   fastapi.exceptions.ResponseValidationError: 2 validation errors:
+      {'type': 'missing', 'loc': ('response', 'result'), 'msg': 'Field required', 'input': <qualityfoundry.database.models.Execution object at 0x00000149993E8510>}
+      {'type': 'missing', 'loc': ('response', 'completed_at'), 'msg': 'Field required', 'input': <qualityfoundry.database.models.Execution object at 0x00000149993E8510>}
+    
+      File "D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\api\v1\routes_executions.py", line 28, in create_execution
+        POST /api/v1/executions
+D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\fastapi\routing.py:278: fastapi.exceptions.ResponseValidationError: 2 validation errors:
+E   fastapi.exceptions.ResponseValidationError: 2 validation errors:
+      {'type': 'missing', 'loc': ('response', 'result'), 'msg': 'Field required', 'input': <qualityfoundry.database.models.Execution object at 0x000001499937C110>}
+      {'type': 'missing', 'loc': ('response', 'completed_at'), 'msg': 'Field required', 'input': <qualityfoundry.database.models.Execution object at 0x000001499937C110>}
+    
+      File "D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\api\v1\routes_executions.py", line 28, in create_execution
+        POST /api/v1/executions
+D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\fastapi\routing.py:278: fastapi.exceptions.ResponseValidationError: 2 validation errors:
+E   fastapi.exceptions.ResponseValidationError: 2 validation errors:
+      {'type': 'missing', 'loc': ('response', 'result'), 'msg': 'Field required', 'input': <qualityfoundry.database.models.Execution object at 0x00000149991CC150>}
+      {'type': 'missing', 'loc': ('response', 'completed_at'), 'msg': 'Field required', 'input': <qualityfoundry.database.models.Execution object at 0x00000149991CC150>}
+    
+      File "D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\api\v1\routes_executions.py", line 28, in create_execution
+        POST /api/v1/executions
+D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\fastapi\routing.py:278: fastapi.exceptions.ResponseValidationError: 2 validation errors:
+E   fastapi.exceptions.ResponseValidationError: 2 validation errors:
+      {'type': 'missing', 'loc': ('response', 'result'), 'msg': 'Field required', 'input': <qualityfoundry.database.models.Execution object at 0x000001499A3CE6D0>}
+      {'type': 'missing', 'loc': ('response', 'completed_at'), 'msg': 'Field required', 'input': <qualityfoundry.database.models.Execution object at 0x000001499A3CE6D0>}
+    
+      File "D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\api\v1\routes_executions.py", line 28, in create_execution
+        POST /api/v1/executions
+D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\fastapi\routing.py:278: fastapi.exceptions.ResponseValidationError: 2 validation errors:
+E   sqlite3.OperationalError: no such table: requirements
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: requirements
+    [SQL: INSERT INTO requirements (id, title, content, file_path, version, status, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)]
+    [parameters: ('192cdbda6be44dbf9b36d2a496fcf08e', '用户登录功能', '实现用户登录功能，包括用户名密码验证', None, 'v1.0', 'DRAFT', 'system', '2026-01-09 17:23:33.320374', '2026-01-09 17:23:33.320374')]
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: requirements
+E   sqlite3.OperationalError: no such table: requirements
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: requirements
+    [SQL: INSERT INTO requirements (id, title, content, file_path, version, status, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)]
+    [parameters: ('d7948bc92656415ea1445049b9107d20', '测试需求', '内容', None, 'v1.0', 'DRAFT', 'system', '2026-01-09 17:23:33.665138', '2026-01-09 17:23:33.665138')]
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: requirements
+E   sqlite3.OperationalError: no such table: environments
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: environments
+    [SQL: SELECT environments.id AS environments_id, environments.name AS environments_name, environments.base_url AS environments_base_url, environments.variables AS environments_variables, environments.credentials AS environments_credentials, environments.health_check_url AS environments_health_check_url, environments.is_active AS environments_is_active, environments.created_at AS environments_created_at, environments.updated_at AS environments_updated_at 
+    FROM environments 
+    WHERE environments.name = ?
+     LIMIT ? OFFSET ?]
+    [parameters: ('dev', 1, 0)]
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: environments
+E   sqlite3.OperationalError: no such table: requirements
+
+The above exception was the direct cause of the following exception:
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: requirements
+    [SQL: SELECT count(*) AS count_1 
+    FROM (SELECT requirements.id AS requirements_id, requirements.title AS requirements_title, requirements.content AS requirements_content, requirements.file_path AS requirements_file_path, requirements.version AS requirements_version, requirements.status AS requirements_status, requirements.created_by AS requirements_created_by, requirements.created_at AS requirements_created_at, requirements.updated_at AS requirements_updated_at 
+    FROM requirements) AS anon_1]
+    (Background on this error at: https://sqlalche.me/e/20/e3q8)
+D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: requirements
+============================== warnings summary ===============================
+backend\app\qualityfoundry\models\requirement_schemas.py:52
+  D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\models\requirement_schemas.py:52: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RequirementResponse(BaseModel):
+
+backend\app\qualityfoundry\models\requirement_schemas.py:76
+  D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\models\requirement_schemas.py:76: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RequirementVersionResponse(BaseModel):
+
+backend\app\qualityfoundry\models\approval_schemas.py:49
+  D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\models\approval_schemas.py:49: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ApprovalResponse(BaseModel):
+
+backend\app\qualityfoundry\models\scenario_schemas.py:45
+  D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\models\scenario_schemas.py:45: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ScenarioResponse(BaseModel):
+
+backend\app\qualityfoundry\models\testcase_schemas.py:25
+  D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\models\testcase_schemas.py:25: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    steps: list[str] = Field(..., min_items=1)
+
+backend\app\qualityfoundry\models\testcase_schemas.py:47
+  D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\models\testcase_schemas.py:47: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TestCaseResponse(BaseModel):
+
+backend\app\qualityfoundry\models\environment_schemas.py:40
+  D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\models\environment_schemas.py:40: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class EnvironmentResponse(BaseModel):
+
+backend\app\qualityfoundry\models\execution_schemas.py:51
+  D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\models\execution_schemas.py:51: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ExecutionResponse(BaseModel):
+
+backend\app\qualityfoundry\models\user_schemas.py:28
+  D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\models\user_schemas.py:28: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class UserResponse(BaseModel):
+
+backend\app\qualityfoundry\models\ai_config_schemas.py:40
+  D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\models\ai_config_schemas.py:40: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AIConfigResponse(BaseModel):
+
+backend\app\qualityfoundry\api\v1\routes_reports.py:22
+  D:\PycharmProjects\qualityfoundry\backend\app\qualityfoundry\api\v1\routes_reports.py:22: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ReportResponse(ReportBase):
+
+tests/test_stage1.py::test_database_connection
+  D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\_pytest\python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_stage1.py::test_database_connection returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_stage1.py::test_requirement_crud
+  D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\_pytest\python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_stage1.py::test_requirement_crud returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_stage1.py::test_file_upload_service
+  D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\_pytest\python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_stage1.py::test_file_upload_service returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_stage2.py::test_approval_workflow
+  D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\_pytest\python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_stage2.py::test_approval_workflow returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_stage2.py::test_scenario_crud
+  D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\_pytest\python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_stage2.py::test_scenario_crud returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_stage2.py::test_scenario_approval_integration
+  D:\PycharmProjects\qualityfoundry\.venv\Lib\site-packages\_pytest\python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_stage2.py::test_scenario_approval_integration returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend\tests\test_e2e_workflow.py::test_complete_workflow_end_to_end
+FAILED backend\tests\test_e2e_workflow.py::test_ai_config_workflow - sqlalche...
+FAILED backend\tests\test_executions_api.py::test_create_execution - fastapi....
+FAILED backend\tests\test_executions_api.py::test_list_executions - fastapi.e...
+FAILED backend\tests\test_executions_api.py::test_get_execution - fastapi.exc...
+FAILED backend\tests\test_executions_api.py::test_get_execution_status - fast...
+FAILED backend\tests\test_integration.py::test_full_workflow - sqlalchemy.exc...
+FAILED backend\tests\test_integration.py::test_approval_workflow - sqlalchemy...
+FAILED backend\tests\test_integration.py::test_environment_health_check - sql...
+FAILED backend\tests\test_security.py::test_security_headers - sqlalchemy.exc...
+================= 10 failed, 57 passed, 17 warnings in 22.50s =================

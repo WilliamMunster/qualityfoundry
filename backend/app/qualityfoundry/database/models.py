@@ -152,8 +152,9 @@ class Execution(Base):
     environment_id = Column(UUID(as_uuid=True), ForeignKey("environments.id"), nullable=False)
     mode = Column(Enum(ExecutionMode), nullable=False, default=ExecutionMode.DSL)
     status = Column(Enum(ExecutionStatus), nullable=False, default=ExecutionStatus.PENDING)
+    result = Column(JSON, nullable=True)  # Execution result data
     started_at = Column(DateTime(timezone=True), nullable=True)
-    finished_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)  # Renamed from finished_at
     artifact_dir = Column(String(512), nullable=True)  # 证据目录
     evidence = Column(JSON, nullable=False, default=list)  # 证据列表（JSON 数组）
     error_message = Column(Text, nullable=True)
