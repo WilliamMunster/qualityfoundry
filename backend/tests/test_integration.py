@@ -2,7 +2,6 @@
 系统集成测试
 """
 import pytest
-import asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

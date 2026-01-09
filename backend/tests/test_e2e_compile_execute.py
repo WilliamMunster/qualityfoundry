@@ -74,7 +74,7 @@ class TestEndToEndCompileExecute:
         assert evidence[0].screenshot is not None
         assert Path(evidence[0].screenshot).exists()
         
-        print(f"\n✅ 端到端测试通过:")
+        print("\n✅ 端到端测试通过:")
         print(f"  编译: {step} → {actions[0]['type']}")
         print(f"  执行: ok={ok}, screenshot={evidence[0].screenshot}")
 
@@ -107,7 +107,7 @@ class TestEndToEndCompileExecute:
         assert len(evidence) == 2
         assert all(e.ok for e in evidence)
         
-        print(f"\n✅ 文本断言端到端测试通过:")
+        print("\n✅ 文本断言端到端测试通过:")
         for i, e in enumerate(evidence):
             print(f"  Step {i}: {e.action.type} - ok={e.ok}")
 

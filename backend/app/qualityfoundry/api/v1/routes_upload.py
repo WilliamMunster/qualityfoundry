@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from pathlib import Path
 from qualityfoundry.database.config import get_db
-from qualityfoundry.database.models import Requirement, Upload
+from qualityfoundry.database.models import Requirement
 from qualityfoundry.models.requirement_schemas import RequirementResponse
 from qualityfoundry.services.file_upload import file_upload_service
 

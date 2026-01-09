@@ -7,7 +7,6 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 from enum import Enum as PyEnum
-from typing import Optional
 
 from sqlalchemy import (
     Boolean,

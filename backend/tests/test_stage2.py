@@ -13,14 +13,13 @@ from pathlib import Path
 backend_path = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_path / "app"))
 
-from qualityfoundry.database.config import SessionLocal
-from qualityfoundry.database.models import (
-    Approval,
+from qualityfoundry.database.config import SessionLocal  # noqa: E402
+from qualityfoundry.database.models import (  # noqa: E402
     ApprovalStatus as DBApprovalStatus,
     Requirement,
     Scenario,
 )
-from qualityfoundry.services.approval_service import ApprovalService
+from qualityfoundry.services.approval_service import ApprovalService  # noqa: E402
 
 
 def test_approval_workflow():
@@ -85,7 +84,7 @@ def test_approval_workflow():
         
         # 5. 验证场景状态更新
         db.refresh(scenario)
-        print(f"\n5. 验证场景状态...")
+        print("\n5. 验证场景状态...")
         print(f"✅ 场景审核状态: {scenario.approval_status}")
         print(f"✅ 场景审核人: {scenario.approved_by}")
         
@@ -153,7 +152,7 @@ def test_scenario_crud():
         if found and found.title == "测试场景":
             print(f"✅ 场景查询成功: {found.title}")
         else:
-            print(f"❌ 场景查询失败")
+            print("❌ 场景查询失败")
             return False
         
         # 4. 更新场景
@@ -227,11 +226,11 @@ def test_scenario_approval_integration():
             reviewer="integration_tester",
             comment="集成测试批准"
         )
-        print(f"✅ 审核批准成功")
+        print("✅ 审核批准成功")
         
         # 3. 验证场景状态
         db.refresh(scenario)
-        print(f"\n3. 验证场景状态...")
+        print("\n3. 验证场景状态...")
         print(f"✅ 场景状态: {scenario.approval_status}")
         print(f"✅ 审核人: {scenario.approved_by}")
         

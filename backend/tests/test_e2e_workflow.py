@@ -74,7 +74,7 @@ def test_complete_workflow_end_to_end():
         }
     )
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    login_response.json()["access_token"]
     
     # 3. 创建需求
     req_response = client.post(
