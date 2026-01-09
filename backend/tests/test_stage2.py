@@ -78,7 +78,7 @@ def test_approval_workflow():
             reviewer="test_reviewer",
             comment="测试批准"
         )
-        print(f"✅ 审核批准成功")
+        print("✅ 审核批准成功")
         print(f"✅ 审核状态: {approved.status}")
         print(f"✅ 审核人: {approved.reviewer}")
         print(f"✅ 审核意见: {approved.review_comment}")
@@ -90,9 +90,9 @@ def test_approval_workflow():
         print(f"✅ 场景审核人: {scenario.approved_by}")
         
         if scenario.approval_status == DBApprovalStatus.APPROVED:
-            print(f"✅ 场景状态更新成功")
+            print("✅ 场景状态更新成功")
         else:
-            print(f"❌ 场景状态更新失败")
+            print("❌ 场景状态更新失败")
             return False
         
         # 清理
@@ -130,7 +130,7 @@ def test_scenario_crud():
         db.add(requirement)
         db.commit()
         db.refresh(requirement)
-        print(f"✅ 需求创建成功")
+        print("✅ 需求创建成功")
         
         # 2. 创建场景
         print("\n2. 创建场景...")
@@ -170,7 +170,7 @@ def test_scenario_crud():
         db.delete(found)
         db.delete(requirement)
         db.commit()
-        print(f"✅ 场景删除成功")
+        print("✅ 场景删除成功")
         
         return True
         
@@ -237,10 +237,10 @@ def test_scenario_approval_integration():
         
         if (scenario.approval_status == DBApprovalStatus.APPROVED and 
             scenario.approved_by == "integration_tester"):
-            print(f"✅ 场景审核集成成功")
+            print("✅ 场景审核集成成功")
             result = True
         else:
-            print(f"❌ 场景审核集成失败")
+            print("❌ 场景审核集成失败")
             result = False
         
         # 清理

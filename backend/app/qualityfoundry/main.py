@@ -19,3 +19,8 @@ app.include_router(v1_router)
 @app.get("/healthz", include_in_schema=False)
 def healthz():
     return {"ok": True}
+
+
+@app.get("/health", include_in_schema=False)
+def health():
+    return {"ok": True}
