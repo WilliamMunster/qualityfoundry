@@ -102,10 +102,11 @@ class Locator(BaseModel):
     """受控定位器抽象：优先稳定策略（role/label/testid），再到 text/css/xpath"""
     model_config = ConfigDict(extra="forbid")
 
-    strategy: Literal["role", "label", "text", "testid", "css", "xpath"] = "role"
+    strategy: Literal["role", "label", "text", "placeholder", "testid", "css", "xpath"] = "role"
     value: str = Field(..., min_length=1)
     role: Optional[str] = None  # when strategy == role
     exact: bool = False
+
 
 
 class ActionType(str, Enum):

@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from qualityfoundry.models.compile_schemas import CompileWarning
+
 
 # QualityFoundry - Step Compiler (Deterministic)
 #
@@ -54,24 +56,52 @@ def _action_assert_text(text: str, timeout_ms: int) -> dict[str, Any]:
     }
 
 
+def _action_fill_selector(selector: str, value: str, timeout_ms: int) -> dict[str, Any]:
+    """按 CSS 选择器填写输入框。"""
+    return {
+        "type": "fill",
+        "locator": {"strategy": "css", "value": selector},
+        "value": value,
+        "timeout_ms": timeout_ms,
+    }
+
+
+def _action_click_selector(selector: str, timeout_ms: int) -> dict[str, Any]:
+    """按 CSS 选择器点击元素。"""
+    return {
+        "type": "click",
+        "locator": {"strategy": "css", "value": selector},
+        "timeout_ms": timeout_ms,
+    }
+
+
+
 # -----------------------------
 # Compiler（规则编译）
 # -----------------------------
 
-def compile_step_to_actions(step_text: str, timeout_ms: int) -> tuple[list[dict[str, Any]], list[str]]:
+def compile_step_to_actions(step_text: str, timeout_ms: int) -> tuple[list[dict[str, Any]], list[CompileWarning]]:
     """
     将自然语言 step 编译为受控 DSL（确定性规则）。
 
     返回：
     - actions: 编译后的 DSL actions
-    - warnings: 编译告警（strict 模式由上层决定是否失败）
+    - warnings: 结构化编译警告（包含类型、严重程度、建议等）
     """
     s = (step_text or "").strip()
-    warnings: list[str] = []
+    warnings: list[CompileWarning] = []
+
 
     if not s:
-        warnings.append("步骤为空，无法编译")
+        warnings.append(CompileWarning(
+            type="empty_step",
+            severity="error",
+            message="步骤为空，无法编译",
+            suggestion="请提供有效的测试步骤描述",
+            step_text=step_text
+        ))
         return [], warnings
+
 
     # ============================================================
     # A. 英文规则（用于 CI 冒烟与通用英文步骤）
@@ -116,15 +146,47 @@ def compile_step_to_actions(step_text: str, timeout_ms: int) -> tuple[list[dict[
         value = m.group(4).strip().strip('"').strip("'")
         return [_action_fill_placeholder(placeholder, value, timeout_ms)], warnings
 
+    # B3.1) 登录场景：输入用户名（支持多种变体）
+    m = re.search(r"^(输入|填写)(用户名|账号|账户名|用户账号|username)\s*[:：]?\s*(.+)$", s, flags=re.IGNORECASE)
+    if m:
+        value = m.group(3).strip().strip('"').strip("'")
+        # 尝试多个常见选择器
+        return [_action_fill_selector('input[name="username"]', value, timeout_ms)], warnings
+
+    # B3.2) 登录场景：输入密码
+    m = re.search(r"^(输入|填写)(密码|口令|password)\s*[:：]?\s*(.+)$", s, flags=re.IGNORECASE)
+    if m:
+        value = m.group(3).strip().strip('"').strip("'")
+        return [_action_fill_selector('input[type="password"]', value, timeout_ms)], warnings
+
+    # B3.3) 登录场景：点击登录按钮（支持多种表述）
+    m = re.search(r"^(点击|单击)(登录|登入|sign in|login)(按钮)?$", s, flags=re.IGNORECASE)
+    if m:
+        # 优先尝试按钮文本匹配
+        return [_action_click_text("登录", timeout_ms)], warnings
+
+    # B3.4) 登录场景：点击提交按钮
+    m = re.search(r"^(点击|单击)(提交|确定|确认|submit)(按钮)?$", s, flags=re.IGNORECASE)
+    if m:
+        return [_action_click_selector('button[type="submit"]', timeout_ms)], warnings
+
     # B4) 断言文本出现：应看到/看到/显示
     m = re.search(r"^(应看到|看到|显示)\s*(.+)$", s)
     if m:
         text = m.group(2).strip().strip('"').strip("'")
         return [_action_assert_text(text, timeout_ms)], warnings
 
+
     # ============================================================
     # C. 兜底策略
     # ============================================================
 
-    warnings.append(f"无法编译步骤：{s}")
+    warnings.append(CompileWarning(
+        type="unsupported_step",
+        severity="error",
+        message=f"无法编译步骤：{s}",
+        suggestion="请使用支持的步骤格式，如：'打开 <URL>'、'点击 <文本>'、'在 <字段> 输入 <值>'、'看到 <文本>'",
+        step_text=step_text
+    ))
     return [], warnings
+

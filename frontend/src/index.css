@@ -1,0 +1,96 @@
+/* 科技前卫风格全局样式 */
+
+:root {
+  --primary-color: #00ffff;
+  --secondary-color: #0080ff;
+  --bg-dark: #0a0e27;
+  --bg-light: #1a1f3a;
+  --text-light: rgba(255, 255, 255, 0.9);
+  --text-dim: rgba(255, 255, 255, 0.6);
+  --border-glow: rgba(0, 255, 255, 0.3);
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-light) 100%);
+}
+
+/* Ant Design 主题覆盖 - 科技风格 */
+.ant-layout-header {
+  background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%) !important;
+  border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+  box-shadow: 0 2px 20px rgba(0, 255, 255, 0.1);
+}
+
+.ant-menu-light {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-right: 1px solid rgba(0, 255, 255, 0.1) !important;
+}
+
+.ant-menu-item {
+  color: var(--text-dim) !important;
+  transition: all 0.3s;
+}
+
+.ant-menu-item:hover {
+  color: var(--primary-color) !important;
+  background: rgba(0, 255, 255, 0.1) !important;
+}
+
+.ant-menu-item-selected {
+  background: linear-gradient(90deg, rgba(0, 255, 255, 0.2) 0%, transparent 100%) !important;
+  color: var(--primary-color) !important;
+  border-right: 3px solid var(--primary-color);
+}
+
+.ant-btn-primary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  border: none;
+  box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
+  transition: all 0.3s;
+}
+
+.ant-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(0, 255, 255, 0.5);
+}
+
+.ant-table {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.ant-table-thead > tr > th {
+  background: rgba(0, 255, 255, 0.1) !important;
+  color: var(--primary-color) !important;
+  border-bottom: 2px solid rgba(0, 255, 255, 0.3) !important;
+}
+
+.ant-card {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(0, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.ant-card-head {
+  border-bottom: 1px solid rgba(0, 255, 255, 0.2) !important;
+  background: rgba(0, 255, 255, 0.05) !important;
+}
+
+/* 动画效果 */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+  }
+}
+
+.tech-glow {
+  animation: glow 2s ease-in-out infinite;
+}
