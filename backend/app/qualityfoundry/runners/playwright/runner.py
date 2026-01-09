@@ -27,6 +27,8 @@ def _resolve_locator(page, loc: Locator):
         return page.get_by_role(role, name=loc.value if loc.role else None, exact=loc.exact)
     if loc.strategy == "label":
         return page.get_by_label(loc.value, exact=loc.exact)
+    if loc.strategy == "placeholder":
+        return page.get_by_placeholder(loc.value, exact=loc.exact)
     if loc.strategy == "testid":
         return page.get_by_test_id(loc.value)
     if loc.strategy == "css":
@@ -142,7 +144,14 @@ def _apply_action(page, action: Action) -> None:
         page.get_by_text(action.value, exact=False).wait_for(timeout=action.timeout_ms)
         return
 
-    # 5) wait（简单 sleep，单位 ms）
+    # 5) assert_visible
+    if t == ActionType.ASSERT_VISIBLE:
+        if not action.locator:
+            raise ValueError("assert_visible 缺少 locator")
+        _resolve_locator(page, action.locator).wait_for(state="visible", timeout=action.timeout_ms)
+        return
+
+    # 6) wait（简单 sleep，单位 ms）
     if t == ActionType.WAIT:
         page.wait_for_timeout(action.timeout_ms)
         return
