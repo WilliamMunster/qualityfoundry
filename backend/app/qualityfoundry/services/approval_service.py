@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
@@ -16,6 +17,7 @@ from qualityfoundry.database.models import (
     Scenario,
     TestCase,
 )
+from qualityfoundry.services.notification_service import get_notification_service
 
 
 class ApprovalService:
@@ -23,6 +25,7 @@ class ApprovalService:
     
     def __init__(self, db: Session):
         self.db = db
+        self.notification_service = get_notification_service()
     
     def create_approval(
         self,
@@ -90,6 +93,18 @@ class ApprovalService:
         self.db.commit()
         self.db.refresh(approval)
         
+        # 发送通知（异步）
+        asyncio.create_task(
+            self.notification_service.send_approval_notification(
+                event_type="approval_approved",
+                entity_type=approval.entity_type,
+                entity_id=str(approval.entity_id),
+                status="approved",
+                reviewer=reviewer,
+                comment=comment
+            )
+        )
+        
         return approval
     
     def reject(
@@ -127,6 +142,18 @@ class ApprovalService:
         
         self.db.commit()
         self.db.refresh(approval)
+        
+        # 发送通知（异步）
+        asyncio.create_task(
+            self.notification_service.send_approval_notification(
+                event_type="approval_rejected",
+                entity_type=approval.entity_type,
+                entity_id=str(approval.entity_id),
+                status="rejected",
+                reviewer=reviewer,
+                comment=comment
+            )
+        )
         
         return approval
     
