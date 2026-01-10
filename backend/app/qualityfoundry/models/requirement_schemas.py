@@ -49,6 +49,9 @@ class RequirementVersionCreate(BaseModel):
 # Response Schemas
 # ============================================================
 
+from pydantic import BaseModel, Field, field_serializer
+from datetime import timezone
+
 class RequirementResponse(BaseModel):
     """需求响应"""
     id: UUID
@@ -60,6 +63,14 @@ class RequirementResponse(BaseModel):
     created_by: str
     created_at: datetime
     updated_at: datetime
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_dt(self, dt: datetime | None, _info):
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
 
     class Config:
         from_attributes = True

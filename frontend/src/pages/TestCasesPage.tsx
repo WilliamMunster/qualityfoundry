@@ -41,7 +41,6 @@ const TestCasesPage: React.FC = () => {
   // 加载用例列表
   const loadTestcases = async () => {
     setLoading(true);
-    setLoading(true);
     try {
       const response = await axios.get("/api/v1/testcases", {
         params: {
@@ -71,6 +70,12 @@ const TestCasesPage: React.FC = () => {
   useEffect(() => {
     loadTestcases();
   }, [page, pageSize]);
+
+  // 展开弹窗时自动刷新场景列表
+  const openGenerateModal = () => {
+    loadScenarios();
+    setGenerateModalVisible(true);
+  };
 
   useEffect(() => {
     loadScenarios();
@@ -285,7 +290,7 @@ const TestCasesPage: React.FC = () => {
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          onClick={() => setGenerateModalVisible(true)}
+          onClick={openGenerateModal}
         >
           AI 生成用例
         </Button>

@@ -149,6 +149,9 @@ class StepEvidence(BaseModel):
     error: str | None = None
 
 
+from datetime import datetime, timezone
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
+
 class ExecutionResponse(BaseModel):
     """
     统一的执行返回结构（单条执行结果）。
@@ -162,6 +165,14 @@ class ExecutionResponse(BaseModel):
     finished_at: datetime | None = None
     artifact_dir: str | None = None
     evidence: list[StepEvidence] = Field(default_factory=list)
+
+    @field_serializer("started_at", "finished_at")
+    def serialize_dt(self, dt: datetime | None, _info):
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
 
 
 # 兼容旧命名：历史代码可能还在使用 ExecutionResult

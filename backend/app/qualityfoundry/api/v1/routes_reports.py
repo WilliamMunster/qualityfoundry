@@ -19,11 +19,22 @@ class ReportBase(BaseModel):
 class ReportCreate(ReportBase):
     pass
 
+from pydantic import BaseModel, field_serializer
+from datetime import timezone
+
 class ReportResponse(ReportBase):
     id: uuid.UUID
     created_at: datetime
     created_by: str
     
+    @field_serializer("created_at")
+    def serialize_dt(self, dt: datetime | None, _info):
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
+
     class Config:
         from_attributes = True
 

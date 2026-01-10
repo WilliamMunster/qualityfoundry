@@ -17,6 +17,7 @@ import {
 import { PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import axios from "axios";
+import { getRequirements, type Requirement } from "../api/requirements";
 
 interface Scenario {
   id: string;
@@ -26,11 +27,6 @@ interface Scenario {
   steps: string[];
   approval_status: string;
   created_at: string;
-}
-
-interface Requirement {
-  id: string;
-  title: string;
 }
 
 const ScenariosPage: React.FC = () => {
@@ -51,7 +47,6 @@ const ScenariosPage: React.FC = () => {
   // 加载场景列表
   const loadScenarios = async () => {
     setLoading(true);
-    setLoading(true);
     try {
       const response = await axios.get("/api/v1/scenarios", {
         params: {
@@ -71,8 +66,11 @@ const ScenariosPage: React.FC = () => {
   // 加载需求列表
   const loadRequirements = async () => {
     try {
-      const response = await axios.get("/api/v1/requirements");
-      setRequirements(response.data.items || []);
+      const data = await getRequirements({
+        page: 1,
+        page_size: 100,
+      });
+      setRequirements(data.items || []);
     } catch (error) {
       console.error("加载需求列表失败");
     }
@@ -279,7 +277,10 @@ const ScenariosPage: React.FC = () => {
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          onClick={() => setGenerateModalVisible(true)}
+          onClick={() => {
+            loadRequirements();
+            setGenerateModalVisible(true);
+          }}
         >
           AI 生成场景
         </Button>

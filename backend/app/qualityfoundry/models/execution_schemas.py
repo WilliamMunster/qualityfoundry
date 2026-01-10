@@ -48,6 +48,8 @@ class ExecutionStop(BaseModel):
 # Response Schemas
 # ============================================================
 
+from pydantic import BaseModel, Field, field_serializer
+
 class ExecutionResponse(BaseModel):
     """执行响应"""
     id: UUID
@@ -60,6 +62,15 @@ class ExecutionResponse(BaseModel):
     started_at: Optional[datetime]
     completed_at: Optional[datetime]
     created_at: datetime
+
+    @field_serializer("started_at", "completed_at", "created_at")
+    def serialize_dt(self, dt: datetime | None, _info):
+        if dt is None:
+            return None
+        # 强制添加 UTC 时区信息并格式化为带 Z 的 ISO 字符串
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
 
     class Config:
         from_attributes = True

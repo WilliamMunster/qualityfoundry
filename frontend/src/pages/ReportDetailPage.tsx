@@ -234,22 +234,44 @@ const ReportDetailPage: React.FC = () => {
       <Card title="执行日志" style={{ marginBottom: 16 }}>
         {logs.length > 0 ? (
           <Timeline>
-            {logs.map((log, index) => (
-              <Timeline.Item
-                key={index}
-                color={
-                  log.includes("失败") || log.includes("错误")
-                    ? "red"
-                    : log.includes("成功")
-                    ? "green"
-                    : "blue"
+            {logs.map((log, index) => {
+              // 尝试解析日志中的时间戳 [2026-01-10T14:05:43.123Z]
+              const match = log.match(/^\[(.*?)\] (.*)$/);
+              let displayLog = log;
+              let timestamp = "";
+
+              if (match) {
+                const ts = match[1];
+                const content = match[2];
+                try {
+                  const date = new Date(ts);
+                  if (!isNaN(date.getTime())) {
+                    timestamp = date.toLocaleTimeString();
+                    displayLog = content;
+                  }
+                } catch (e) {
+                  // 解析失败，保持原样
                 }
-              >
-                <Text style={{ fontFamily: "monospace", fontSize: 12 }}>
-                  {log}
-                </Text>
-              </Timeline.Item>
-            ))}
+              }
+
+              return (
+                <Timeline.Item
+                  key={index}
+                  label={timestamp}
+                  color={
+                    log.includes("失败") || log.includes("错误")
+                      ? "red"
+                      : log.includes("成功")
+                      ? "green"
+                      : "blue"
+                  }
+                >
+                  <Text style={{ fontFamily: "monospace", fontSize: 12 }}>
+                    {displayLog}
+                  </Text>
+                </Timeline.Item>
+              );
+            })}
           </Timeline>
         ) : (
           <Text type="secondary">暂无日志</Text>
