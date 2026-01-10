@@ -1,21 +1,32 @@
 /**
  * 需求列表页面
  */
-import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Input, message, Modal, Upload } from 'antd';
-import { PlusOutlined, UploadOutlined, SearchOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import { getRequirements, deleteRequirement, uploadRequirement, type Requirement } from '../api/requirements';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Table, Button, Space, Input, message, Modal, Upload } from "antd";
+import {
+  PlusOutlined,
+  UploadOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
+import type { ColumnsType } from "antd/es/table";
+import {
+  getRequirements,
+  deleteRequirement,
+  uploadRequirement,
+  type Requirement,
+} from "../api/requirements";
 
 const { Search } = Input;
 
 const RequirementsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState("");
 
   // 加载需求列表
   const loadRequirements = async () => {
@@ -29,7 +40,7 @@ const RequirementsPage: React.FC = () => {
       setRequirements(data.items);
       setTotal(data.total);
     } catch (error) {
-      message.error('加载需求列表失败');
+      message.error("加载需求列表失败");
     } finally {
       setLoading(false);
     }
@@ -42,15 +53,15 @@ const RequirementsPage: React.FC = () => {
   // 删除需求
   const handleDelete = (id: string) => {
     Modal.confirm({
-      title: '确认删除',
-      content: '确定要删除这个需求吗？',
+      title: "确认删除",
+      content: "确定要删除这个需求吗？",
       onOk: async () => {
         try {
           await deleteRequirement(id);
-          message.success('删除成功');
+          message.success("删除成功");
           loadRequirements();
         } catch (error) {
-          message.error('删除失败');
+          message.error("删除失败");
         }
       },
     });
@@ -60,10 +71,10 @@ const RequirementsPage: React.FC = () => {
   const handleUpload = async (file: File) => {
     try {
       await uploadRequirement(file);
-      message.success('上传成功');
+      message.success("上传成功");
       loadRequirements();
     } catch (error) {
-      message.error('上传失败');
+      message.error("上传失败");
     }
     return false; // 阻止默认上传行为
   };
@@ -71,46 +82,54 @@ const RequirementsPage: React.FC = () => {
   // 表格列定义
   const columns: ColumnsType<Requirement> = [
     {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
+      title: "ID",
+      dataIndex: "id",
+      key: "id",
       width: 100,
       ellipsis: true,
     },
     {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
+      title: "标题",
+      dataIndex: "title",
+      key: "title",
     },
     {
-      title: '版本',
-      dataIndex: 'version',
-      key: 'version',
+      title: "版本",
+      dataIndex: "version",
+      key: "version",
       width: 100,
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
+      title: "状态",
+      dataIndex: "status",
+      key: "status",
       width: 100,
     },
     {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
+      title: "创建时间",
+      dataIndex: "created_at",
+      key: "created_at",
       width: 180,
       render: (text: string) => new Date(text).toLocaleString(),
     },
     {
-      title: '操作',
-      key: 'action',
+      title: "操作",
+      key: "action",
       width: 200,
       render: (_, record) => (
         <Space size="small">
-          <Button type="link" size="small">
+          <Button
+            type="link"
+            size="small"
+            onClick={() => navigate(`/requirements/${record.id}`)}
+          >
             查看
           </Button>
-          <Button type="link" size="small">
+          <Button
+            type="link"
+            size="small"
+            onClick={() => navigate(`/requirements/${record.id}/edit`)}
+          >
             编辑
           </Button>
           <Button
@@ -128,7 +147,13 @@ const RequirementsPage: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div
+        style={{
+          marginBottom: 16,
+          display: "flex",
+          justifyContent: "space-between",
+        }}
+      >
         <Space>
           <Search
             placeholder="搜索需求"
@@ -146,7 +171,11 @@ const RequirementsPage: React.FC = () => {
           >
             <Button icon={<UploadOutlined />}>上传文档</Button>
           </Upload>
-          <Button type="primary" icon={<PlusOutlined />}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate("/requirements/new")}
+          >
             新建需求
           </Button>
         </Space>
