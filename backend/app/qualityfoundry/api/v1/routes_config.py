@@ -79,6 +79,21 @@ class NotificationConfigResponse(NotificationConfigUpdate):
     pass
 
 
+class MCPConfigUpdate(BaseModel):
+    """MCP 配置更新"""
+    mcp_enabled: bool = False
+    mcp_server_command: str = "npx"
+    mcp_server_args: str = "-y @modelcontextprotocol/server-playwright"
+    mcp_server_url: Optional[str] = None
+    mcp_max_retries: int = 3
+    mcp_timeout: int = 30
+
+
+class MCPConfigResponse(MCPConfigUpdate):
+    """MCP 配置响应"""
+    pass
+
+
 # ================== Helper Functions ==================
 
 def get_or_create_config(
@@ -230,6 +245,36 @@ def update_notification_config(
     
     # 返回更新后的配置
     return get_notification_config(db)
+
+
+@router.get("/mcp", response_model=MCPConfigResponse)
+def get_mcp_config(db: Session = Depends(get_db)):
+    """获取 MCP 配置"""
+    return MCPConfigResponse(
+        mcp_enabled=get_config_value(db, ConfigCategory.MCP, ConfigKey.MCP_ENABLED, "false") == "true",
+        mcp_server_command=get_config_value(db, ConfigCategory.MCP, ConfigKey.MCP_SERVER_COMMAND, "npx"),
+        mcp_server_args=get_config_value(db, ConfigCategory.MCP, ConfigKey.MCP_SERVER_ARGS, "-y @modelcontextprotocol/server-playwright"),
+        mcp_server_url=get_config_value(db, ConfigCategory.MCP, ConfigKey.MCP_SERVER_URL),
+        mcp_max_retries=int(get_config_value(db, ConfigCategory.MCP, ConfigKey.MCP_MAX_RETRIES, 3) or 3),
+        mcp_timeout=int(get_config_value(db, ConfigCategory.MCP, ConfigKey.MCP_TIMEOUT, 30) or 30),
+    )
+
+
+@router.put("/mcp", response_model=MCPConfigResponse)
+def update_mcp_config(
+    config: MCPConfigUpdate,
+    db: Session = Depends(get_db)
+):
+    """更新 MCP 配置"""
+    set_config_value(db, ConfigCategory.MCP, ConfigKey.MCP_ENABLED, str(config.mcp_enabled).lower(), "启用 MCP 执行模式")
+    set_config_value(db, ConfigCategory.MCP, ConfigKey.MCP_SERVER_COMMAND, config.mcp_server_command, "MCP 服务器命令")
+    set_config_value(db, ConfigCategory.MCP, ConfigKey.MCP_SERVER_ARGS, config.mcp_server_args, "MCP 服务器参数")
+    if config.mcp_server_url:
+        set_config_value(db, ConfigCategory.MCP, ConfigKey.MCP_SERVER_URL, config.mcp_server_url, "MCP 服务器 URL")
+    set_config_value(db, ConfigCategory.MCP, ConfigKey.MCP_MAX_RETRIES, str(config.mcp_max_retries), "最大重试次数")
+    set_config_value(db, ConfigCategory.MCP, ConfigKey.MCP_TIMEOUT, str(config.mcp_timeout), "超时时间（秒）")
+    
+    return get_mcp_config(db)
 
 
 @router.post("/", response_model=ConfigResponse, status_code=status.HTTP_201_CREATED)
