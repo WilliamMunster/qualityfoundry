@@ -15,6 +15,7 @@ import EnvironmentsPage from "./pages/EnvironmentsPage";
 import UsersPage from "./pages/UsersPage";
 import AIConfigsPage from "./pages/AIConfigsPage";
 import ReportDashboardPage from "./pages/ReportDashboardPage";
+import ConfigCenterPage from "./pages/ConfigCenterPage";
 
 const App: React.FC = () => {
   return (
@@ -35,6 +36,7 @@ const App: React.FC = () => {
             <Route path="users" element={<UsersPage />} />
             <Route path="ai-configs" element={<AIConfigsPage />} />
             <Route path="report-dashboard" element={<ReportDashboardPage />} />
+            <Route path="config-center" element={<ConfigCenterPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
