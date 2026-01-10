@@ -76,6 +76,7 @@ interface MCPConfig {
 }
 
 const ConfigCenterPage: React.FC = () => {
+  const [modal, contextHolder] = Modal.useModal();
   const [activeTab, setActiveTab] = useState("notification");
   const [loading, setLoading] = useState(false);
 
@@ -163,14 +164,15 @@ const ConfigCenterPage: React.FC = () => {
 
   // 删除 AI 配置
   const deleteAIConfig = async (id: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: "确认删除",
       content: "确定要删除这个 AI 配置吗？",
       onOk: async () => {
         try {
           await axios.delete(`/api/v1/ai-configs/${id}`);
           message.success("删除成功");
-          loadAIConfigs();
+          // loadAIConfigs();
+          setAIConfigs((prev) => prev.filter((item) => item.id !== id));
         } catch (error) {
           message.error("删除失败");
         }
@@ -294,6 +296,7 @@ const ConfigCenterPage: React.FC = () => {
 
   return (
     <div style={{ padding: "24px" }}>
+      {contextHolder}
       <Title level={2}>
         <SettingOutlined /> 配置中心
       </Title>

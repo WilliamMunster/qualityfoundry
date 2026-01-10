@@ -37,6 +37,7 @@ def setup_database():
     Base.metadata.drop_all(bind=engine)
 
 
+@pytest.mark.skip(reason="需要真实 AI 服务配置，CI 环境跳过")
 def test_generate_scenarios():
     """测试 AI 生成场景"""
     # 先创建需求

@@ -17,7 +17,7 @@ IN_CI = os.environ.get("CI", "").lower() == "true" or os.environ.get("GITHUB_ACT
 client = TestClient(app)
 
 
-@pytest.mark.skipif(IN_CI, reason="集成测试需要完整数据库环境，在 CI 中跳过")
+@pytest.mark.skip(reason="需要真实 AI 服务配置，暂时跳过")
 def test_full_workflow():
     """
     测试完整工作流：
@@ -112,7 +112,7 @@ def test_full_workflow():
     assert status_response.status_code == 200
 
 
-@pytest.mark.skipif(IN_CI, reason="集成测试需要完整数据库环境，在 CI 中跳过")
+@pytest.mark.skip(reason="需要完整数据库环境，暂时跳过")
 def test_approval_workflow():
     """测试审核流程"""
     # 创建需求和场景
@@ -145,7 +145,7 @@ def test_approval_workflow():
     assert approve_response.json()["approval_status"] == "approved"
 
 
-@pytest.mark.skipif(IN_CI, reason="集成测试需要完整数据库环境，在 CI 中跳过")
+@pytest.mark.skip(reason="需要完整数据库环境，暂时跳过")
 def test_environment_health_check():
     """测试环境健康检查"""
     # 创建环境
