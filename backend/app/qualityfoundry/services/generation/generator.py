@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 from typing import Optional
@@ -15,10 +16,45 @@ from qualityfoundry.models.schemas import (
     Priority,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def _uid(prefix: str) -> str:
     """生成短 ID，便于前后端/日志定位。"""
     return f"{prefix}_{uuid.uuid4().hex[:10]}"
+
+
+def validate_bundle(bundle: CaseBundle) -> tuple[bool, list[str]]:
+    """
+    验证生成的 bundle 是否合法
+    
+    Returns:
+        (is_valid, errors)
+    """
+    errors = []
+    
+    # 检查必填字段
+    if not bundle.requirement:
+        errors.append("缺少需求信息")
+    
+    if not bundle.modules:
+        errors.append("缺少模块信息")
+    
+    if not bundle.cases:
+        errors.append("缺少测试用例")
+    
+    # 检查用例完整性
+    for case in bundle.cases:
+        if not case.title:
+            errors.append(f"用例 {case.id} 缺少标题")
+        if not case.steps:
+            errors.append(f"用例 {case.id} 缺少测试步骤")
+        for i, step in enumerate(case.steps):
+            if not step.step:
+                errors.append(f"用例 {case.id} 步骤 {i+1} 缺少操作描述")
+    
+    return len(errors) == 0, errors
+
 
 
 def _extract_url_and_expect(text: str) -> tuple[Optional[str], Optional[str]]:
