@@ -10,9 +10,9 @@ import {
   CloudServerOutlined,
   PlayCircleOutlined,
   UserOutlined,
-  ThunderboltOutlined,
   LogoutOutlined,
   DashboardOutlined,
+  SettingOutlined,
 } from "@ant-design/icons";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 
@@ -66,9 +66,9 @@ const AppLayout: React.FC = () => {
       label: "用户管理",
     },
     {
-      key: "/ai-configs",
-      icon: <ThunderboltOutlined />,
-      label: "AI 配置",
+      key: "/config-center",
+      icon: <SettingOutlined />,
+      label: "配置中心",
     },
   ];
 
