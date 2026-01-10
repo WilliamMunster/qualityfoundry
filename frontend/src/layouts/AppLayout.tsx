@@ -10,7 +10,6 @@ import {
   CloudServerOutlined,
   PlayCircleOutlined,
   UserOutlined,
-  ThunderboltOutlined,
   LogoutOutlined,
   DashboardOutlined,
   SettingOutlined,
@@ -65,11 +64,6 @@ const AppLayout: React.FC = () => {
       key: "/users",
       icon: <UserOutlined />,
       label: "用户管理",
-    },
-    {
-      key: "/ai-configs",
-      icon: <ThunderboltOutlined />,
-      label: "AI 配置",
     },
     {
       key: "/config-center",
