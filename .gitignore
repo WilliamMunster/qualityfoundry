@@ -35,6 +35,14 @@ run_log.jsonl
 *.sqlite
 *.sqlite3
 
+# Sensitive files / Keys (NEVER commit!)
+.encryption_key
+*.key
+*.pem
+*.p12
+secrets.json
+credentials.json
+
 # Playwright traces/videos (if you add later)
 test-results/
 playwright-report/# Node / Frontend
