@@ -10,18 +10,16 @@ from uuid import uuid4
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from qualityfoundry.database.models import (
-    Base, Requirement, Scenario, TestCase, Environment, Execution,
+    Requirement, Scenario, TestCase, Environment, Execution,
     Approval, ApprovalStatus, ExecutionMode, RequirementStatus
 )
 from qualityfoundry.database.user_models import User
 from qualityfoundry.database.ai_config_models import AIConfig
 
 # 使用应用统一的数据库配置
-from qualityfoundry.database.config import engine, SessionLocal
+from qualityfoundry.database.config import SessionLocal
 
 
 def seed_all():
@@ -73,10 +71,10 @@ def seed_all():
                     title=f"场景 {i+1}.{j+1}: 用户{['登录', '注册', '查询', '更新', '删除', '导出'][j % 6]}功能",
                     description=f"验证需求 {i+1} 的第 {j+1} 个业务流程",
                     steps=[
-                        f"步骤1: 打开系统页面",
-                        f"步骤2: 输入测试数据",
-                        f"步骤3: 点击操作按钮",
-                        f"步骤4: 验证返回结果"
+                        "步骤1: 打开系统页面",
+                        "步骤2: 输入测试数据",
+                        "步骤3: 点击操作按钮",
+                        "步骤4: 验证返回结果"
                     ],
                     approval_status=ApprovalStatus.PENDING if j == 0 else ApprovalStatus.APPROVED,
                     created_at=datetime.now(timezone.utc)
@@ -95,10 +93,10 @@ def seed_all():
                     scenario_id=scenario.id,
                     title=f"用例 {i+1}.{j+1}: {['正向', '异常', '边界', '性能'][j % 4]}测试",
                     steps=[
-                        f"前置条件: 系统正常运行",
-                        f"操作步骤1: 执行测试操作",
-                        f"操作步骤2: 验证系统响应",
-                        f"预期结果: 符合业务规则"
+                        "前置条件: 系统正常运行",
+                        "操作步骤1: 执行测试操作",
+                        "操作步骤2: 验证系统响应",
+                        "预期结果: 符合业务规则"
                     ],
                     approval_status=ApprovalStatus.PENDING if j == 0 else ApprovalStatus.APPROVED,
                     created_at=datetime.now(timezone.utc)

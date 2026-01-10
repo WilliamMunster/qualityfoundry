@@ -3,7 +3,7 @@
 执行管理 API 路由
 """
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -24,7 +24,6 @@ from qualityfoundry.models.execution_schemas import (
 )
 from qualityfoundry.services.execution.async_executor import (
     get_task_manager,
-    TaskStatus,
 )
 
 router = APIRouter(prefix="/executions", tags=["executions"])
