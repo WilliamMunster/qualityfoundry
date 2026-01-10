@@ -8,13 +8,15 @@ import zhCN from "antd/locale/zh_CN";
 import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import RequirementsPage from "./pages/RequirementsPage";
+import RequirementDetailPage from "./pages/RequirementDetailPage";
+import RequirementEditPage from "./pages/RequirementEditPage";
 import ScenariosPage from "./pages/ScenariosPage";
 import TestCasesPage from "./pages/TestCasesPage";
 import ExecutionsPage from "./pages/ExecutionsPage";
 import EnvironmentsPage from "./pages/EnvironmentsPage";
 import UsersPage from "./pages/UsersPage";
-import AIConfigsPage from "./pages/AIConfigsPage";
 import ReportDashboardPage from "./pages/ReportDashboardPage";
+import ConfigCenterPage from "./pages/ConfigCenterPage";
 
 const App: React.FC = () => {
   return (
@@ -28,13 +30,22 @@ const App: React.FC = () => {
               element={<Navigate to="/report-dashboard" replace />}
             />
             <Route path="requirements" element={<RequirementsPage />} />
+            <Route path="requirements/new" element={<RequirementEditPage />} />
+            <Route
+              path="requirements/:id"
+              element={<RequirementDetailPage />}
+            />
+            <Route
+              path="requirements/:id/edit"
+              element={<RequirementEditPage />}
+            />
             <Route path="scenarios" element={<ScenariosPage />} />
             <Route path="testcases" element={<TestCasesPage />} />
             <Route path="environments" element={<EnvironmentsPage />} />
             <Route path="executions" element={<ExecutionsPage />} />
             <Route path="users" element={<UsersPage />} />
-            <Route path="ai-configs" element={<AIConfigsPage />} />
             <Route path="report-dashboard" element={<ReportDashboardPage />} />
+            <Route path="config-center" element={<ConfigCenterPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
