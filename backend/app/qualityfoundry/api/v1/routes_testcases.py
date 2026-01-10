@@ -12,6 +12,7 @@ from qualityfoundry.database.config import get_db
 from qualityfoundry.database.models import (
     ApprovalStatus as DBApprovalStatus,
     TestCase,
+    Scenario,
 )
 from qualityfoundry.models.testcase_schemas import (
     TestCaseCreate,
@@ -35,32 +36,114 @@ async def generate_testcases(
     
     根据场景自动生成测试用例
     """
-    # TODO: 集成 AI 生成服务
-    # 目前返回示例用例
+    # 1. 获取场景
+    scenario = db.query(Scenario).filter(Scenario.id == req.scenario_id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="场景未找到")
     
-    testcase = TestCase(
-        scenario_id=req.scenario_id,
-        title="示例用例：用户登录成功",
-        preconditions=["用户已注册", "用户未登录"],
-        steps=["打开登录页面", "输入正确的用户名和密码", "点击登录按钮"],
-        expected_results=["跳转到首页", "显示用户信息"],
-        approval_status=DBApprovalStatus.APPROVED if req.auto_approve else DBApprovalStatus.PENDING,
-        version="v1.0"
-    )
+    # 2. 调用 AI 服务
+    from qualityfoundry.services.ai_service import AIService, TESTCASE_GENERATION_PROMPT
+    from qualityfoundry.database.ai_config_models import AIStep
+    import json
+    import traceback
     
-    db.add(testcase)
-    db.commit()
-    db.refresh(testcase)
-    
-    # 如果不是自动批准，创建审核记录
-    if not req.auto_approve:
-        approval_service = ApprovalService(db)
-        approval_service.create_approval(
-            entity_type="testcase",
-            entity_id=testcase.id
+    try:
+        # 构建场景内容
+        scenario_content = f"标题: {scenario.title}\n描述: {scenario.description or '无'}\n步骤:\n"
+        for i, step in enumerate(scenario.steps or [], 1):
+            scenario_content += f"{i}. {step}\n"
+        
+        # 构建提示词
+        prompt = TESTCASE_GENERATION_PROMPT.format(scenario=scenario_content)
+        
+        # 调用 AI
+        response_content = await AIService.call_ai(
+            db=db,
+            step=AIStep.TESTCASE_GENERATION,
+            prompt=prompt
         )
-    
-    return [testcase]
+        
+        # 清理 Markdown 代码块标记
+        cleaned_content = response_content.strip()
+        if cleaned_content.startswith("```json"):
+            cleaned_content = cleaned_content[7:]
+        if cleaned_content.startswith("```"):
+            cleaned_content = cleaned_content[3:]
+        if cleaned_content.endswith("```"):
+            cleaned_content = cleaned_content[:-3]
+            
+        testcases_data = json.loads(cleaned_content)
+        
+        # 3. 保存用例
+        created_testcases = []
+        for item in testcases_data:
+            # 数据清洗
+            title = str(item.get("title", "未命名用例"))
+            
+            raw_preconditions = item.get("preconditions", [])
+            if isinstance(raw_preconditions, str):
+                preconditions = [s.strip() for s in raw_preconditions.split('\n') if s.strip()]
+            elif isinstance(raw_preconditions, list):
+                preconditions = [str(s) for s in raw_preconditions]
+            else:
+                preconditions = []
+            
+            raw_steps = item.get("steps", [])
+            if isinstance(raw_steps, str):
+                steps = [s.strip() for s in raw_steps.split('\n') if s.strip()]
+            elif isinstance(raw_steps, list):
+                # steps 可能是 [{"step": "...", "expected": "..."}] 格式
+                steps = []
+                for s in raw_steps:
+                    if isinstance(s, dict):
+                        steps.append(f"{s.get('step', '')} -> 预期: {s.get('expected', '')}")
+                    else:
+                        steps.append(str(s))
+            else:
+                steps = []
+            
+            # expected_results 可能不存在，从 steps 中提取
+            raw_expected = item.get("expected_results", [])
+            if isinstance(raw_expected, str):
+                expected_results = [s.strip() for s in raw_expected.split('\n') if s.strip()]
+            elif isinstance(raw_expected, list):
+                expected_results = [str(s) for s in raw_expected]
+            else:
+                expected_results = []
+            
+            testcase = TestCase(
+                scenario_id=req.scenario_id,
+                title=title,
+                preconditions=preconditions,
+                steps=steps,
+                expected_results=expected_results,
+                approval_status=DBApprovalStatus.APPROVED if req.auto_approve else DBApprovalStatus.PENDING,
+                version="v1.0"
+            )
+            db.add(testcase)
+            created_testcases.append(testcase)
+            
+        db.commit()
+        
+        for tc in created_testcases:
+            db.refresh(tc)
+            
+            # 如果不是自动批准，创建审核记录
+            if not req.auto_approve:
+                approval_service = ApprovalService(db)
+                approval_service.create_approval(
+                    entity_type="testcase",
+                    entity_id=tc.id
+                )
+        
+        return created_testcases
+        
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"AI 响应不是有效的 JSON 格式: {str(e)}")
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        print(f"AI TestCase Generation Error: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"AI 生成用例失败: {str(e)}")
 
 
 @router.post("", response_model=TestCaseResponse, status_code=201)

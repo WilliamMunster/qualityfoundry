@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from qualityfoundry.api.v1.routes import router as v1_router
+from qualityfoundry.logging_config import setup_logging
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -15,12 +16,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = "default-src 'self'"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "img-src 'self' data: https://fastapi.tiangolo.com;"
+        )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         return response
 
 
 app = FastAPI()
+
+# 配置日志
+setup_logging()
 
 # 安全响应头中间件
 app.add_middleware(SecurityHeadersMiddleware)
