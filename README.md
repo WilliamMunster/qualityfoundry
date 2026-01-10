@@ -163,6 +163,18 @@ MIT License
 
 ## 更新日志
 
+### V0.5.1 (2026-01-10)
+
+- ✅ 实现前端完整 CRUD 交互功能
+- ✅ 需求管理：详情页、编辑页、查看/编辑/新建/删除按钮
+- ✅ 场景管理：数据加载、AI 生成弹窗、审核、删除
+- ✅ 用例管理：数据加载、AI 生成弹窗、执行、审核、删除
+- ✅ 执行管理：数据加载、环境筛选、查看详情/日志、停止
+- ✅ 修复异步通知处理（asyncio 兼容）
+- ✅ 添加安全头中间件
+- ✅ 创建数据播种脚本（`seed_data.py`）
+- ✅ 修复数据库迁移（添加 result/completed_at 列）
+
 ### V0.5 (2026-01-10)
 
 - ✅ 修复前端菜单顺序
@@ -177,3 +189,21 @@ MIT License
 - ✅ 完成阶段 1-3 核心功能
 - ✅ 32 个管理 API 接口
 - ✅ 完整的需求 → 场景 → 用例 → 执行链路
+
+---
+
+## 开发工具
+
+### 数据播种
+
+```powershell
+cd backend/app
+python seed_data.py
+```
+
+### 清理数据库
+
+```powershell
+Remove-Item qualityfoundry.db -Force
+cd backend && alembic upgrade head
+```
