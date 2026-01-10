@@ -29,6 +29,7 @@ const RequirementDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const [requirement, setRequirement] = useState<Requirement | null>(null);
   const [loading, setLoading] = useState(true);
+  const [modal, contextHolder] = Modal.useModal();
 
   useEffect(() => {
     if (id) {
@@ -50,7 +51,7 @@ const RequirementDetailPage: React.FC = () => {
   };
 
   const handleDelete = () => {
-    Modal.confirm({
+    modal.confirm({
       title: "确认删除",
       content: "确定要删除这个需求吗？此操作不可恢复。",
       okType: "danger",
@@ -96,6 +97,7 @@ const RequirementDetailPage: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
+      {contextHolder}
       <div style={{ marginBottom: 16 }}>
         <Button
           icon={<ArrowLeftOutlined />}

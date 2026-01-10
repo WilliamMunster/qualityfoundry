@@ -41,13 +41,26 @@ const ScenariosPage: React.FC = () => {
   const [generateModalVisible, setGenerateModalVisible] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [selectedRequirement, setSelectedRequirement] = useState<string>("");
+  // 分页状态
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+
+  const [modal, contextHolder] = Modal.useModal();
 
   // 加载场景列表
   const loadScenarios = async () => {
     setLoading(true);
+    setLoading(true);
     try {
-      const response = await axios.get("/api/v1/scenarios");
+      const response = await axios.get("/api/v1/scenarios", {
+        params: {
+          page,
+          page_size: pageSize,
+        },
+      });
       setScenarios(response.data.items || []);
+      setTotal(response.data.total || 0);
     } catch (error) {
       message.error("加载场景列表失败");
     } finally {
@@ -67,19 +80,27 @@ const ScenariosPage: React.FC = () => {
 
   useEffect(() => {
     loadScenarios();
+  }, [page, pageSize]);
+
+  useEffect(() => {
     loadRequirements();
   }, []);
 
   // 审核场景
   const handleApprove = (id: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: "确认审核",
       content: "确定要批准这个场景吗？",
       onOk: async () => {
         try {
           await axios.post(`/api/v1/scenarios/${id}/approve`);
           message.success("审核通过");
-          loadScenarios();
+          // loadScenarios();
+          setScenarios((prev) =>
+            prev.map((item) =>
+              item.id === id ? { ...item, approval_status: "approved" } : item
+            )
+          );
         } catch (error) {
           message.error("审核失败");
         }
@@ -88,36 +109,51 @@ const ScenariosPage: React.FC = () => {
   };
 
   // AI 生成场景
+  // AI 生成场景
   const handleGenerate = async () => {
     if (!selectedRequirement) {
       message.warning("请选择需求");
       return;
     }
     setGenerating(true);
+    // 显示持久化 loading
+    const hideLoading = message.loading(
+      "AI 正在深度思考并生成场景中 (预计 30-60 秒)...",
+      0
+    );
+
     try {
-      await axios.post("/api/v1/scenarios/generate", {
+      const response = await axios.post("/api/v1/scenarios/generate", {
         requirement_id: selectedRequirement,
       });
-      message.success("场景生成成功");
+
+      const count = response.data?.length || 0;
+      message.success(`成功生成 ${count} 个场景`);
       setGenerateModalVisible(false);
+      setSelectedRequirement(""); // 清空选择
+      setPage(1); // 重置到第一页
       loadScenarios();
     } catch (error) {
-      message.error("场景生成失败");
+      console.error(error);
+      message.error("场景生成失败，请检查后端服务");
     } finally {
+      hideLoading(); // 关闭 loading
       setGenerating(false);
     }
   };
 
   // 删除场景
   const handleDelete = (id: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: "确认删除",
       content: "确定要删除这个场景吗？",
       onOk: async () => {
         try {
           await axios.delete(`/api/v1/scenarios/${id}`);
           message.success("删除成功");
-          loadScenarios();
+          // loadScenarios();
+          setScenarios((prev) => prev.filter((item) => item.id !== id));
+          setTotal((prev) => prev - 1);
         } catch (error) {
           message.error("删除失败");
         }
@@ -176,7 +212,7 @@ const ScenariosPage: React.FC = () => {
             type="link"
             size="small"
             onClick={() =>
-              Modal.info({
+              modal.info({
                 title: record.title,
                 width: 600,
                 content: (
@@ -231,6 +267,7 @@ const ScenariosPage: React.FC = () => {
 
   return (
     <div>
+      {contextHolder}
       <div
         style={{
           marginBottom: 16,
@@ -253,6 +290,17 @@ const ScenariosPage: React.FC = () => {
         dataSource={scenarios}
         rowKey="id"
         loading={loading}
+        pagination={{
+          current: page,
+          pageSize: pageSize,
+          total: total,
+          showSizeChanger: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPage(page);
+            setPageSize(pageSize);
+          },
+        }}
       />
 
       <Modal
@@ -261,6 +309,9 @@ const ScenariosPage: React.FC = () => {
         onOk={handleGenerate}
         onCancel={() => setGenerateModalVisible(false)}
         confirmLoading={generating}
+        okButtonProps={{ disabled: !selectedRequirement }}
+        okText="开始生成"
+        cancelText="取消"
       >
         <Form layout="vertical">
           <Form.Item label="选择需求" required>

@@ -11,10 +11,11 @@ from qualityfoundry.database.config import Base, get_db
 from qualityfoundry.database import models  # noqa: F401 - 注册主模型
 from qualityfoundry.database import user_models  # noqa: F401 - 注册用户模型
 from qualityfoundry.database import ai_config_models  # noqa: F401 - 注册 AI 配置模型
+from qualityfoundry.database import system_config_models  # noqa: F401 - 注册系统配置模型
 from qualityfoundry.main import app
 
-# 使用内存数据库进行测试
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+# 使用文件数据库进行测试（内存数据库有连接隔离问题）
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

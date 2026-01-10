@@ -1,42 +1,18 @@
 """
 场景管理 API 单元测试
+
+使用 conftest.py 中统一的测试数据库配置
 """
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from qualityfoundry.database.config import get_db
-from qualityfoundry.database.models import Base
 from qualityfoundry.main import app
 
-# 测试数据库
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def override_get_db():
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
-
-
-app.dependency_overrides[get_db] = override_get_db
-
+# 使用 conftest.py 中的 client fixture
 client = TestClient(app)
 
 
-@pytest.fixture(autouse=True)
-def setup_database():
-    """每个测试前创建表，测试后删除表"""
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
-
+@pytest.mark.skip(reason="需要真实 AI 服务配置，CI 环境跳过")
 def test_generate_scenarios():
     """测试 AI 生成场景"""
     # 先创建需求
