@@ -59,10 +59,10 @@ def test_safe_input():
         assert result == safe_input
 
 
-@pytest.mark.skipif(IN_CI, reason="安全头测试需要完整服务环境，在 CI 中跳过")
 def test_security_headers():
     """测试安全响应头"""
-    response = client.get("/api/v1/requirements")
+    # 使用 /health 端点测试，避免数据库依赖
+    response = client.get("/health")
     
     # 检查安全响应头
     assert "X-Content-Type-Options" in response.headers
