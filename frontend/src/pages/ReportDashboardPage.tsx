@@ -2,50 +2,121 @@
  * 报告仪表板页面
  */
 import React, { useEffect, useState } from "react";
-import { Card, Row, Col, Statistic, Table } from "antd";
+import { useNavigate } from "react-router-dom";
+import { Card, Row, Col, Statistic, Table, Tag, Button } from "antd";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   SyncOutlined,
   ClockCircleOutlined,
+  EyeOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 
+interface Execution {
+  id: string;
+  testcase_id: string;
+  status: string;
+  mode: string;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
 const ReportDashboardPage: React.FC = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     total: 0,
     success: 0,
     failed: 0,
     running: 0,
   });
+  const [recentExecutions, setRecentExecutions] = useState<Execution[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        const response = await axios.get(
-          "http://localhost:8000/api/v1/reports/dashboard-stats"
-        );
-        setStats(response.data);
+        const [statsRes, execRes] = await Promise.all([
+          axios.get("/api/v1/reports/dashboard-stats"),
+          axios.get("/api/v1/executions", {
+            params: { page: 1, page_size: 10 },
+          }),
+        ]);
+        setStats(statsRes.data);
+        setRecentExecutions(execRes.data.items || []);
       } catch (error) {
-        console.error("Failed to fetch stats:", error);
+        console.error("Failed to fetch data:", error);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchStats();
+    fetchData();
   }, []);
 
-  interface Execution {
-    id: string;
-    testcase: string;
-    status: string;
-    time: string;
-  }
+  const getStatusTag = (status: string) => {
+    const config: Record<string, { color: string; icon: React.ReactNode }> = {
+      pending: { color: "default", icon: <ClockCircleOutlined /> },
+      running: { color: "processing", icon: <SyncOutlined spin /> },
+      success: { color: "success", icon: <CheckCircleOutlined /> },
+      failed: { color: "error", icon: <CloseCircleOutlined /> },
+      stopped: { color: "warning", icon: <ClockCircleOutlined /> },
+    };
+    const cfg = config[status] || config.pending;
+    return (
+      <Tag color={cfg.color} icon={cfg.icon}>
+        {status.toUpperCase()}
+      </Tag>
+    );
+  };
 
-  const recentExecutions: Execution[] = [
-    // TODO: 从 API 加载最近执行记录
+  const columns = [
+    {
+      title: "执行ID",
+      dataIndex: "id",
+      key: "id",
+      width: 100,
+      ellipsis: true,
+    },
+    {
+      title: "状态",
+      dataIndex: "status",
+      key: "status",
+      width: 120,
+      render: (status: string) => getStatusTag(status),
+    },
+    {
+      title: "模式",
+      dataIndex: "mode",
+      key: "mode",
+      width: 80,
+      render: (mode: string) => <Tag>{mode?.toUpperCase()}</Tag>,
+    },
+    {
+      title: "创建时间",
+      dataIndex: "created_at",
+      key: "created_at",
+      render: (time: string) => new Date(time).toLocaleString(),
+    },
+    {
+      title: "操作",
+      key: "action",
+      width: 100,
+      render: (_: any, record: Execution) => (
+        <Button
+          type="link"
+          icon={<EyeOutlined />}
+          onClick={() => navigate(`/reports/${record.id}`)}
+        >
+          查看
+        </Button>
+      ),
+    },
   ];
 
   return (
-    <div>
+    <div style={{ padding: 24 }}>
       <h2>测试报告仪表板</h2>
 
       <Row gutter={16} style={{ marginTop: 24 }}>
@@ -90,15 +161,20 @@ const ReportDashboardPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Card title="最近执行记录" style={{ marginTop: 24 }}>
+      <Card
+        title="最近执行记录"
+        style={{ marginTop: 24 }}
+        extra={
+          <Button onClick={() => navigate("/executions")}>查看全部</Button>
+        }
+      >
         <Table
           dataSource={recentExecutions}
-          columns={[
-            { title: "执行ID", dataIndex: "id", key: "id" },
-            { title: "用例", dataIndex: "testcase", key: "testcase" },
-            { title: "状态", dataIndex: "status", key: "status" },
-            { title: "执行时间", dataIndex: "time", key: "time" },
-          ]}
+          columns={columns}
+          rowKey="id"
+          loading={loading}
+          pagination={false}
+          size="small"
         />
       </Card>
     </div>

@@ -28,6 +28,8 @@ const RequirementsPage: React.FC = () => {
   const [pageSize, setPageSize] = useState(20);
   const [searchText, setSearchText] = useState("");
 
+  const [modal, contextHolder] = Modal.useModal();
+
   // 加载需求列表
   const loadRequirements = async () => {
     setLoading(true);
@@ -52,14 +54,15 @@ const RequirementsPage: React.FC = () => {
 
   // 删除需求
   const handleDelete = (id: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: "确认删除",
       content: "确定要删除这个需求吗？",
       onOk: async () => {
         try {
           await deleteRequirement(id);
           message.success("删除成功");
-          loadRequirements();
+          setRequirements((prev) => prev.filter((item) => item.id !== id));
+          setTotal((prev) => prev - 1);
         } catch (error) {
           message.error("删除失败");
         }
@@ -92,6 +95,9 @@ const RequirementsPage: React.FC = () => {
       title: "标题",
       dataIndex: "title",
       key: "title",
+      render: (text: string, record: Requirement) => (
+        <a onClick={() => navigate(`/requirements/${record.id}`)}>{text}</a>
+      ),
     },
     {
       title: "版本",
@@ -147,6 +153,7 @@ const RequirementsPage: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
+      {contextHolder}
       <div
         style={{
           marginBottom: 16,

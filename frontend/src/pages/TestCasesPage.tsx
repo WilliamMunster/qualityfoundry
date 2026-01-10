@@ -31,13 +31,26 @@ const TestCasesPage: React.FC = () => {
   const [generateModalVisible, setGenerateModalVisible] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState<string>("");
+  // 分页状态
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+
+  const [modal, contextHolder] = Modal.useModal();
 
   // 加载用例列表
   const loadTestcases = async () => {
     setLoading(true);
+    setLoading(true);
     try {
-      const response = await axios.get("/api/v1/testcases");
+      const response = await axios.get("/api/v1/testcases", {
+        params: {
+          page,
+          page_size: pageSize,
+        },
+      });
       setTestcases(response.data.items || []);
+      setTotal(response.data.total || 0);
     } catch (error) {
       message.error("加载用例列表失败");
     } finally {
@@ -57,6 +70,9 @@ const TestCasesPage: React.FC = () => {
 
   useEffect(() => {
     loadTestcases();
+  }, [page, pageSize]);
+
+  useEffect(() => {
     loadScenarios();
 
     // 如果 URL 中有 scenario_id，自动打开生成弹窗
@@ -69,14 +85,19 @@ const TestCasesPage: React.FC = () => {
 
   // 审核用例
   const handleApprove = (id: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: "确认审核",
       content: "确定要批准这个用例吗？",
       onOk: async () => {
         try {
           await axios.post(`/api/v1/testcases/${id}/approve`);
           message.success("审核通过");
-          loadTestcases();
+          // loadTestcases();
+          setTestcases((prev) =>
+            prev.map((item) =>
+              item.id === id ? { ...item, approval_status: "approved" } : item
+            )
+          );
         } catch (error) {
           message.error("审核失败");
         }
@@ -91,16 +112,27 @@ const TestCasesPage: React.FC = () => {
       return;
     }
     setGenerating(true);
+    // 显示持久化 loading
+    const hideLoading = message.loading(
+      "AI 正在分析场景并拆解测试步骤 (预计 20-40 秒)...",
+      0
+    );
+
     try {
-      await axios.post("/api/v1/testcases/generate", {
+      const response = await axios.post("/api/v1/testcases/generate", {
         scenario_id: selectedScenario,
       });
-      message.success("用例生成成功");
+      const count = response.data?.length || 0;
+      message.success(`成功生成 ${count} 条测试用例`);
       setGenerateModalVisible(false);
+      setSelectedScenario(""); // 清空选择
+      setPage(1); // 重置到第一页
       loadTestcases();
     } catch (error) {
+      console.error(error);
       message.error("用例生成失败");
     } finally {
+      hideLoading();
       setGenerating(false);
     }
   };
@@ -121,14 +153,17 @@ const TestCasesPage: React.FC = () => {
 
   // 删除用例
   const handleDelete = (id: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: "确认删除",
       content: "确定要删除这个用例吗？",
       onOk: async () => {
         try {
           await axios.delete(`/api/v1/testcases/${id}`);
           message.success("删除成功");
-          loadTestcases();
+          // loadTestcases();
+          // loadTestcases();
+          setTestcases((prev) => prev.filter((item) => item.id !== id));
+          setTotal((prev) => prev - 1);
         } catch (error) {
           message.error("删除失败");
         }
@@ -187,7 +222,7 @@ const TestCasesPage: React.FC = () => {
             type="link"
             size="small"
             onClick={() =>
-              Modal.info({
+              modal.info({
                 title: record.title,
                 width: 600,
                 content: (
@@ -238,6 +273,7 @@ const TestCasesPage: React.FC = () => {
 
   return (
     <div>
+      {contextHolder}
       <div
         style={{
           marginBottom: 16,
@@ -260,6 +296,17 @@ const TestCasesPage: React.FC = () => {
         dataSource={testcases}
         rowKey="id"
         loading={loading}
+        pagination={{
+          current: page,
+          pageSize: pageSize,
+          total: total,
+          showSizeChanger: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPage(page);
+            setPageSize(pageSize);
+          },
+        }}
       />
 
       <Modal
@@ -268,6 +315,9 @@ const TestCasesPage: React.FC = () => {
         onOk={handleGenerate}
         onCancel={() => setGenerateModalVisible(false)}
         confirmLoading={generating}
+        okButtonProps={{ disabled: !selectedScenario }}
+        okText="开始生成"
+        cancelText="取消"
       >
         <Form layout="vertical">
           <Form.Item label="选择场景" required>

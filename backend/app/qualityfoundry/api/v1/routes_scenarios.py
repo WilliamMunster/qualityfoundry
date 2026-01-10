@@ -12,6 +12,7 @@ from qualityfoundry.database.config import get_db
 from qualityfoundry.database.models import (
     ApprovalStatus as DBApprovalStatus,
     Scenario,
+    Requirement,
 )
 from qualityfoundry.models.scenario_schemas import (
     ScenarioCreate,
@@ -35,31 +36,118 @@ async def generate_scenarios(
     
     根据需求文档自动生成测试场景
     """
-    # TODO: 集成 AI 生成服务
-    # 目前返回示例场景
+    # 1. 获取需求
+    # 1. 获取需求
+    requirement = db.query(Requirement).filter(Requirement.id == req.requirement_id).first()
+    if not requirement:
+        raise HTTPException(status_code=404, detail="需求未找到")
+        
+    # [FIX] 检查内容是否为占位符（由于之前缺少 python-docx 导致）
+    if requirement.content and "需要安装 python-docx 库" in requirement.content and requirement.file_path:
+        try:
+            from qualityfoundry.services.file_upload import file_upload_service
+            import os
+            
+            # 确保文件存在
+            if os.path.exists(requirement.file_path):
+                # 重新提取文本
+                print(f"检测到占位符内容，尝试重新从 {requirement.file_path} 提取文本...")
+                new_content = file_upload_service.extract_text(requirement.file_path)
+                
+                # 如果提取成功且不再是占位符，更新数据库
+                if new_content and "需要安装 python-docx 库" not in new_content:
+                    requirement.content = new_content
+                    db.commit()
+                    db.refresh(requirement)
+                    print("文本重新提取成功并已更新到数据库")
+        except Exception as e:
+            print(f"尝试重新提取文本失败: {e}")
+            # 继续执行，可能会因为内容无效而失败，但至少尝试过了
+
+        
+    # 2. 调用 AI 服务
+    from qualityfoundry.services.ai_service import AIService, SCENARIO_GENERATION_PROMPT, validate_scenario_response
+    from qualityfoundry.database.ai_config_models import AIStep
+    import json
+    import traceback
     
-    scenario = Scenario(
-        requirement_id=req.requirement_id,
-        title="示例场景：用户登录",
-        description="验证用户登录功能",
-        steps=["打开登录页面", "输入用户名和密码", "点击登录按钮", "验证登录成功"],
-        approval_status=DBApprovalStatus.APPROVED if req.auto_approve else DBApprovalStatus.PENDING,
-        version="v1.0"
-    )
-    
-    db.add(scenario)
-    db.commit()
-    db.refresh(scenario)
-    
-    # 如果不是自动批准，创建审核记录
-    if not req.auto_approve:
-        approval_service = ApprovalService(db)
-        approval_service.create_approval(
-            entity_type="scenario",
-            entity_id=scenario.id
+    try:
+        # 构建提示词
+        prompt = SCENARIO_GENERATION_PROMPT.format(requirement=requirement.content)
+        
+        # 调用 AI
+        response_content = await AIService.call_ai(
+            db=db,
+            step=AIStep.SCENARIO_GENERATION,
+            prompt=prompt
         )
-    
-    return [scenario]
+        
+        # 验证并解析 JSON
+        if not validate_scenario_response(response_content):
+            # 记录原始内容以便调试
+            print(f"AI Response validation failed. Content: {response_content}")
+            raise ValueError(f"AI 响应格式验证失败: {response_content[:100]}...")
+            
+        # 尝试清理 Markdown 代码块标记（如果存在）
+        cleaned_content = response_content.strip()
+        if cleaned_content.startswith("```json"):
+            cleaned_content = cleaned_content[7:]
+        if cleaned_content.startswith("```"):
+            cleaned_content = cleaned_content[3:]
+        if cleaned_content.endswith("```"):
+            cleaned_content = cleaned_content[:-3]
+            
+        scenarios_data = json.loads(cleaned_content)
+        
+        # 3. 保存场景
+        created_scenarios = []
+        for item in scenarios_data:
+            # 数据清洗与容错
+            title = str(item.get("title", "未命名场景"))
+            description = str(item.get("description", "")) if item.get("description") else None
+            
+            raw_steps = item.get("steps", [])
+            if isinstance(raw_steps, str):
+                # 如果步骤是字符串，尝试按换行符分割
+                steps = [s.strip() for s in raw_steps.split('\n') if s.strip()]
+            elif isinstance(raw_steps, list):
+                # 如果是列表，确保每一项都是字符串
+                steps = [str(s) for s in raw_steps]
+            else:
+                steps = []
+            
+            scenario = Scenario(
+                requirement_id=req.requirement_id,
+                title=title,
+                description=description,
+                steps=steps,
+                approval_status=DBApprovalStatus.APPROVED if req.auto_approve else DBApprovalStatus.PENDING,
+                version="v1.0"
+            )
+            db.add(scenario)
+            created_scenarios.append(scenario)
+            
+        db.commit()
+        
+        for s in created_scenarios:
+            db.refresh(s)
+            
+            # 如果不是自动批准，创建审核记录
+            if not req.auto_approve:
+                approval_service = ApprovalService(db)
+                approval_service.create_approval(
+                    entity_type="scenario",
+                    entity_id=s.id
+                )
+        
+        return created_scenarios
+        
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"AI 响应不是有效的 JSON 格式: {str(e)}")
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        print(f"AI Generation Error: {error_trace}")
+        raise HTTPException(status_code=500, detail=f"AI 生成失败: {str(e)} | {error_trace}")
 
 
 @router.post("", response_model=ScenarioResponse, status_code=201)
