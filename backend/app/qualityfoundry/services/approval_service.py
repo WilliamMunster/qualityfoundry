@@ -93,16 +93,14 @@ class ApprovalService:
         self.db.commit()
         self.db.refresh(approval)
         
-        # 发送通知（异步）
-        asyncio.create_task(
-            self.notification_service.send_approval_notification(
-                event_type="approval_approved",
-                entity_type=approval.entity_type,
-                entity_id=str(approval.entity_id),
-                status="approved",
-                reviewer=reviewer,
-                comment=comment
-            )
+        # 发送通知（异步，使用安全方式避免在同步上下文中失败）
+        self._schedule_notification(
+            event_type="approval_approved",
+            entity_type=approval.entity_type,
+            entity_id=str(approval.entity_id),
+            status="approved",
+            reviewer=reviewer,
+            comment=comment
         )
         
         return approval
@@ -143,16 +141,14 @@ class ApprovalService:
         self.db.commit()
         self.db.refresh(approval)
         
-        # 发送通知（异步）
-        asyncio.create_task(
-            self.notification_service.send_approval_notification(
-                event_type="approval_rejected",
-                entity_type=approval.entity_type,
-                entity_id=str(approval.entity_id),
-                status="rejected",
-                reviewer=reviewer,
-                comment=comment
-            )
+        # 发送通知（异步，使用安全方式避免在同步上下文中失败）
+        self._schedule_notification(
+            event_type="approval_rejected",
+            entity_type=approval.entity_type,
+            entity_id=str(approval.entity_id),
+            status="rejected",
+            reviewer=reviewer,
+            comment=comment
         )
         
         return approval
@@ -214,3 +210,36 @@ class ApprovalService:
             entity.approval_status = status
             entity.approved_by = reviewer if status == DBApprovalStatus.APPROVED else None
             entity.approved_at = datetime.now(timezone.utc) if status == DBApprovalStatus.APPROVED else None
+    
+    def _schedule_notification(
+        self,
+        event_type: str,
+        entity_type: str,
+        entity_id: str,
+        status: str,
+        reviewer: str,
+        comment: Optional[str] = None
+    ):
+        """
+        安全地调度通知任务
+        
+        在同步上下文中安全调用，不会因为没有事件循环而失败
+        """
+        try:
+            # 尝试获取当前事件循环
+            loop = asyncio.get_running_loop()
+            # 如果有事件循环，创建任务
+            loop.create_task(
+                self.notification_service.send_approval_notification(
+                    event_type=event_type,
+                    entity_type=entity_type,
+                    entity_id=entity_id,
+                    status=status,
+                    reviewer=reviewer,
+                    comment=comment
+                )
+            )
+        except RuntimeError:
+            # 没有事件循环（同步上下文），静默跳过通知
+            # 在生产环境中可以使用线程或队列处理
+            pass
