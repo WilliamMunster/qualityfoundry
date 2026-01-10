@@ -3,7 +3,6 @@
 
 使用 conftest.py 中统一的测试数据库配置
 """
-import pytest
 from fastapi.testclient import TestClient
 
 from qualityfoundry.main import app

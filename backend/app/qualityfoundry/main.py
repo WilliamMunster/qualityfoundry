@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from qualityfoundry.api.v1.routes import router as v1_router
+from qualityfoundry.logging_config import setup_logging
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -28,7 +29,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app = FastAPI()
 
 # 配置日志
-from qualityfoundry.logging_config import setup_logging
 setup_logging()
 
 # 安全响应头中间件

@@ -3,7 +3,6 @@
 WebSocket 实时推送端点
 """
 import asyncio
-import json
 import logging
 from typing import Dict, Set
 from uuid import UUID
@@ -118,7 +117,7 @@ async def execution_progress_ws(websocket: WebSocket, execution_id: str):
                 "execution_id": execution_id,
                 "message": str(e),
             })
-        except:
+        except Exception:
             pass
     finally:
         await manager.disconnect(websocket, execution_id)
