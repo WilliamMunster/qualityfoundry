@@ -18,6 +18,7 @@ class ConfigCategory(str, Enum):
     WEBHOOK = "webhook"            # Webhook 配置
     SYSTEM = "system"              # 系统配置
     SECURITY = "security"          # 安全配置
+    MCP = "mcp"                    # MCP 配置
 
 
 class SystemConfig(Base):
@@ -84,3 +85,11 @@ class ConfigKey:
     SYSTEM_NAME = "system_name"
     SYSTEM_LOGO_URL = "system_logo_url"
     SYSTEM_MAINTENANCE_MODE = "system_maintenance_mode"
+    
+    # MCP 配置
+    MCP_ENABLED = "mcp_enabled"
+    MCP_SERVER_COMMAND = "mcp_server_command"
+    MCP_SERVER_ARGS = "mcp_server_args"
+    MCP_SERVER_URL = "mcp_server_url"
+    MCP_MAX_RETRIES = "mcp_max_retries"
+    MCP_TIMEOUT = "mcp_timeout"

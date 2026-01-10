@@ -66,6 +66,15 @@ interface AIConfig {
   is_active: boolean;
 }
 
+interface MCPConfig {
+  mcp_enabled: boolean;
+  mcp_server_command: string;
+  mcp_server_args: string;
+  mcp_server_url: string | null;
+  mcp_max_retries: number;
+  mcp_timeout: number;
+}
+
 const ConfigCenterPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("notification");
   const [loading, setLoading] = useState(false);
@@ -80,6 +89,10 @@ const ConfigCenterPage: React.FC = () => {
   const [aiModalVisible, setAIModalVisible] = useState(false);
   const [editingAI, setEditingAI] = useState<AIConfig | null>(null);
   const [aiForm] = Form.useForm();
+
+  // MCP 配置
+  const [mcpForm] = Form.useForm();
+  const [mcpConfig, setMcpConfig] = useState<MCPConfig | null>(null);
 
   // 加载通知配置
   const loadNotificationConfig = async () => {
@@ -165,9 +178,40 @@ const ConfigCenterPage: React.FC = () => {
     });
   };
 
+  // 加载 MCP 配置
+  const loadMCPConfig = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get("/api/v1/configs/mcp");
+      setMcpConfig(response.data);
+      mcpForm.setFieldsValue(response.data);
+    } catch (error) {
+      console.error("加载 MCP 配置失败:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 保存 MCP 配置
+  const saveMCPConfig = async () => {
+    try {
+      const values = await mcpForm.validateFields();
+      setLoading(true);
+      await axios.put("/api/v1/configs/mcp", values);
+      message.success("MCP 配置保存成功");
+      loadMCPConfig();
+    } catch (error) {
+      message.error("保存失败");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadNotificationConfig();
     loadAIConfigs();
+    loadMCPConfig();
   }, []);
 
   // AI 配置表格列
@@ -432,6 +476,102 @@ const ConfigCenterPage: React.FC = () => {
               rowKey="id"
               loading={loading}
             />
+          </TabPane>
+
+          {/* MCP 配置 */}
+          <TabPane
+            tab={
+              <span>
+                <ApiOutlined />
+                MCP 配置
+              </span>
+            }
+            key="mcp"
+          >
+            <Alert
+              message="MCP 执行配置"
+              description="配置 MCP (Model Context Protocol) 服务器用于测试执行。支持 Playwright MCP 等自动化执行工具。"
+              type="info"
+              showIcon
+              style={{ marginBottom: 24 }}
+            />
+
+            <Form
+              form={mcpForm}
+              layout="vertical"
+              initialValues={mcpConfig || {}}
+            >
+              <Form.Item
+                name="mcp_enabled"
+                label="启用 MCP 执行模式"
+                valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
+
+              <Divider orientation="left">
+                <ApiOutlined /> 服务器配置
+              </Divider>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 2fr",
+                  gap: "16px",
+                }}
+              >
+                <Form.Item name="mcp_server_command" label="服务器命令">
+                  <Input placeholder="npx" />
+                </Form.Item>
+
+                <Form.Item name="mcp_server_args" label="服务器参数">
+                  <Input placeholder="-y @modelcontextprotocol/server-playwright" />
+                </Form.Item>
+              </div>
+
+              <Form.Item
+                name="mcp_server_url"
+                label="MCP 服务器 URL（可选，用于远程服务器）"
+              >
+                <Input placeholder="例如：http://localhost:3000" />
+              </Form.Item>
+
+              <Divider orientation="left">
+                <SettingOutlined /> 执行参数
+              </Divider>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "16px",
+                }}
+              >
+                <Form.Item name="mcp_max_retries" label="最大重试次数">
+                  <InputNumber min={0} max={10} style={{ width: "100%" }} />
+                </Form.Item>
+
+                <Form.Item name="mcp_timeout" label="超时时间（秒）">
+                  <InputNumber min={5} max={300} style={{ width: "100%" }} />
+                </Form.Item>
+              </div>
+
+              <Form.Item>
+                <Space>
+                  <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    onClick={saveMCPConfig}
+                    loading={loading}
+                  >
+                    保存配置
+                  </Button>
+                  <Button icon={<ReloadOutlined />} onClick={loadMCPConfig}>
+                    重新加载
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
           </TabPane>
 
           {/* 系统配置 */}
