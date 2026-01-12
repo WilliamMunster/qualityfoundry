@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from qualityfoundry.models.approval_schemas import ApprovalStatus
 
@@ -17,20 +17,26 @@ from qualityfoundry.models.approval_schemas import ApprovalStatus
 # Request Schemas
 # ============================================================
 
+class TestStep(BaseModel):
+    """测试步骤对"""
+    step: str = Field(..., description="操作步骤")
+    expected: str = Field(..., description="预期结果")
+
+
 class TestCaseCreate(BaseModel):
     """创建测试用例请求"""
     scenario_id: UUID
     title: str = Field(..., min_length=1, max_length=255)
     preconditions: list[str] = Field(default_factory=list)
-    steps: list[str] = Field(..., min_items=1)
-    expected_results: list[str] = Field(default_factory=list)
+    steps: list[TestStep] = Field(..., min_length=1)
+    expected_results: Optional[list[str]] = Field(default_factory=list) # 兼容旧字段
 
 
 class TestCaseUpdate(BaseModel):
     """更新测试用例请求"""
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     preconditions: Optional[list[str]] = None
-    steps: Optional[list[str]] = None
+    steps: Optional[list[TestStep]] = None
     expected_results: Optional[list[str]] = None
 
 
@@ -50,7 +56,7 @@ class TestCaseResponse(BaseModel):
     scenario_id: UUID
     title: str
     preconditions: list[str]
-    steps: list[str]
+    steps: list[TestStep]
     expected_results: list[str]
     approval_status: ApprovalStatus
     approved_by: Optional[str]
@@ -59,8 +65,7 @@ class TestCaseResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TestCaseListResponse(BaseModel):

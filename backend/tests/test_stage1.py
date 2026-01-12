@@ -18,7 +18,7 @@ from qualityfoundry.database.models import Requirement  # noqa: E402
 from sqlalchemy import inspect  # noqa: E402
 
 
-def test_database_connection():
+def _run_database_connection():
     """测试数据库连接"""
     print("=" * 50)
     print("测试1: 数据库连接")
@@ -50,7 +50,7 @@ def test_database_connection():
         return False
 
 
-def test_requirement_crud():
+def _run_requirement_crud():
     """测试需求 CRUD 操作"""
     print("\n" + "=" * 50)
     print("测试2: 需求 CRUD 操作")
@@ -111,7 +111,7 @@ def test_requirement_crud():
         db.close()
 
 
-def test_file_upload_service():
+def _run_file_upload_service():
     """测试文件上传服务"""
     print("\n" + "=" * 50)
     print("测试3: 文件上传服务")
@@ -140,6 +140,21 @@ def test_file_upload_service():
         return False
 
 
+def test_database_connection():
+    """测试数据库连接"""
+    assert _run_database_connection()
+
+
+def test_requirement_crud():
+    """测试需求 CRUD 操作"""
+    assert _run_requirement_crud()
+
+
+def test_file_upload_service():
+    """测试文件上传服务"""
+    assert _run_file_upload_service()
+
+
 def main():
     """运行所有测试"""
     print("\n" + "=" * 50)
@@ -149,13 +164,13 @@ def main():
     results = []
     
     # 测试1: 数据库连接
-    results.append(("数据库连接", test_database_connection()))
+    results.append(("数据库连接", _run_database_connection()))
     
     # 测试2: 需求 CRUD
-    results.append(("需求 CRUD", test_requirement_crud()))
+    results.append(("需求 CRUD", _run_requirement_crud()))
     
     # 测试3: 文件上传服务
-    results.append(("文件上传服务", test_file_upload_service()))
+    results.append(("文件上传服务", _run_file_upload_service()))
     
     # 总结
     print("\n" + "=" * 50)

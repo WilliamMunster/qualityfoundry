@@ -3,6 +3,7 @@
 
 使用 conftest.py 中统一的测试数据库配置
 """
+import os
 import pytest
 from fastapi.testclient import TestClient
 
@@ -11,10 +12,35 @@ from qualityfoundry.main import app
 # 使用 conftest.py 中的 client fixture
 client = TestClient(app)
 
+ENABLE_AI_TESTS = os.environ.get("QF_ENABLE_AI_TESTS", "").lower() in ("1", "true", "yes")
+AI_API_KEY = os.environ.get("QF_AI_API_KEY")
+AI_BASE_URL = os.environ.get("QF_AI_BASE_URL", "https://api.openai.com/v1")
+AI_MODEL = os.environ.get("QF_AI_MODEL", "gpt-4o-mini")
+AI_PROVIDER = os.environ.get("QF_AI_PROVIDER", "openai")
+AI_READY = ENABLE_AI_TESTS and bool(AI_API_KEY)
 
-@pytest.mark.skip(reason="需要真实 AI 服务配置，CI 环境跳过")
+
+def _ensure_ai_config():
+    response = client.post(
+        "/api/v1/ai-configs",
+        json={
+            "name": "测试 AI 配置",
+            "provider": AI_PROVIDER,
+            "model": AI_MODEL,
+            "api_key": AI_API_KEY,
+            "base_url": AI_BASE_URL,
+            "assigned_steps": ["testcase_generation"],
+            "is_default": True,
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+@pytest.mark.skipif(not AI_READY, reason="需要真实 AI 服务配置（QF_ENABLE_AI_TESTS=1 且 QF_AI_API_KEY 已配置）")
 def test_generate_testcases():
     """测试 AI 生成用例"""
+    _ensure_ai_config()
     # 创建需求和场景
     req_response = client.post(
         "/api/v1/requirements",
@@ -72,8 +98,8 @@ def test_create_testcase():
             "scenario_id": scenario_id,
             "title": "测试用例",
             "preconditions": ["前置条件1"],
-            "steps": ["步骤1", "步骤2"],
-            "expected_results": ["预期结果1"]
+            "steps": [{"step": "步骤1", "expected": "预期结果1"}, {"step": "步骤2", "expected": "预期结果2"}],
+            "expected_results": ["预期结果1", "预期结果2"]
         }
     )
     assert response.status_code == 201
@@ -107,7 +133,7 @@ def test_list_testcases():
             json={
                 "scenario_id": scenario_id,
                 "title": f"用例{i}",
-                "steps": ["步骤1"]
+                "steps": [{"step": "步骤1", "expected": "预期结果1"}]
             }
         )
     
@@ -142,7 +168,7 @@ def test_update_testcase():
         json={
             "scenario_id": scenario_id,
             "title": "原标题",
-            "steps": ["步骤1"]
+            "steps": [{"step": "步骤1", "expected": "预期结果1"}]
         }
     )
     testcase_id = testcase_response.json()["id"]
@@ -152,7 +178,7 @@ def test_update_testcase():
         f"/api/v1/testcases/{testcase_id}",
         json={
             "title": "新标题",
-            "steps": ["新步骤1", "新步骤2"]
+            "steps": [{"step": "新步骤1", "expected": "新预期1"}, {"step": "新步骤2", "expected": "新预期2"}]
         }
     )
     assert response.status_code == 200
@@ -185,7 +211,7 @@ def test_delete_testcase():
         json={
             "scenario_id": scenario_id,
             "title": "待删除用例",
-            "steps": ["步骤1"]
+            "steps": [{"step": "步骤1", "expected": "预期结果1"}]
         }
     )
     testcase_id = testcase_response.json()["id"]

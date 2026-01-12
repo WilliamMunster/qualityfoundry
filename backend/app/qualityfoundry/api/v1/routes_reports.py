@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, field_serializer
 from datetime import datetime
 import uuid
 
@@ -19,7 +19,6 @@ class ReportBase(BaseModel):
 class ReportCreate(ReportBase):
     pass
 
-from pydantic import BaseModel, field_serializer
 from datetime import timezone
 
 class ReportResponse(ReportBase):
@@ -35,8 +34,7 @@ class ReportResponse(ReportBase):
             dt = dt.replace(tzinfo=timezone.utc)
         return dt.isoformat().replace("+00:00", "Z")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class DashboardStats(BaseModel):
     total: int

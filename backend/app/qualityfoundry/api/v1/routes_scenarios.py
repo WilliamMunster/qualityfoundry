@@ -38,9 +38,14 @@ async def generate_scenarios(
     """
     # 1. 获取需求
     # 1. 获取需求
+    print(f"[DEBUG] Searching for requirement_id: {req.requirement_id}")
     requirement = db.query(Requirement).filter(Requirement.id == req.requirement_id).first()
     if not requirement:
+        print(f"[DEBUG] Requirement NOT FOUND: {req.requirement_id}")
+        all_reqs = db.query(Requirement).all()
+        print(f"[DEBUG] Available requirements: {[str(r.id) for r in all_reqs]}")
         raise HTTPException(status_code=404, detail="需求未找到")
+    print(f"[DEBUG] Found requirement: {requirement.title}")
         
     # [FIX] 检查内容是否为占位符（由于之前缺少 python-docx 导致）
     if requirement.content and "需要安装 python-docx 库" in requirement.content and requirement.file_path:
@@ -66,20 +71,20 @@ async def generate_scenarios(
 
         
     # 2. 调用 AI 服务
-    from qualityfoundry.services.ai_service import AIService, SCENARIO_GENERATION_PROMPT, validate_scenario_response
+    from qualityfoundry.services.ai_service import AIService, validate_scenario_response
     from qualityfoundry.database.ai_config_models import AIStep
     import json
     import traceback
     
     try:
-        # 构建提示词
-        prompt = SCENARIO_GENERATION_PROMPT.format(requirement=requirement.content)
+        # 定义需要注入提示词模板的变量
+        prompt_variables = {"requirement": requirement.content}
         
-        # 调用 AI
+        # 调用 AI (内部会自动根据 AIStep 加载或 Fallback 提示词)
         response_content = await AIService.call_ai(
             db=db,
             step=AIStep.SCENARIO_GENERATION,
-            prompt=prompt
+            prompt_variables=prompt_variables
         )
         
         # 验证并解析 JSON

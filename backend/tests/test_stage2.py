@@ -22,7 +22,7 @@ from qualityfoundry.database.models import (  # noqa: E402
 from qualityfoundry.services.approval_service import ApprovalService  # noqa: E402
 
 
-def test_approval_workflow():
+def _run_approval_workflow():
     """测试审核流程"""
     print("=" * 50)
     print("测试1: 审核流程")
@@ -110,7 +110,7 @@ def test_approval_workflow():
         db.close()
 
 
-def test_scenario_crud():
+def _run_scenario_crud():
     """测试场景 CRUD"""
     print("\n" + "=" * 50)
     print("测试2: 场景 CRUD")
@@ -181,7 +181,7 @@ def test_scenario_crud():
         db.close()
 
 
-def test_scenario_approval_integration():
+def _run_scenario_approval_integration():
     """测试场景审核集成"""
     print("\n" + "=" * 50)
     print("测试3: 场景审核集成")
@@ -258,6 +258,21 @@ def test_scenario_approval_integration():
         db.close()
 
 
+def test_approval_workflow():
+    """测试审核流程"""
+    assert _run_approval_workflow()
+
+
+def test_scenario_crud():
+    """测试场景 CRUD"""
+    assert _run_scenario_crud()
+
+
+def test_scenario_approval_integration():
+    """测试场景审核集成"""
+    assert _run_scenario_approval_integration()
+
+
 def main():
     """运行所有测试"""
     print("\n" + "=" * 50)
@@ -267,13 +282,13 @@ def main():
     results = []
     
     # 测试1: 审核流程
-    results.append(("审核流程", test_approval_workflow()))
+    results.append(("审核流程", _run_approval_workflow()))
     
     # 测试2: 场景 CRUD
-    results.append(("场景 CRUD", test_scenario_crud()))
+    results.append(("场景 CRUD", _run_scenario_crud()))
     
     # 测试3: 场景审核集成
-    results.append(("场景审核集成", test_scenario_approval_integration()))
+    results.append(("场景审核集成", _run_scenario_approval_integration()))
     
     # 总结
     print("\n" + "=" * 50)

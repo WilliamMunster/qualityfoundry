@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class RequirementStatus(str, Enum):
@@ -49,7 +49,6 @@ class RequirementVersionCreate(BaseModel):
 # Response Schemas
 # ============================================================
 
-from pydantic import BaseModel, Field, field_serializer
 from datetime import timezone
 
 class RequirementResponse(BaseModel):
@@ -72,8 +71,7 @@ class RequirementResponse(BaseModel):
             dt = dt.replace(tzinfo=timezone.utc)
         return dt.isoformat().replace("+00:00", "Z")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RequirementListResponse(BaseModel):
@@ -91,5 +89,4 @@ class RequirementVersionResponse(BaseModel):
     content: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

@@ -4,12 +4,12 @@
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExecutionMode(str, Enum):
@@ -48,7 +48,7 @@ class ExecutionStop(BaseModel):
 # Response Schemas
 # ============================================================
 
-from pydantic import BaseModel, Field, field_serializer
+from pydantic import field_serializer
 
 class ExecutionResponse(BaseModel):
     """执行响应"""
@@ -72,8 +72,7 @@ class ExecutionResponse(BaseModel):
             dt = dt.replace(tzinfo=timezone.utc)
         return dt.isoformat().replace("+00:00", "Z")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ExecutionListResponse(BaseModel):

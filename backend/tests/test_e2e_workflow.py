@@ -13,12 +13,35 @@ from qualityfoundry.main import app
 
 # 检测是否在 CI 环境中运行
 IN_CI = os.environ.get("CI", "").lower() == "true" or os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
+ENABLE_AI_TESTS = os.environ.get("QF_ENABLE_AI_TESTS", "").lower() in ("1", "true", "yes")
+AI_API_KEY = os.environ.get("QF_AI_API_KEY")
+AI_BASE_URL = os.environ.get("QF_AI_BASE_URL", "https://api.openai.com/v1")
+AI_MODEL = os.environ.get("QF_AI_MODEL", "gpt-4o-mini")
+AI_PROVIDER = os.environ.get("QF_AI_PROVIDER", "openai")
+AI_READY = ENABLE_AI_TESTS and bool(AI_API_KEY)
 
 # 使用 conftest.py 中的 setup_database fixture（autouse=True）
 client = TestClient(app)
 
 
-@pytest.mark.skip(reason="需要真实 AI 服务配置，暂时跳过")
+def _ensure_ai_config():
+    response = client.post(
+        "/api/v1/ai-configs",
+        json={
+            "name": "测试 AI 配置",
+            "provider": AI_PROVIDER,
+            "model": AI_MODEL,
+            "api_key": AI_API_KEY,
+            "base_url": AI_BASE_URL,
+            "assigned_steps": ["scenario_generation", "testcase_generation"],
+            "is_default": True,
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+@pytest.mark.skipif(not AI_READY, reason="需要真实 AI 服务配置（QF_ENABLE_AI_TESTS=1 且 QF_AI_API_KEY 已配置）")
 def test_complete_workflow_end_to_end():
     """
     完整端到端测试：
@@ -68,7 +91,10 @@ def test_complete_workflow_end_to_end():
     assert req_response.status_code == 201
     requirement_id = req_response.json()["id"]
     
-    # 4. AI 生成场景
+    # 4. AI 配置
+    _ensure_ai_config()
+
+    # 5. AI 生成场景
     scenario_response = client.post(
         "/api/v1/scenarios/generate",
         json={
@@ -81,7 +107,7 @@ def test_complete_workflow_end_to_end():
     assert len(scenarios) > 0
     scenario_id = scenarios[0]["id"]
     
-    # 5. 审核场景（批准）
+    # 6. 审核场景（批准）
     approve_scenario_response = client.post(
         f"/api/v1/scenarios/{scenario_id}/approve",
         json={
@@ -91,7 +117,7 @@ def test_complete_workflow_end_to_end():
     )
     assert approve_scenario_response.status_code == 200
     
-    # 6. AI 生成用例
+    # 7. AI 生成用例
     testcase_response = client.post(
         "/api/v1/testcases/generate",
         json={
@@ -104,7 +130,7 @@ def test_complete_workflow_end_to_end():
     assert len(testcases) > 0
     testcase_id = testcases[0]["id"]
     
-    # 7. 审核用例（批准）
+    # 8. 审核用例（批准）
     approve_testcase_response = client.post(
         f"/api/v1/testcases/{testcase_id}/approve",
         json={
@@ -114,7 +140,7 @@ def test_complete_workflow_end_to_end():
     )
     assert approve_testcase_response.status_code == 200
     
-    # 8. 创建环境
+    # 9. 创建环境
     env_response = client.post(
         "/api/v1/environments",
         json={
@@ -126,7 +152,7 @@ def test_complete_workflow_end_to_end():
     assert env_response.status_code == 201
     environment_id = env_response.json()["id"]
     
-    # 9. 触发执行
+    # 10. 触发执行
     exec_response = client.post(
         "/api/v1/executions",
         json={
@@ -139,11 +165,11 @@ def test_complete_workflow_end_to_end():
     execution = exec_response.json()
     execution_id = execution["id"]
     
-    # 10. 查看执行状态
+    # 11. 查看执行状态
     status_response = client.get(f"/api/v1/executions/{execution_id}/status")
     assert status_response.status_code == 200
     
-    # 11. 查看执行列表
+    # 12. 查看执行列表
     list_response = client.get("/api/v1/executions")
     assert list_response.status_code == 200
     assert list_response.json()["total"] >= 1
@@ -151,7 +177,7 @@ def test_complete_workflow_end_to_end():
     print("✅ 完整端到端测试通过！")
 
 
-@pytest.mark.skip(reason="需要真实 AI 服务配置，暂时跳过")
+@pytest.mark.skipif(not AI_READY, reason="需要真实 AI 服务配置（QF_ENABLE_AI_TESTS=1 且 QF_AI_API_KEY 已配置）")
 def test_ai_config_workflow():
     """测试 AI 配置工作流"""
     # 创建 AI 配置
@@ -159,10 +185,10 @@ def test_ai_config_workflow():
         "/api/v1/ai-configs",
         json={
             "name": "DeepSeek 需求分析",
-            "provider": "deepseek",
-            "model": "deepseek-chat",
-            "api_key": "test_key",
-            "base_url": "https://api.deepseek.com/v1",
+            "provider": AI_PROVIDER,
+            "model": AI_MODEL,
+            "api_key": AI_API_KEY,
+            "base_url": AI_BASE_URL,
             "assigned_steps": ["requirement_analysis"],
             "is_default": True
         }
