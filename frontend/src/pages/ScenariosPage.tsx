@@ -222,11 +222,11 @@ const ScenariosPage: React.FC = () => {
                     <p>
                       <strong>步骤：</strong>
                     </p>
-                    <ol>
+                    <ul style={{ paddingLeft: 20 }}>
                       {record.steps?.map((step, i) => (
-                        <li key={i}>{step}</li>
+                        <li key={i} style={{ listStyleType: 'none' }}>{step}</li>
                       ))}
-                    </ol>
+                    </ul>
                   </div>
                 ),
               })

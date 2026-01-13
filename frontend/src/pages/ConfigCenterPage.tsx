@@ -30,6 +30,7 @@ import {
   DeleteOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 
@@ -75,6 +76,25 @@ interface MCPConfig {
   mcp_timeout: number;
 }
 
+interface AIPrompt {
+  id: string;
+  step: string;
+  name: string;
+  system_prompt: string;
+  user_prompt: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// 步骤名称映射
+const STEP_NAMES: Record<string, string> = {
+  requirement_analysis: "需求分析",
+  scenario_generation: "场景生成",
+  testcase_generation: "用例生成",
+  code_generation: "代码生成",
+  review: "审核建议",
+};
+
 const ConfigCenterPage: React.FC = () => {
   const [modal, contextHolder] = Modal.useModal();
   const [activeTab, setActiveTab] = useState("notification");
@@ -94,6 +114,12 @@ const ConfigCenterPage: React.FC = () => {
   // MCP 配置
   const [mcpForm] = Form.useForm();
   const [mcpConfig, setMcpConfig] = useState<MCPConfig | null>(null);
+
+  // AI 提示词配置
+  const [prompts, setPrompts] = useState<AIPrompt[]>([]);
+  const [promptModalVisible, setPromptModalVisible] = useState(false);
+  const [editingPrompt, setEditingPrompt] = useState<AIPrompt | null>(null);
+  const [promptForm] = Form.useForm();
 
   // 加载通知配置
   const loadNotificationConfig = async () => {
@@ -210,10 +236,99 @@ const ConfigCenterPage: React.FC = () => {
     }
   };
 
+  // 加载 AI 提示词
+  const loadPrompts = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get("/api/v1/ai-prompts");
+      setPrompts(response.data);
+    } catch (error) {
+      console.error("加载提示词失败:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 保存 AI 提示词
+  const savePrompt = async () => {
+    try {
+      const values = await promptForm.validateFields();
+      setLoading(true);
+      await axios.put(`/api/v1/ai-prompts/${editingPrompt?.step}`, {
+        ...values,
+        step: editingPrompt?.step,
+      });
+      message.success("提示词保存成功");
+      setPromptModalVisible(false);
+      loadPrompts();
+    } catch (error) {
+      message.error("保存失败");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 初始化默认提示词
+  const seedPrompts = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.post("/api/v1/ai-prompts/seed");
+      message.success(response.data.message || "初始化成功");
+      loadPrompts();
+    } catch (error) {
+      message.error("初始化失败");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // AI 提示词表格列
+  const promptColumns = [
+    {
+      title: "步骤",
+      dataIndex: "step",
+      key: "step",
+      render: (step: string) => (
+        <Tag color="blue">{STEP_NAMES[step] || step}</Tag>
+      ),
+    },
+    {
+      title: "名称",
+      dataIndex: "name",
+      key: "name",
+    },
+    {
+      title: "更新时间",
+      dataIndex: "updated_at",
+      key: "updated_at",
+      render: (text: string) => new Date(text).toLocaleString(),
+    },
+    {
+      title: "操作",
+      key: "action",
+      render: (_: any, record: AIPrompt) => (
+        <Button
+          type="link"
+          icon={<EditOutlined />}
+          onClick={() => {
+            setEditingPrompt(record);
+            promptForm.setFieldsValue(record);
+            setPromptModalVisible(true);
+          }}
+        >
+          编辑
+        </Button>
+      ),
+    },
+  ];
+
   useEffect(() => {
     loadNotificationConfig();
     loadAIConfigs();
     loadMCPConfig();
+    loadPrompts();
   }, []);
 
   // AI 配置表格列
@@ -233,8 +348,8 @@ const ConfigCenterPage: React.FC = () => {
             text === "openai"
               ? "green"
               : text === "deepseek"
-              ? "blue"
-              : "default"
+                ? "blue"
+                : "default"
           }
         >
           {text.toUpperCase()}
@@ -619,6 +734,43 @@ const ConfigCenterPage: React.FC = () => {
               </Form.Item>
             </Form>
           </TabPane>
+
+          {/* AI 提示词配置 */}
+          <TabPane
+            tab={
+              <span>
+                <FileTextOutlined />
+                AI 提示词
+              </span>
+            }
+            key="prompts"
+          >
+            <Alert
+              message="AI 提示词配置"
+              description="配置各步骤的 AI 提示词模板，用于场景生成、用例生成等功能。支持使用变量如 {requirement}、{scenario} 等。"
+              type="info"
+              showIcon
+              style={{ marginBottom: 24 }}
+            />
+
+            <div style={{ marginBottom: 16 }}>
+              <Button
+                icon={<PlusOutlined />}
+                onClick={seedPrompts}
+                loading={loading}
+              >
+                初始化默认提示词
+              </Button>
+            </div>
+
+            <Table
+              dataSource={prompts}
+              columns={promptColumns}
+              rowKey="id"
+              loading={loading}
+              pagination={false}
+            />
+          </TabPane>
         </Tabs>
       </Card>
 
@@ -727,6 +879,50 @@ const ConfigCenterPage: React.FC = () => {
               <Switch />
             </Form.Item>
           </div>
+        </Form>
+      </Modal>
+
+      {/* AI 提示词编辑弹窗 */}
+      <Modal
+        title={`编辑提示词 - ${STEP_NAMES[editingPrompt?.step || ""] || editingPrompt?.step}`}
+        open={promptModalVisible}
+        onOk={savePrompt}
+        onCancel={() => setPromptModalVisible(false)}
+        confirmLoading={loading}
+        width={800}
+      >
+        <Form form={promptForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="提示词名称"
+            rules={[{ required: true, message: "请输入提示词名称" }]}
+          >
+            <Input placeholder="例如：场景生成提示词" />
+          </Form.Item>
+
+          <Form.Item
+            name="system_prompt"
+            label="系统提示词 (System Prompt)"
+            extra="定义 AI 的角色和行为方式"
+          >
+            <TextArea
+              rows={4}
+              placeholder="例如：你是一个专业的测试场景分析师。"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="user_prompt"
+            label="用户提示词模板 (User Prompt)"
+            rules={[{ required: true, message: "请输入用户提示词" }]}
+            extra="可使用变量：{requirement}（需求内容）、{scenario}（场景内容）等"
+          >
+            <TextArea
+              rows={12}
+              placeholder="请输入提示词模板..."
+              style={{ fontFamily: "monospace" }}
+            />
+          </Form.Item>
         </Form>
       </Modal>
     </div>
