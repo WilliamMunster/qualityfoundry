@@ -6,20 +6,28 @@
 2. 场景管理（CRUD）
 3. 场景审核集成
 """
-import sys
-from pathlib import Path
+import os
 
-# 添加项目路径
-backend_path = Path(__file__).parent.parent
-sys.path.insert(0, str(backend_path / "app"))
+# 避免在 pytest 环境下重复添加路径
+if "PYTEST_CURRENT_TEST" not in os.environ:
+    import sys
+    from pathlib import Path
+    backend_path = Path(__file__).parent.parent
+    sys.path.insert(0, str(backend_path / "app"))
 
-from qualityfoundry.database.config import SessionLocal  # noqa: E402
-from qualityfoundry.database.models import (  # noqa: E402
+try:
+    # 尝试从 conftest 导入测试配置 (pytest 运行时)
+    from .conftest import TestingSessionLocal as SessionLocal
+except (ImportError, ValueError):
+    # 回退到生产配置 (独立脚本运行时)
+    from qualityfoundry.database.config import SessionLocal
+
+from qualityfoundry.database.models import (
     ApprovalStatus as DBApprovalStatus,
     Requirement,
     Scenario,
 )
-from qualityfoundry.services.approval_service import ApprovalService  # noqa: E402
+from qualityfoundry.services.approval_service import ApprovalService
 
 
 def _run_approval_workflow():

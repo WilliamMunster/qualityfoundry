@@ -6,16 +6,24 @@
 2. 需求管理 API
 3. 文件上传服务
 """
-import sys
-from pathlib import Path
+import os
 
-# 添加项目路径
-backend_path = Path(__file__).parent.parent
-sys.path.insert(0, str(backend_path / "app"))
+# 避免在 pytest 环境下重复添加路径
+if "PYTEST_CURRENT_TEST" not in os.environ:
+    import sys
+    from pathlib import Path
+    backend_path = Path(__file__).parent.parent
+    sys.path.insert(0, str(backend_path / "app"))
 
-from qualityfoundry.database.config import engine, SessionLocal  # noqa: E402
-from qualityfoundry.database.models import Requirement  # noqa: E402
-from sqlalchemy import inspect  # noqa: E402
+try:
+    # 尝试从 conftest 导入测试配置 (pytest 运行时)
+    from .conftest import engine, TestingSessionLocal as SessionLocal
+except (ImportError, ValueError):
+    # 回退到生产配置 (独立脚本运行时)
+    from qualityfoundry.database.config import engine, SessionLocal
+
+from qualityfoundry.database.models import Requirement
+from sqlalchemy import inspect
 
 
 def _run_database_connection():
