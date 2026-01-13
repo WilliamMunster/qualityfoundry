@@ -1,17 +1,16 @@
 
 import sys
-import os
 from pathlib import Path
 
 # Add backend/app to path
 backend_path = Path("d:/PycharmProjects/qualityfoundry/backend/app")
 sys.path.insert(0, str(backend_path))
 
-from qualityfoundry.database.config import Base, engine, SessionLocal
-from qualityfoundry.database import models
-from qualityfoundry.database import user_models
-from qualityfoundry.database import ai_config_models
-from qualityfoundry.database import system_config_models
+from qualityfoundry.database.config import Base, engine, SessionLocal  # noqa: E402
+from qualityfoundry.database import models  # noqa: E402, F401
+from qualityfoundry.database import user_models  # noqa: E402, F401
+from qualityfoundry.database import ai_config_models  # noqa: E402, F401
+from qualityfoundry.database import system_config_models  # noqa: E402, F401
 
 def diagnostic():
     print("--- Diagnostic Start ---")
