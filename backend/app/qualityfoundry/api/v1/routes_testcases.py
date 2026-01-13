@@ -42,7 +42,7 @@ async def generate_testcases(
         raise HTTPException(status_code=404, detail="场景未找到")
     
     # 2. 调用 AI 服务
-    from qualityfoundry.services.ai_service import AIService, TESTCASE_GENERATION_PROMPT
+    from qualityfoundry.services.ai_service import AIService
     from qualityfoundry.database.ai_config_models import AIStep
     import json
     import traceback
@@ -53,14 +53,14 @@ async def generate_testcases(
         for i, step in enumerate(scenario.steps or [], 1):
             scenario_content += f"{i}. {step}\n"
         
-        # 构建提示词
-        prompt = TESTCASE_GENERATION_PROMPT.format(scenario=scenario_content)
+        # 定义变量注入模板
+        prompt_variables = {"scenario": scenario_content}
         
         # 调用 AI
         response_content = await AIService.call_ai(
             db=db,
             step=AIStep.TESTCASE_GENERATION,
-            prompt=prompt
+            prompt_variables=prompt_variables
         )
         
         # 清理 Markdown 代码块标记
@@ -89,18 +89,26 @@ async def generate_testcases(
                 preconditions = []
             
             raw_steps = item.get("steps", [])
-            if isinstance(raw_steps, str):
-                steps = [s.strip() for s in raw_steps.split('\n') if s.strip()]
-            elif isinstance(raw_steps, list):
-                # steps 可能是 [{"step": "...", "expected": "..."}] 格式
-                steps = []
+            steps = []
+            expected_results = []
+            
+            if isinstance(raw_steps, list):
                 for s in raw_steps:
                     if isinstance(s, dict):
-                        steps.append(f"{s.get('step', '')} -> 预期: {s.get('expected', '')}")
+                        # 核心重构：保留结构化对象
+                        step_data = {
+                            "step": str(s.get("step", "")),
+                            "expected": str(s.get("expected", ""))
+                        }
+                        steps.append(step_data)
+                        # 同时同步到旧的 expected_results 以防万一某些地方还在读它
+                        expected_results.append(step_data["expected"])
                     else:
-                        steps.append(str(s))
-            else:
-                steps = []
+                        steps.append({"step": str(s), "expected": "见步骤说明"})
+            elif isinstance(raw_steps, str):
+                for s in raw_steps.split('\n'):
+                    if s.strip():
+                        steps.append({"step": s.strip(), "expected": "待补充"})
             
             # expected_results 可能不存在，从 steps 中提取
             raw_expected = item.get("expected_results", [])
@@ -156,8 +164,9 @@ def create_testcase(
         scenario_id=req.scenario_id,
         title=req.title,
         preconditions=req.preconditions,
-        steps=req.steps,
-        expected_results=req.expected_results,
+        # Pydantic 已经处理了 TestStep -> dict 的转换 (from_attributes=True / model_dump)
+        steps=[s.model_dump() if hasattr(s, 'model_dump') else s for s in req.steps],
+        expected_results=req.expected_results or [s.expected for s in req.steps if hasattr(s, 'expected')],
         version="v1.0"
     )
     
@@ -231,7 +240,10 @@ def update_testcase(
     if req.preconditions is not None:
         testcase.preconditions = req.preconditions
     if req.steps is not None:
-        testcase.steps = req.steps
+        # 转换为字典列表存储
+        testcase.steps = [s.model_dump() if hasattr(s, 'model_dump') else s for s in req.steps]
+        # 同步更新旧字段（可选）
+        testcase.expected_results = [s.expected for s in req.steps if hasattr(s, 'expected')]
     if req.expected_results is not None:
         testcase.expected_results = req.expected_results
     

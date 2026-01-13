@@ -35,7 +35,7 @@ def test_create_execution():
         json={
             "scenario_id": scenario_id,
             "title": "测试用例",
-            "steps": ["步骤1"]
+            "steps": [{"step": "步骤1", "expected": "预期结果1"}]
         }
     )
     testcase_id = testcase_response.json()["id"]
@@ -90,7 +90,7 @@ def test_list_executions():
         json={
             "scenario_id": scenario_id,
             "title": "测试用例",
-            "steps": ["步骤1"]
+            "steps": [{"step": "步骤1", "expected": "预期结果1"}]
         }
     )
     testcase_id = testcase_response.json()["id"]
@@ -146,7 +146,7 @@ def test_get_execution():
         json={
             "scenario_id": scenario_id,
             "title": "测试用例",
-            "steps": ["步骤1"]
+            "steps": [{"step": "步骤1", "expected": "预期结果1"}]
         }
     )
     testcase_id = testcase_response.json()["id"]
@@ -202,7 +202,7 @@ def test_get_execution_status():
         json={
             "scenario_id": scenario_id,
             "title": "测试用例",
-            "steps": ["步骤1"]
+            "steps": [{"step": "步骤1", "expected": "预期结果1"}]
         }
     )
     testcase_id = testcase_response.json()["id"]

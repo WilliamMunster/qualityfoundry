@@ -3,7 +3,7 @@
 AI 模型配置数据模型
 """
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, JSON
+from sqlalchemy import Column, String, Boolean, DateTime, JSON, Text
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 import enum
@@ -44,6 +44,20 @@ class AIConfig(Base):
     
     is_active = Column(Boolean, default=True, nullable=False)
     is_default = Column(Boolean, default=False, nullable=False)  # 是否为默认配置
+    
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class AIPrompt(Base):
+    """AI 提示词配置"""
+    __tablename__ = "ai_prompts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    step = Column(String(50), nullable=False, unique=True)  # 对应 AIStep
+    name = Column(String(100), nullable=False)  # 场景描述
+    system_prompt = Column(Text, nullable=True)  # 系统提示词
+    user_prompt = Column(Text, nullable=False)    # 用户提示词模板
     
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

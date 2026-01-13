@@ -7,11 +7,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 # ============================================================
@@ -162,6 +162,14 @@ class ExecutionResponse(BaseModel):
     finished_at: datetime | None = None
     artifact_dir: str | None = None
     evidence: list[StepEvidence] = Field(default_factory=list)
+
+    @field_serializer("started_at", "finished_at")
+    def serialize_dt(self, dt: datetime | None, _info):
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
 
 
 # 兼容旧命名：历史代码可能还在使用 ExecutionResult

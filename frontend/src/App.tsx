@@ -5,6 +5,8 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
+import { lightTheme } from "./theme";
+import "./index.css";
 import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import RequirementsPage from "./pages/RequirementsPage";
@@ -20,7 +22,7 @@ import ConfigCenterPage from "./pages/ConfigCenterPage";
 
 const App: React.FC = () => {
   return (
-    <ConfigProvider locale={zhCN}>
+    <ConfigProvider locale={zhCN} theme={lightTheme}>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />

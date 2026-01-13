@@ -1,96 +1,294 @@
-/* 科技前卫风格全局样式 */
+/**
+ * QualityFoundry 全局样式
+ * 
+ * 明亮极简风格 - 基于 Google Antigravity 设计语言
+ */
+
+/* Google Sans 字体引入 */
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --primary-color: #00ffff;
-  --secondary-color: #0080ff;
-  --bg-dark: #0a0e27;
-  --bg-light: #1a1f3a;
-  --text-light: rgba(255, 255, 255, 0.9);
-  --text-dim: rgba(255, 255, 255, 0.6);
-  --border-glow: rgba(0, 255, 255, 0.3);
+  /* 主色调 */
+  --color-primary: #4285F4;
+  --color-primary-hover: #1a73e8;
+  --color-primary-light: #e8f0fe;
+  
+  /* 语义色 */
+  --color-success: #34A853;
+  --color-warning: #FBBC04;
+  --color-error: #EA4335;
+  
+  /* 背景色 */
+  --bg-main: #FFFFFF;
+  --bg-secondary: #F8F9FA;
+  --bg-tertiary: #F1F3F4;
+  
+  /* 文字颜色 */
+  --text-primary: #202124;
+  --text-secondary: #5F6368;
+  --text-tertiary: #9AA0A6;
+  
+  /* 边框 */
+  --border-color: #DADCE0;
+  --border-light: #E8EAED;
+  
+  /* 阴影 */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.1);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.12);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+  
+  /* 间距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+  
+  /* 圆角 */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+  
+  /* 过渡 */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+/* 基础样式重置 */
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Google Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-light) 100%);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.6;
 }
 
-/* Ant Design 主题覆盖 - 科技风格 */
+/* ===== 动画效果 ===== */
+
+/* 渐显上移动画 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 渐入动画 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 脉冲动画 */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* 浮动动画 */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ===== Ant Design 组件覆盖 ===== */
+
+/* Header 样式 */
 .ant-layout-header {
-  background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%) !important;
-  border-bottom: 1px solid rgba(0, 255, 255, 0.2);
-  box-shadow: 0 2px 20px rgba(0, 255, 255, 0.1);
+  background: var(--bg-main) !important;
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
 }
 
+/* 侧边菜单 */
 .ant-menu-light {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border-right: 1px solid rgba(0, 255, 255, 0.1) !important;
+  background: var(--bg-main) !important;
+  border-right: 1px solid var(--border-light) !important;
 }
 
 .ant-menu-item {
-  color: var(--text-dim) !important;
-  transition: all 0.3s;
+  color: var(--text-secondary) !important;
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-md) !important;
+  margin: 4px 8px !important;
 }
 
 .ant-menu-item:hover {
-  color: var(--primary-color) !important;
-  background: rgba(0, 255, 255, 0.1) !important;
+  color: var(--color-primary) !important;
+  background: var(--color-primary-light) !important;
 }
 
 .ant-menu-item-selected {
-  background: linear-gradient(90deg, rgba(0, 255, 255, 0.2) 0%, transparent 100%) !important;
-  color: var(--primary-color) !important;
-  border-right: 3px solid var(--primary-color);
+  background: var(--color-primary-light) !important;
+  color: var(--color-primary) !important;
 }
 
+/* 主按钮 */
 .ant-btn-primary {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  background: var(--color-primary);
   border: none;
-  box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
-  transition: all 0.3s;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+  font-weight: 500;
 }
 
 .ant-btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 25px rgba(0, 255, 255, 0.5);
+  background: var(--color-primary-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
+/* 默认按钮 */
+.ant-btn-default {
+  border-radius: var(--radius-pill);
+  border-color: var(--border-color);
+  transition: all var(--transition-fast);
+}
+
+.ant-btn-default:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* 表格 */
 .ant-table {
-  background: rgba(255, 255, 255, 0.02) !important;
+  background: var(--bg-main) !important;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .ant-table-thead > tr > th {
-  background: rgba(0, 255, 255, 0.1) !important;
-  color: var(--primary-color) !important;
-  border-bottom: 2px solid rgba(0, 255, 255, 0.3) !important;
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-light) !important;
 }
 
+.ant-table-tbody > tr:hover > td {
+  background: var(--bg-tertiary) !important;
+}
+
+/* 卡片 */
 .ant-card {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(0, 255, 255, 0.2) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  background: var(--bg-main) !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+}
+
+.ant-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .ant-card-head {
-  border-bottom: 1px solid rgba(0, 255, 255, 0.2) !important;
-  background: rgba(0, 255, 255, 0.05) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  background: transparent !important;
 }
 
-/* 动画效果 */
-@keyframes glow {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
-  }
+/* 输入框 */
+.ant-input,
+.ant-select-selector,
+.ant-picker {
+  border-radius: var(--radius-md) !important;
+  border-color: var(--border-color) !important;
+  transition: all var(--transition-fast);
 }
 
-.tech-glow {
-  animation: glow 2s ease-in-out infinite;
+.ant-input:focus,
+.ant-input:hover,
+.ant-select-selector:hover,
+.ant-picker:hover {
+  border-color: var(--color-primary) !important;
+}
+
+/* Modal */
+.ant-modal-content {
+  border-radius: var(--radius-xl) !important;
+  overflow: hidden;
+}
+
+.ant-modal-header {
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* Tag */
+.ant-tag {
+  border-radius: var(--radius-sm);
+  border: none;
+  font-weight: 500;
+}
+
+/* ===== 自定义工具类 ===== */
+
+.glass-effect {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--color-primary), #1a73e8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hover-lift {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 页面容器 */
+.page-container {
+  animation: fadeInUp 0.4s ease;
+}
+
+/* 加载骨架 */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

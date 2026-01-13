@@ -1,5 +1,11 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import http from "http";
+
+const agent = new http.Agent({
+  keepAlive: true,
+  timeout: 300000,
+});
 
 export default defineConfig({
   plugins: [react()],
@@ -8,12 +14,12 @@ export default defineConfig({
       "/api": {
         target: "http://127.0.0.1:8000",
         changeOrigin: true,
+        timeout: 300000,
+        proxyTimeout: 300000,
+        agent: agent,
         configure: (proxy) => {
           proxy.on("error", (err, _req, _res) => {
-            // 开发期后端 reload 会触发 ECONNRESET，这里降噪
-            if ((err as any)?.code !== "ECONNRESET") {
-              console.error("[proxy error]", err);
-            }
+            console.error("[proxy error]", err);
           });
         },
       },

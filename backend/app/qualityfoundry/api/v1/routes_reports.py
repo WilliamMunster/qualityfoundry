@@ -1,8 +1,8 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from datetime import datetime
+from pydantic import BaseModel, ConfigDict, field_serializer
+from datetime import datetime, timezone
 import uuid
 
 from qualityfoundry.database.config import get_db
@@ -24,8 +24,15 @@ class ReportResponse(ReportBase):
     created_at: datetime
     created_by: str
     
-    class Config:
-        from_attributes = True
+    @field_serializer("created_at")
+    def serialize_dt(self, dt: datetime | None, _info):
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
+
+    model_config = ConfigDict(from_attributes=True)
 
 class DashboardStats(BaseModel):
     total: int

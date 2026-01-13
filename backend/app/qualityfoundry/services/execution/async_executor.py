@@ -266,7 +266,8 @@ class InMemoryTaskManager(ExecutionTaskManagerBase):
         """添加日志"""
         task_info = self._tasks.get(task_id)
         if task_info:
-            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            # 使用 ISO 格式包含时区信息 (Z 表示 UTC)
+            timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             task_info.logs.append(f"[{timestamp}] {log}")
 
 

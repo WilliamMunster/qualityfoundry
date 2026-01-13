@@ -39,45 +39,51 @@ class AIService:
     async def call_ai(
         db: Session,
         step: AIStep,
-        prompt: str,
+        prompt_variables: Dict[str, Any],
         system_prompt: Optional[str] = None,
         generation_config: Optional[GenerationConfig] = None
     ) -> str:
         """
-        调用 AI 模型（带重试机制）
-        
-        Args:
-            db: 数据库会话
-            step: 执行步骤
-            prompt: 用户提示词
-            system_prompt: 系统提示词
-            generation_config: 生成配置
-        
-        Returns:
-            AI 响应内容
+        调用 AI 模型（会尝试从数据库加载动态提示词）
         """
+        # 1. 获取模型配置
         config = AIService.get_config_for_step(db, step)
-        
         if not config:
-            config = db.query(AIConfig).filter(
-                AIConfig.is_default,
-                AIConfig.is_active
-            ).first()
-        
+            config = db.query(AIConfig).filter(AIConfig.is_default, AIConfig.is_active).first()
         if not config:
             raise AIServiceError("未找到可用的 AI 配置")
+
+        # 2. 获取提示词配置 (优先从数据库)
+        from qualityfoundry.database.ai_config_models import AIPrompt
+        db_prompt = db.query(AIPrompt).filter(AIPrompt.step == step.value).first()
         
+        if db_prompt:
+            sys_template = system_prompt or db_prompt.system_prompt
+            user_template = db_prompt.user_prompt
+        else:
+            # Fallback 到硬编码
+            fallback = FALLBACK_PROMPTS.get(step)
+            if not fallback:
+                raise AIServiceError(f"未找到步骤 {step} 的提示词配置")
+            sys_template = system_prompt or fallback.get("system")
+            user_template = fallback.get("user")
+
+        # 3. 填充变量
+        try:
+            final_prompt = user_template.format(**prompt_variables)
+        except KeyError as e:
+            logger.error(f"提示词模板变量缺失: {e}")
+            final_prompt = user_template # 容错
+
         gen_config = generation_config or GenerationConfig()
-        
-        # 如果配置中有温度和 max_tokens 设置，使用配置值
         gen_config.temperature = float(config.temperature)
         gen_config.max_tokens = int(config.max_tokens)
         gen_config.top_p = float(config.top_p)
         
         return await AIService.call_with_retry(
             config=config,
-            prompt=prompt,
-            system_prompt=system_prompt,
+            prompt=final_prompt,
+            system_prompt=sys_template,
             gen_config=gen_config
         )
     
@@ -262,12 +268,12 @@ def validate_json_response(response: str) -> bool:
         return False
 
 
-# ================== 提示词模板 ==================
+# ================== 提示词池 (Fallback) ==================
 
-SCENARIO_GENERATION_PROMPT = """你是一个专业的测试场景分析师。
-
-## 任务
-根据以下需求，生成测试场景。
+FALLBACK_PROMPTS = {
+    AIStep.SCENARIO_GENERATION: {
+        "system": "你是一个专业的测试场景分析师。",
+        "user": """根据以下需求，生成测试场景。
 
 ## 需求内容
 {requirement}
@@ -290,11 +296,10 @@ SCENARIO_GENERATION_PROMPT = """你是一个专业的测试场景分析师。
 ]
 ```
 """
-
-TESTCASE_GENERATION_PROMPT = """你是一个专业的测试用例设计师。
-
-## 任务
-根据以下测试场景，生成详细的测试用例。
+    },
+    AIStep.TESTCASE_GENERATION: {
+        "system": "你是一个专业的测试用例设计师。",
+        "user": """根据以下测试场景，生成详细的测试用例。
 
 ## 场景内容
 {scenario}
@@ -321,3 +326,5 @@ TESTCASE_GENERATION_PROMPT = """你是一个专业的测试用例设计师。
 ]
 ```
 """
+    }
+}

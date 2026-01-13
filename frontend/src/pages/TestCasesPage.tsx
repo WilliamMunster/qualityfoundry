@@ -8,11 +8,16 @@ import { PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import axios from "axios";
 
+interface TestStep {
+  step: string;
+  expected: string;
+}
+
 interface TestCase {
   id: string;
   scenario_id: string;
   title: string;
-  steps: string[];
+  steps: TestStep[];
   approval_status: string;
   created_at: string;
 }
@@ -40,7 +45,6 @@ const TestCasesPage: React.FC = () => {
 
   // 加载用例列表
   const loadTestcases = async () => {
-    setLoading(true);
     setLoading(true);
     try {
       const response = await axios.get("/api/v1/testcases", {
@@ -71,6 +75,12 @@ const TestCasesPage: React.FC = () => {
   useEffect(() => {
     loadTestcases();
   }, [page, pageSize]);
+
+  // 展开弹窗时自动刷新场景列表
+  const openGenerateModal = () => {
+    loadScenarios();
+    setGenerateModalVisible(true);
+  };
 
   useEffect(() => {
     loadScenarios();
@@ -189,7 +199,7 @@ const TestCasesPage: React.FC = () => {
       dataIndex: "steps",
       key: "steps",
       width: 100,
-      render: (steps: string[]) => steps?.length || 0,
+      render: (steps: TestStep[]) => steps?.length || 0,
     },
     {
       title: "审核状态",
@@ -226,15 +236,28 @@ const TestCasesPage: React.FC = () => {
                 title: record.title,
                 width: 600,
                 content: (
-                  <div>
-                    <p>
-                      <strong>步骤：</strong>
-                    </p>
-                    <ol>
-                      {record.steps?.map((step, i) => (
-                        <li key={i}>{step}</li>
-                      ))}
-                    </ol>
+                  <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
+                    <Table
+                      dataSource={record.steps || []}
+                      pagination={false}
+                      size="small"
+                      bordered
+                      rowKey={(record, index) => index?.toString() || "0"}
+                      columns={[
+                        {
+                          title: "步骤",
+                          dataIndex: "step",
+                          key: "step",
+                          width: "40%",
+                        },
+                        {
+                          title: "预期结果",
+                          dataIndex: "expected",
+                          key: "expected",
+                          width: "60%",
+                        },
+                      ]}
+                    />
                   </div>
                 ),
               })
@@ -285,7 +308,7 @@ const TestCasesPage: React.FC = () => {
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          onClick={() => setGenerateModalVisible(true)}
+          onClick={openGenerateModal}
         >
           AI 生成用例
         </Button>

@@ -3,6 +3,7 @@
 
 使用 conftest.py 中统一的测试数据库配置
 """
+import os
 import pytest
 from fastapi.testclient import TestClient
 
@@ -11,10 +12,35 @@ from qualityfoundry.main import app
 # 使用 conftest.py 中的 client fixture
 client = TestClient(app)
 
+ENABLE_AI_TESTS = os.environ.get("QF_ENABLE_AI_TESTS", "").lower() in ("1", "true", "yes")
+AI_API_KEY = os.environ.get("QF_AI_API_KEY")
+AI_BASE_URL = os.environ.get("QF_AI_BASE_URL", "https://api.openai.com/v1")
+AI_MODEL = os.environ.get("QF_AI_MODEL", "gpt-4o-mini")
+AI_PROVIDER = os.environ.get("QF_AI_PROVIDER", "openai")
+AI_READY = ENABLE_AI_TESTS and bool(AI_API_KEY)
 
-@pytest.mark.skip(reason="需要真实 AI 服务配置，CI 环境跳过")
+
+def _ensure_ai_config():
+    response = client.post(
+        "/api/v1/ai-configs",
+        json={
+            "name": "测试 AI 配置",
+            "provider": AI_PROVIDER,
+            "model": AI_MODEL,
+            "api_key": AI_API_KEY,
+            "base_url": AI_BASE_URL,
+            "assigned_steps": ["scenario_generation"],
+            "is_default": True,
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+@pytest.mark.skipif(not AI_READY, reason="需要真实 AI 服务配置（QF_ENABLE_AI_TESTS=1 且 QF_AI_API_KEY 已配置）")
 def test_generate_scenarios():
     """测试 AI 生成场景"""
+    _ensure_ai_config()
     # 先创建需求
     req_response = client.post(
         "/api/v1/requirements",

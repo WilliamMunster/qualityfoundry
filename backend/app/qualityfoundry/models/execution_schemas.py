@@ -4,12 +4,12 @@
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class ExecutionMode(str, Enum):
@@ -61,8 +61,16 @@ class ExecutionResponse(BaseModel):
     completed_at: Optional[datetime]
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    @field_serializer("started_at", "completed_at", "created_at")
+    def serialize_dt(self, dt: datetime | None, _info):
+        if dt is None:
+            return None
+        # 强制添加 UTC 时区信息并格式化为带 Z 的 ISO 字符串
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ExecutionListResponse(BaseModel):

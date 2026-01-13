@@ -6,23 +6,31 @@
 2. 场景管理（CRUD）
 3. 场景审核集成
 """
-import sys
-from pathlib import Path
+import os
 
-# 添加项目路径
-backend_path = Path(__file__).parent.parent
-sys.path.insert(0, str(backend_path / "app"))
+# 避免在 pytest 环境下重复添加路径
+if "PYTEST_CURRENT_TEST" not in os.environ:
+    import sys
+    from pathlib import Path
+    backend_path = Path(__file__).parent.parent
+    sys.path.insert(0, str(backend_path / "app"))
 
-from qualityfoundry.database.config import SessionLocal  # noqa: E402
-from qualityfoundry.database.models import (  # noqa: E402
+try:
+    # 尝试从 conftest 导入测试配置 (pytest 运行时)
+    from .conftest import TestingSessionLocal as SessionLocal
+except (ImportError, ValueError):
+    # 回退到生产配置 (独立脚本运行时)
+    from qualityfoundry.database.config import SessionLocal
+
+from qualityfoundry.database.models import (
     ApprovalStatus as DBApprovalStatus,
     Requirement,
     Scenario,
 )
-from qualityfoundry.services.approval_service import ApprovalService  # noqa: E402
+from qualityfoundry.services.approval_service import ApprovalService
 
 
-def test_approval_workflow():
+def _run_approval_workflow():
     """测试审核流程"""
     print("=" * 50)
     print("测试1: 审核流程")
@@ -110,7 +118,7 @@ def test_approval_workflow():
         db.close()
 
 
-def test_scenario_crud():
+def _run_scenario_crud():
     """测试场景 CRUD"""
     print("\n" + "=" * 50)
     print("测试2: 场景 CRUD")
@@ -181,7 +189,7 @@ def test_scenario_crud():
         db.close()
 
 
-def test_scenario_approval_integration():
+def _run_scenario_approval_integration():
     """测试场景审核集成"""
     print("\n" + "=" * 50)
     print("测试3: 场景审核集成")
@@ -258,6 +266,21 @@ def test_scenario_approval_integration():
         db.close()
 
 
+def test_approval_workflow():
+    """测试审核流程"""
+    assert _run_approval_workflow()
+
+
+def test_scenario_crud():
+    """测试场景 CRUD"""
+    assert _run_scenario_crud()
+
+
+def test_scenario_approval_integration():
+    """测试场景审核集成"""
+    assert _run_scenario_approval_integration()
+
+
 def main():
     """运行所有测试"""
     print("\n" + "=" * 50)
@@ -267,13 +290,13 @@ def main():
     results = []
     
     # 测试1: 审核流程
-    results.append(("审核流程", test_approval_workflow()))
+    results.append(("审核流程", _run_approval_workflow()))
     
     # 测试2: 场景 CRUD
-    results.append(("场景 CRUD", test_scenario_crud()))
+    results.append(("场景 CRUD", _run_scenario_crud()))
     
     # 测试3: 场景审核集成
-    results.append(("场景审核集成", test_scenario_approval_integration()))
+    results.append(("场景审核集成", _run_scenario_approval_integration()))
     
     # 总结
     print("\n" + "=" * 50)

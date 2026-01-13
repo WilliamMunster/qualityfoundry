@@ -5,7 +5,7 @@ AI 配置 Pydantic 模型
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class AIConfigCreate(BaseModel):
@@ -53,8 +53,7 @@ class AIConfigResponse(BaseModel):
     is_default: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AITestRequest(BaseModel):
