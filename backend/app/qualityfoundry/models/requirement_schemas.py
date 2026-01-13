@@ -4,7 +4,7 @@
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 from uuid import UUID
@@ -48,8 +48,6 @@ class RequirementVersionCreate(BaseModel):
 # ============================================================
 # Response Schemas
 # ============================================================
-
-from datetime import timezone
 
 class RequirementResponse(BaseModel):
     """需求响应"""

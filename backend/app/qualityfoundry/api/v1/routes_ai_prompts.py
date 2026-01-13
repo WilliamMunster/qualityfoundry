@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from qualityfoundry.database.config import get_db
-from qualityfoundry.database.ai_config_models import AIPrompt, AIStep
-from pydantic import BaseModel, ConfigDict, Field
+from qualityfoundry.database.ai_config_models import AIPrompt
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 router = APIRouter(prefix="/ai-prompts", tags=["ai-prompts"])

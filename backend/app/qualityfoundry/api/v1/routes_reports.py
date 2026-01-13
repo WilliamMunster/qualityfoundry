@@ -2,7 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict, field_serializer
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 from qualityfoundry.database.config import get_db
@@ -18,8 +18,6 @@ class ReportBase(BaseModel):
 
 class ReportCreate(ReportBase):
     pass
-
-from datetime import timezone
 
 class ReportResponse(ReportBase):
     id: uuid.UUID

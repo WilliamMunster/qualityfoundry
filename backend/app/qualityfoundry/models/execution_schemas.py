@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class ExecutionMode(str, Enum):
@@ -47,8 +47,6 @@ class ExecutionStop(BaseModel):
 # ============================================================
 # Response Schemas
 # ============================================================
-
-from pydantic import field_serializer
 
 class ExecutionResponse(BaseModel):
     """执行响应"""

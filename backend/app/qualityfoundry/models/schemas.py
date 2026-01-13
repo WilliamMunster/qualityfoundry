@@ -7,11 +7,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 # ============================================================
@@ -148,9 +148,6 @@ class StepEvidence(BaseModel):
     screenshot: str | None = None
     error: str | None = None
 
-
-from datetime import datetime, timezone
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 class ExecutionResponse(BaseModel):
     """
