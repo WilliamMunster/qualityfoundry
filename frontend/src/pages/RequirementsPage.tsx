@@ -72,17 +72,23 @@ const RequirementsPage: React.FC = () => {
   };
 
   // 上传文件
-  const handleUpload = async (file: File) => {
-    setUploading(true);
-    try {
-      await uploadRequirement(file);
-      message.success("上传成功");
-      loadRequirements();
-    } catch (error) {
-      message.error("上传失败");
-    } finally {
-      setUploading(false);
-    }
+  const handleUpload = (file: File) => {
+    modal.confirm({
+      title: "确认上传",
+      content: `确定要上传文件 "${file.name}" 吗？`,
+      onOk: async () => {
+        setUploading(true);
+        try {
+          await uploadRequirement(file);
+          message.success("上传成功");
+          loadRequirements();
+        } catch (error) {
+          message.error("上传失败");
+        } finally {
+          setUploading(false);
+        }
+      }
+    });
     return false; // 阻止默认上传行为
   };
 

@@ -29,6 +29,7 @@ const ExecutionsPage: React.FC = () => {
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [selectedEnv, setSelectedEnv] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
+  const [modal, contextHolder] = Modal.useModal();
 
   // 加载执行记录
   const loadExecutions = async () => {
@@ -66,14 +67,20 @@ const ExecutionsPage: React.FC = () => {
   }, [selectedEnv]);
 
   // 停止执行
-  const handleStop = async (id: string) => {
-    try {
-      await apiClient.post(`/api/v1/executions/${id}/stop`);
-      message.success("已发送停止命令");
-      loadExecutions();
-    } catch (error) {
-      // global handler
-    }
+  const handleStop = (id: string) => {
+    modal.confirm({
+      title: "确认停止",
+      content: "确定要停止这个执行任务吗？",
+      onOk: async () => {
+        try {
+          await apiClient.post(`/api/v1/executions/${id}/stop`);
+          message.success("已发送停止命令");
+          loadExecutions();
+        } catch (error) {
+          // global handler
+        }
+      }
+    });
   };
 
   // 查看详情
@@ -245,6 +252,7 @@ const ExecutionsPage: React.FC = () => {
 
   return (
     <div>
+      {contextHolder}
       <div
         style={{
           marginBottom: 16,

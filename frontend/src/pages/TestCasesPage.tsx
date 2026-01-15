@@ -7,6 +7,7 @@ import { Table, Button, Space, Tag, message, Modal, Select, Form } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import apiClient from "../api/client";
+import { useAppStore } from "../store";
 
 interface TestStep {
   step: string;
@@ -40,6 +41,8 @@ const TestCasesPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
+
+  const { setLoading: setGlobalLoading } = useAppStore();
 
   const [modal, contextHolder] = Modal.useModal();
 
@@ -124,11 +127,8 @@ const TestCasesPage: React.FC = () => {
       return;
     }
     setGenerating(true);
-    // 显示持久化 loading
-    const hideLoading = message.loading(
-      "AI 正在分析场景并拆解测试步骤 (预计 20-40 秒)...",
-      0
-    );
+    // 显示全局 loading
+    setGlobalLoading(true, "AI 正在分析场景并拆解测试步骤 (预计 20-40 秒)...");
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -145,23 +145,29 @@ const TestCasesPage: React.FC = () => {
       console.error(error);
        // global handler
     } finally {
-      hideLoading();
+      setGlobalLoading(false);
       setGenerating(false);
     }
   };
 
   // 执行用例
-  const handleExecute = async (id: string) => {
-    try {
-      await apiClient.post("/api/v1/executions", {
-        testcase_id: id,
-        mode: "dsl",
-      });
-      message.success("执行任务已创建");
-      navigate("/executions");
-    } catch (error) {
-       // global handler
-    }
+  const handleExecute = (id: string) => {
+    modal.confirm({
+      title: "确认执行",
+      content: "确定要执行这个测试用例吗？",
+      onOk: async () => {
+        try {
+          await apiClient.post("/api/v1/executions", {
+            testcase_id: id,
+            mode: "dsl",
+          });
+          message.success("执行任务已创建");
+          navigate("/executions");
+        } catch (error) {
+           // global handler
+        }
+      },
+    });
   };
 
   // 删除用例

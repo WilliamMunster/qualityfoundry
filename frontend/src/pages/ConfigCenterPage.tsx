@@ -138,17 +138,23 @@ const ConfigCenterPage: React.FC = () => {
 
   // 保存通知配置
   const saveNotificationConfig = async () => {
-    try {
-      const values = await notificationForm.validateFields();
-      setLoading(true);
-      await apiClient.put("/api/v1/configs/notification", values);
-      message.success("通知配置保存成功");
-      loadNotificationConfig();
-    } catch (error) {
-       // global handler
-    } finally {
-      setLoading(false);
-    }
+    modal.confirm({
+      title: "确认保存",
+      content: "确定要保存通知配置吗？",
+      onOk: async () => {
+        try {
+          const values = await notificationForm.validateFields();
+          setLoading(true);
+          await apiClient.put("/api/v1/configs/notification", values);
+          message.success("通知配置保存成功");
+          loadNotificationConfig();
+        } catch (error) {
+           // global handler
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
   };
 
   // 加载 AI 配置
@@ -167,25 +173,31 @@ const ConfigCenterPage: React.FC = () => {
 
   // 保存 AI 配置
   const saveAIConfig = async () => {
-    try {
-      const values = await aiForm.validateFields();
-      setLoading(true);
+    modal.confirm({
+      title: "确认保存",
+      content: "确定要保存这个 AI 配置吗？",
+      onOk: async () => {
+        try {
+          const values = await aiForm.validateFields();
+          setLoading(true);
 
-      if (editingAI) {
-        await apiClient.put(`/api/v1/ai-configs/${editingAI.id}`, values);
-        message.success("AI 配置更新成功");
-      } else {
-        await apiClient.post("/api/v1/ai-configs", values);
-        message.success("AI 配置创建成功");
+          if (editingAI) {
+            await apiClient.put(`/api/v1/ai-configs/${editingAI.id}`, values);
+            message.success("AI 配置更新成功");
+          } else {
+            await apiClient.post("/api/v1/ai-configs", values);
+            message.success("AI 配置创建成功");
+          }
+
+          setAIModalVisible(false);
+          loadAIConfigs();
+        } catch (error) {
+          // global handler
+        } finally {
+          setLoading(false);
+        }
       }
-
-      setAIModalVisible(false);
-      loadAIConfigs();
-    } catch (error) {
-      // global handler
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   // 删除 AI 配置
@@ -223,17 +235,23 @@ const ConfigCenterPage: React.FC = () => {
 
   // 保存 MCP 配置
   const saveMCPConfig = async () => {
-    try {
-      const values = await mcpForm.validateFields();
-      setLoading(true);
-      await apiClient.put("/api/v1/configs/mcp", values);
-      message.success("MCP 配置保存成功");
-      loadMCPConfig();
-    } catch (error) {
-      // global handler
-    } finally {
-      setLoading(false);
-    }
+    modal.confirm({
+      title: "确认保存",
+      content: "确定要保存 MCP 配置吗？",
+      onOk: async () => {
+        try {
+          const values = await mcpForm.validateFields();
+          setLoading(true);
+          await apiClient.put("/api/v1/configs/mcp", values);
+          message.success("MCP 配置保存成功");
+          loadMCPConfig();
+        } catch (error) {
+          // global handler
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
   };
 
   // 加载 AI 提示词
@@ -252,36 +270,48 @@ const ConfigCenterPage: React.FC = () => {
 
   // 保存 AI 提示词
   const savePrompt = async () => {
-    try {
-      const values = await promptForm.validateFields();
-      setLoading(true);
-      await apiClient.put(`/api/v1/ai-prompts/${editingPrompt?.step}`, {
-        ...values,
-        step: editingPrompt?.step,
-      });
-      message.success("提示词保存成功");
-      setPromptModalVisible(false);
-      loadPrompts();
-    } catch (error) {
-      // global handler
-    } finally {
-      setLoading(false);
-    }
+    modal.confirm({
+      title: "确认保存",
+      content: "确定要保存这个提示词配置吗？",
+      onOk: async () => {
+        try {
+          const values = await promptForm.validateFields();
+          setLoading(true);
+          await apiClient.put(`/api/v1/ai-prompts/${editingPrompt?.step}`, {
+            ...values,
+            step: editingPrompt?.step,
+          });
+          message.success("提示词保存成功");
+          setPromptModalVisible(false);
+          loadPrompts();
+        } catch (error) {
+          // global handler
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
   };
 
   // 初始化默认提示词
   const seedPrompts = async () => {
-    try {
-      setLoading(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = await apiClient.post("/api/v1/ai-prompts/seed");
-      message.success(data.message || "初始化成功");
-      loadPrompts();
-    } catch (error) {
-      // global handler
-    } finally {
-      setLoading(false);
-    }
+    modal.confirm({
+      title: "确认初始化",
+      content: "确定要恢复默认提示词吗？这将覆盖当前的修改。",
+      onOk: async () => {
+        try {
+          setLoading(true);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const data: any = await apiClient.post("/api/v1/ai-prompts/seed");
+          message.success(data.message || "初始化成功");
+          loadPrompts();
+        } catch (error) {
+          // global handler
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
   };
 
   // AI 提示词表格列

@@ -52,19 +52,25 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  const handleCreate = async (values: any) => {
-    setSubmitting(true);
-    try {
-      await apiClient.post("/api/v1/users", values);
-      message.success("创建成功");
-      setModalVisible(false);
-      form.resetFields();
-      loadUsers();
-    } catch (error) {
-       // global error handler will show message
-    } finally {
-      setSubmitting(false);
-    }
+  const handleCreate = (values: any) => {
+    modal.confirm({
+      title: "确认创建",
+      content: `确定要创建用户 "${values.username}" 吗？`,
+      onOk: async () => {
+        setSubmitting(true);
+        try {
+          await apiClient.post("/api/v1/users", values);
+          message.success("创建成功");
+          setModalVisible(false);
+          form.resetFields();
+          loadUsers();
+        } catch (error) {
+           // global error handler will show message
+        } finally {
+          setSubmitting(false);
+        }
+      }
+    });
   };
 
   const handleDelete = (id: string) => {

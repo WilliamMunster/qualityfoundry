@@ -13,7 +13,8 @@ interface AppState {
   
   // 加载状态
   loading: boolean;
-  setLoading: (loading: boolean) => void;
+  loadingTip?: string;
+  setLoading: (loading: boolean, tip?: string) => void;
   
   // 当前选中的环境
   currentEnvironment: string | null;
@@ -25,7 +26,8 @@ export const useAppStore = create<AppState>((set) => ({
   setUser: (user) => set({ user }),
   
   loading: false,
-  setLoading: (loading) => set({ loading }),
+  loadingTip: "加载中...",
+  setLoading: (loading, tip) => set({ loading, loadingTip: tip || "加载中..." }),
   
   currentEnvironment: null,
   setCurrentEnvironment: (env) => set({ currentEnvironment: env }),
