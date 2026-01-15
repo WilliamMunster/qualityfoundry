@@ -129,6 +129,7 @@ const TestCasesPage: React.FC = () => {
     setGenerating(true);
     // 显示全局 loading
     setGlobalLoading(true, "AI 正在分析场景并拆解测试步骤 (预计 20-40 秒)...");
+    setGenerateModalVisible(false);
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -137,7 +138,6 @@ const TestCasesPage: React.FC = () => {
       });
       const count = data?.length || 0;
       message.success(`成功生成 ${count} 条测试用例`);
-      setGenerateModalVisible(false);
       setSelectedScenario(""); // 清空选择
       setPage(1); // 重置到第一页
       loadTestcases();

@@ -120,6 +120,7 @@ const ScenariosPage: React.FC = () => {
     setGenerating(true);
     // 显示全局 loading
     setGlobalLoading(true, "AI 正在深度思考并生成场景中 (预计 30-60 秒)...");
+    setGenerateModalVisible(false);
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,7 +130,6 @@ const ScenariosPage: React.FC = () => {
 
       const count = data?.length || 0;
       message.success(`成功生成 ${count} 个场景`);
-      setGenerateModalVisible(false);
       setSelectedRequirement(""); // 清空选择
       setPage(1); // 重置到第一页
       loadScenarios();
