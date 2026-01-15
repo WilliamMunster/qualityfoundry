@@ -18,6 +18,7 @@ import { PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import apiClient from "../api/client";
 import { getRequirements, type Requirement } from "../api/requirements";
+import { useAppStore } from "../store";
 
 interface Scenario {
   id: string;
@@ -41,6 +42,8 @@ const ScenariosPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
+
+  const { setLoading: setGlobalLoading } = useAppStore();
 
   const [modal, contextHolder] = Modal.useModal();
 
@@ -115,11 +118,8 @@ const ScenariosPage: React.FC = () => {
       return;
     }
     setGenerating(true);
-    // 显示持久化 loading
-    const hideLoading = message.loading(
-      "AI 正在深度思考并生成场景中 (预计 30-60 秒)...",
-      0
-    );
+    // 显示全局 loading
+    setGlobalLoading(true, "AI 正在深度思考并生成场景中 (预计 30-60 秒)...");
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -137,7 +137,7 @@ const ScenariosPage: React.FC = () => {
       console.error(error);
       // global error handler
     } finally {
-      hideLoading(); // 关闭 loading
+      setGlobalLoading(false); // 关闭 global loading
       setGenerating(false);
     }
   };

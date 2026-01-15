@@ -19,10 +19,12 @@ import EnvironmentsPage from "./pages/EnvironmentsPage";
 import UsersPage from "./pages/UsersPage";
 import ReportDashboardPage from "./pages/ReportDashboardPage";
 import ConfigCenterPage from "./pages/ConfigCenterPage";
+import GlobalLoading from "./components/GlobalLoading";
 
 const App: React.FC = () => {
   return (
     <ConfigProvider locale={zhCN} theme={lightTheme}>
+      <GlobalLoading />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />

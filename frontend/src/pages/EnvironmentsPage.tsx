@@ -50,16 +50,22 @@ const EnvironmentsPage: React.FC = () => {
     loadEnvironments();
   }, []);
 
-  const handleCreate = async (values: any) => {
-    try {
-      await createEnvironment(values);
-      message.success("创建成功");
-      setModalVisible(false);
-      form.resetFields();
-      loadEnvironments();
-    } catch (error) {
-      message.error("创建失败");
-    }
+  const handleCreate = (values: any) => {
+    modal.confirm({
+      title: "确认新建",
+      content: "确定要创建这个环境吗？",
+      onOk: async () => {
+        try {
+          await createEnvironment(values);
+          message.success("创建成功");
+          setModalVisible(false);
+          form.resetFields();
+          loadEnvironments();
+        } catch (error) {
+          message.error("创建失败");
+        }
+      }
+    });
   };
 
   const handleDelete = (id: string) => {

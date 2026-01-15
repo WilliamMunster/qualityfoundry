@@ -3,7 +3,7 @@
  */
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, Form, Input, Button, Space, Select, Spin, message } from "antd";
+import { Card, Form, Input, Button, Space, Select, Spin, message, Modal } from "antd";
 import { ArrowLeftOutlined, SaveOutlined } from "@ant-design/icons";
 import {
   getRequirement,
@@ -21,6 +21,7 @@ const RequirementEditPage: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [modal, contextHolder] = Modal.useModal();
   const isEdit = !!id;
 
   useEffect(() => {
@@ -47,25 +48,31 @@ const RequirementEditPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (
+  const handleSubmit = (
     values: RequirementCreate & { status?: string }
   ) => {
-    setSaving(true);
-    try {
-      if (isEdit) {
-        await updateRequirement(id!, values);
-        message.success("更新成功");
-        navigate(`/requirements/${id}`);
-      } else {
-        const newReq = await createRequirement(values);
-        message.success("创建成功");
-        navigate(`/requirements/${newReq.id}`);
+    modal.confirm({
+      title: isEdit ? "确认保存" : "确认创建",
+      content: isEdit ? "确定要保存对需求的修改吗？" : "确定要创建这个新需求吗？",
+      onOk: async () => {
+        setSaving(true);
+        try {
+          if (isEdit) {
+            await updateRequirement(id!, values);
+            message.success("更新成功");
+            navigate(`/requirements/${id}`);
+          } else {
+            const newReq = await createRequirement(values);
+            message.success("创建成功");
+            navigate(`/requirements/${newReq.id}`);
+          }
+        } catch (error) {
+          message.error(isEdit ? "更新失败" : "创建失败");
+        } finally {
+          setSaving(false);
+        }
       }
-    } catch (error) {
-      message.error(isEdit ? "更新失败" : "创建失败");
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   if (loading) {
@@ -85,6 +92,7 @@ const RequirementEditPage: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
+      {contextHolder}
       <div style={{ marginBottom: 16 }}>
         <Button
           icon={<ArrowLeftOutlined />}
