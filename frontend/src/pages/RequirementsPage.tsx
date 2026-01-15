@@ -23,6 +23,7 @@ const RequirementsPage: React.FC = () => {
   const navigate = useNavigate();
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -72,12 +73,15 @@ const RequirementsPage: React.FC = () => {
 
   // 上传文件
   const handleUpload = async (file: File) => {
+    setUploading(true);
     try {
       await uploadRequirement(file);
       message.success("上传成功");
       loadRequirements();
     } catch (error) {
       message.error("上传失败");
+    } finally {
+      setUploading(false);
     }
     return false; // 阻止默认上传行为
   };
@@ -176,7 +180,7 @@ const RequirementsPage: React.FC = () => {
             beforeUpload={handleUpload}
             showUploadList={false}
           >
-            <Button icon={<UploadOutlined />}>上传文档</Button>
+            <Button icon={<UploadOutlined />} loading={uploading}>上传文档</Button>
           </Upload>
           <Button
             type="primary"
