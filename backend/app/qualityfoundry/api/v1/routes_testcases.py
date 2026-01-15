@@ -21,6 +21,7 @@ from qualityfoundry.models.testcase_schemas import (
     TestCaseResponse,
     TestCaseUpdate,
 )
+from qualityfoundry.models.common_schemas import BulkDeleteRequest, BulkDeleteResponse
 from qualityfoundry.services.approval_service import ApprovalService
 
 router = APIRouter(prefix="/testcases", tags=["testcases"])
@@ -261,10 +262,35 @@ def delete_testcase(
     testcase = db.query(TestCase).filter(TestCase.id == testcase_id).first()
     if not testcase:
         raise HTTPException(status_code=404, detail="TestCase not found")
-    
+
     db.delete(testcase)
     db.commit()
     return None
+
+
+@router.post("/bulk-delete", response_model=BulkDeleteResponse)
+def bulk_delete_testcases(
+    req: BulkDeleteRequest,
+    db: Session = Depends(get_db)
+):
+    """批量删除测试用例"""
+    deleted_count = 0
+    failed_ids = []
+
+    for testcase_id in req.ids:
+        testcase = db.query(TestCase).filter(TestCase.id == testcase_id).first()
+        if testcase:
+            db.delete(testcase)
+            deleted_count += 1
+        else:
+            failed_ids.append(testcase_id)
+
+    db.commit()
+
+    return BulkDeleteResponse(
+        deleted_count=deleted_count,
+        failed_ids=failed_ids
+    )
 
 
 @router.post("/{testcase_id}/approve", response_model=TestCaseResponse)

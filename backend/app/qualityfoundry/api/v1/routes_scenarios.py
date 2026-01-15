@@ -21,6 +21,7 @@ from qualityfoundry.models.scenario_schemas import (
     ScenarioResponse,
     ScenarioUpdate,
 )
+from qualityfoundry.models.common_schemas import BulkDeleteRequest, BulkDeleteResponse
 from qualityfoundry.services.approval_service import ApprovalService
 
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
@@ -255,10 +256,35 @@ def delete_scenario(
     scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="Scenario not found")
-    
+
     db.delete(scenario)
     db.commit()
     return None
+
+
+@router.post("/bulk-delete", response_model=BulkDeleteResponse)
+def bulk_delete_scenarios(
+    req: BulkDeleteRequest,
+    db: Session = Depends(get_db)
+):
+    """批量删除场景"""
+    deleted_count = 0
+    failed_ids = []
+
+    for scenario_id in req.ids:
+        scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
+        if scenario:
+            db.delete(scenario)
+            deleted_count += 1
+        else:
+            failed_ids.append(scenario_id)
+
+    db.commit()
+
+    return BulkDeleteResponse(
+        deleted_count=deleted_count,
+        failed_ids=failed_ids
+    )
 
 
 @router.post("/{scenario_id}/approve", response_model=ScenarioResponse)

@@ -93,14 +93,36 @@ qualityfoundry/
 | 模块 | 端点                     | 说明                 |
 | ---- | ------------------------ | -------------------- |
 | 认证 | POST /api/v1/users/login | 用户登录             |
-| 需求 | /api/v1/requirements     | 需求 CRUD            |
-| 场景 | /api/v1/scenarios        | 场景 CRUD + AI 生成  |
-| 用例 | /api/v1/testcases        | 用例 CRUD + AI 生成  |
+| 需求 | /api/v1/requirements     | 需求 CRUD + 批量删除 |
+| 场景 | /api/v1/scenarios        | 场景 CRUD + AI 生成 + 批量删除 |
+| 用例 | /api/v1/testcases        | 用例 CRUD + AI 生成 + 批量删除 |
 | 环境 | /api/v1/environments     | 环境 CRUD + 健康检查 |
 | 执行 | /api/v1/executions       | 执行管理             |
 | 报表 | /api/v1/reports          | 仪表盘统计           |
 | AI   | /api/v1/ai-configs       | AI 配置管理          |
 | 用户 | /api/v1/users            | 用户管理             |
+
+### 批量操作 API
+
+```bash
+# 批量删除需求
+POST /api/v1/requirements/bulk-delete
+Content-Type: application/json
+{"ids": ["uuid1", "uuid2", "uuid3"]}
+
+# 批量删除场景
+POST /api/v1/scenarios/bulk-delete
+Content-Type: application/json
+{"ids": ["uuid1", "uuid2", "uuid3"]}
+
+# 批量删除用例
+POST /api/v1/testcases/bulk-delete
+Content-Type: application/json
+{"ids": ["uuid1", "uuid2", "uuid3"]}
+
+# 响应格式
+{"deleted_count": 3, "failed_ids": []}
+```
 
 ---
 
@@ -162,6 +184,16 @@ MIT License
 ---
 
 ## 更新日志
+
+### V0.8 (2026-01-15)
+
+**批量操作功能**
+
+- ✅ 后端支持批量删除 API：需求、场景、用例均支持批量删除
+- ✅ 新增 `POST /api/v1/requirements/bulk-delete` 批量删除需求
+- ✅ 新增 `POST /api/v1/scenarios/bulk-delete` 批量删除场景
+- ✅ 新增 `POST /api/v1/testcases/bulk-delete` 批量删除用例
+- ✅ 支持返回删除成功数量和失败ID列表
 
 ### V0.7 (2026-01-13)
 

@@ -18,6 +18,7 @@ from qualityfoundry.models.requirement_schemas import (
     RequirementVersionCreate,
     RequirementVersionResponse,
 )
+from qualityfoundry.models.common_schemas import BulkDeleteRequest, BulkDeleteResponse
 
 router = APIRouter(prefix="/requirements", tags=["requirements"])
 
@@ -123,10 +124,35 @@ def delete_requirement(
     requirement = db.query(Requirement).filter(Requirement.id == requirement_id).first()
     if not requirement:
         raise HTTPException(status_code=404, detail="Requirement not found")
-    
+
     db.delete(requirement)
     db.commit()
     return None
+
+
+@router.post("/bulk-delete", response_model=BulkDeleteResponse)
+def bulk_delete_requirements(
+    req: BulkDeleteRequest,
+    db: Session = Depends(get_db)
+):
+    """批量删除需求"""
+    deleted_count = 0
+    failed_ids = []
+
+    for req_id in req.ids:
+        requirement = db.query(Requirement).filter(Requirement.id == req_id).first()
+        if requirement:
+            db.delete(requirement)
+            deleted_count += 1
+        else:
+            failed_ids.append(req_id)
+
+    db.commit()
+
+    return BulkDeleteResponse(
+        deleted_count=deleted_count,
+        failed_ids=failed_ids
+    )
 
 
 @router.post("/{requirement_id}/versions", response_model=RequirementResponse, status_code=201)
