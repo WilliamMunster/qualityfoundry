@@ -79,6 +79,11 @@ const AppLayout: React.FC = () => {
     localStorage.getItem("user") || '{"username": "Guest"}'
   ).username;
 
+  // 计算当前选中的菜单项
+  const activeMenuKey = menuItems.find(item => 
+    location.pathname === item.key || location.pathname.startsWith(`${item.key}/`)
+  )?.key || location.pathname;
+
   return (
     <Layout style={{ minHeight: "100vh", background: "#F8F9FA" }}>
       {/* 顶部导航 */}
@@ -169,7 +174,7 @@ const AppLayout: React.FC = () => {
         >
           <Menu
             mode="inline"
-            selectedKeys={[location.pathname]}
+            selectedKeys={[activeMenuKey]}
             items={menuItems}
             onClick={({ key }) => navigate(key)}
             style={{

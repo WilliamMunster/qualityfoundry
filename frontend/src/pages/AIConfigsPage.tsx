@@ -17,7 +17,7 @@ import {
 } from "antd";
 import { PlusOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import axios from "axios";
+import apiClient from "../api/client";
 
 interface AIConfig {
   id: string;
@@ -65,12 +65,11 @@ const AIConfigsPage: React.FC = () => {
   const loadConfigs = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        "http://localhost:8000/api/v1/ai-configs"
-      );
-      setConfigs(response.data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.get("/api/v1/ai-configs");
+      setConfigs(data);
     } catch (error) {
-      message.error("加载配置列表失败");
+      // global error handler will show message
     } finally {
       setLoading(false);
     }
@@ -78,38 +77,38 @@ const AIConfigsPage: React.FC = () => {
 
   const handleCreate = async (values: any) => {
     try {
-      await axios.post("http://localhost:8000/api/v1/ai-configs", values);
+      await apiClient.post("/api/v1/ai-configs", values);
       message.success("创建成功");
       setModalVisible(false);
       form.resetFields();
       loadConfigs();
     } catch (error) {
-      message.error("创建失败");
+       // global error handler will show message
     }
   };
 
   const handleTest = async (values: any) => {
     try {
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/ai-configs/test",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.post("/api/v1/ai-configs/test",
         {
           config_id: selectedConfig,
           prompt: values.prompt,
         }
       );
 
-      if (response.data.success) {
+      if (data.success) {
         message.success("测试成功");
         modal.info({
           title: "AI 响应",
-          content: response.data.response,
+          content: data.response,
           width: 600,
         });
       } else {
-        message.error(`测试失败: ${response.data.error}`);
+        message.error(`测试失败: ${data.error}`);
       }
     } catch (error) {
-      message.error("测试失败");
+       // global error handler will show message
     }
   };
 
@@ -119,12 +118,11 @@ const AIConfigsPage: React.FC = () => {
       content: "确定要删除这个配置吗？",
       onOk: async () => {
         try {
-          await axios.delete(`http://localhost:8000/api/v1/ai-configs/${id}`);
+          await apiClient.delete(`/api/v1/ai-configs/${id}`);
           message.success("删除成功");
-          // loadConfigs();
           setConfigs((prev) => prev.filter((item) => item.id !== id));
         } catch (error) {
-          message.error("删除失败");
+           // global error handler will show message
         }
       },
     });

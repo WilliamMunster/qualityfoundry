@@ -32,7 +32,7 @@ import {
   CloseCircleOutlined,
   FileTextOutlined,
 } from "@ant-design/icons";
-import axios from "axios";
+import apiClient from "../api/client";
 
 const { TabPane } = Tabs;
 const { Text, Title } = Typography;
@@ -125,9 +125,10 @@ const ConfigCenterPage: React.FC = () => {
   const loadNotificationConfig = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/v1/configs/notification");
-      setNotificationConfig(response.data);
-      notificationForm.setFieldsValue(response.data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.get("/api/v1/configs/notification");
+      setNotificationConfig(data);
+      notificationForm.setFieldsValue(data);
     } catch (error) {
       console.error("加载通知配置失败:", error);
     } finally {
@@ -140,12 +141,11 @@ const ConfigCenterPage: React.FC = () => {
     try {
       const values = await notificationForm.validateFields();
       setLoading(true);
-      await axios.put("/api/v1/configs/notification", values);
+      await apiClient.put("/api/v1/configs/notification", values);
       message.success("通知配置保存成功");
       loadNotificationConfig();
     } catch (error) {
-      message.error("保存失败");
-      console.error(error);
+       // global handler
     } finally {
       setLoading(false);
     }
@@ -155,8 +155,9 @@ const ConfigCenterPage: React.FC = () => {
   const loadAIConfigs = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/v1/ai-configs");
-      setAIConfigs(response.data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.get("/api/v1/ai-configs");
+      setAIConfigs(data);
     } catch (error) {
       console.error("加载 AI 配置失败:", error);
     } finally {
@@ -171,18 +172,17 @@ const ConfigCenterPage: React.FC = () => {
       setLoading(true);
 
       if (editingAI) {
-        await axios.put(`/api/v1/ai-configs/${editingAI.id}`, values);
+        await apiClient.put(`/api/v1/ai-configs/${editingAI.id}`, values);
         message.success("AI 配置更新成功");
       } else {
-        await axios.post("/api/v1/ai-configs", values);
+        await apiClient.post("/api/v1/ai-configs", values);
         message.success("AI 配置创建成功");
       }
 
       setAIModalVisible(false);
       loadAIConfigs();
     } catch (error) {
-      message.error("保存失败");
-      console.error(error);
+      // global handler
     } finally {
       setLoading(false);
     }
@@ -195,12 +195,12 @@ const ConfigCenterPage: React.FC = () => {
       content: "确定要删除这个 AI 配置吗？",
       onOk: async () => {
         try {
-          await axios.delete(`/api/v1/ai-configs/${id}`);
+          await apiClient.delete(`/api/v1/ai-configs/${id}`);
           message.success("删除成功");
           // loadAIConfigs();
           setAIConfigs((prev) => prev.filter((item) => item.id !== id));
         } catch (error) {
-          message.error("删除失败");
+          // global handler
         }
       },
     });
@@ -210,9 +210,10 @@ const ConfigCenterPage: React.FC = () => {
   const loadMCPConfig = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/v1/configs/mcp");
-      setMcpConfig(response.data);
-      mcpForm.setFieldsValue(response.data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.get("/api/v1/configs/mcp");
+      setMcpConfig(data);
+      mcpForm.setFieldsValue(data);
     } catch (error) {
       console.error("加载 MCP 配置失败:", error);
     } finally {
@@ -225,12 +226,11 @@ const ConfigCenterPage: React.FC = () => {
     try {
       const values = await mcpForm.validateFields();
       setLoading(true);
-      await axios.put("/api/v1/configs/mcp", values);
+      await apiClient.put("/api/v1/configs/mcp", values);
       message.success("MCP 配置保存成功");
       loadMCPConfig();
     } catch (error) {
-      message.error("保存失败");
-      console.error(error);
+      // global handler
     } finally {
       setLoading(false);
     }
@@ -240,8 +240,9 @@ const ConfigCenterPage: React.FC = () => {
   const loadPrompts = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/v1/ai-prompts");
-      setPrompts(response.data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.get("/api/v1/ai-prompts");
+      setPrompts(data);
     } catch (error) {
       console.error("加载提示词失败:", error);
     } finally {
@@ -254,7 +255,7 @@ const ConfigCenterPage: React.FC = () => {
     try {
       const values = await promptForm.validateFields();
       setLoading(true);
-      await axios.put(`/api/v1/ai-prompts/${editingPrompt?.step}`, {
+      await apiClient.put(`/api/v1/ai-prompts/${editingPrompt?.step}`, {
         ...values,
         step: editingPrompt?.step,
       });
@@ -262,8 +263,7 @@ const ConfigCenterPage: React.FC = () => {
       setPromptModalVisible(false);
       loadPrompts();
     } catch (error) {
-      message.error("保存失败");
-      console.error(error);
+      // global handler
     } finally {
       setLoading(false);
     }
@@ -273,12 +273,12 @@ const ConfigCenterPage: React.FC = () => {
   const seedPrompts = async () => {
     try {
       setLoading(true);
-      const response = await axios.post("/api/v1/ai-prompts/seed");
-      message.success(response.data.message || "初始化成功");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.post("/api/v1/ai-prompts/seed");
+      message.success(data.message || "初始化成功");
       loadPrompts();
     } catch (error) {
-      message.error("初始化失败");
-      console.error(error);
+      // global handler
     } finally {
       setLoading(false);
     }
