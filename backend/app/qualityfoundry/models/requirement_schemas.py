@@ -52,6 +52,7 @@ class RequirementVersionCreate(BaseModel):
 class RequirementResponse(BaseModel):
     """需求响应"""
     id: UUID
+    seq_id: Optional[int] = None
     title: str
     content: str
     file_path: Optional[str]

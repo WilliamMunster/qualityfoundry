@@ -45,7 +45,9 @@ class ScenarioGenerateRequest(BaseModel):
 class ScenarioResponse(BaseModel):
     """场景响应"""
     id: UUID
+    seq_id: Optional[int] = None
     requirement_id: UUID
+    requirement_seq_id: Optional[int] = None  # 关联需求的 seq_id
     title: str
     description: Optional[str]
     steps: list[str]

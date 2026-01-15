@@ -6,6 +6,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from qualityfoundry.database.config import get_db
@@ -131,7 +132,11 @@ async def generate_testcases(
             else:
                 expected_results = []
             
+            # 获取下一个 seq_id
+            max_seq = db.query(func.max(TestCase.seq_id)).scalar() or 0
+            
             testcase = TestCase(
+                seq_id=max_seq + 1,
                 scenario_id=req.scenario_id,
                 title=title,
                 preconditions=preconditions,
@@ -141,6 +146,8 @@ async def generate_testcases(
                 version="v1.0"
             )
             db.add(testcase)
+            db.flush()  # 确保 seq_id 被分配
+            max_seq += 1  # 更新下一个 seq_id
             created_testcases.append(testcase)
             
         db.commit()
@@ -172,7 +179,11 @@ def create_testcase(
     db: Session = Depends(get_db)
 ):
     """创建测试用例"""
+    # 生成 seq_id
+    max_seq = db.query(func.max(TestCase.seq_id)).scalar() or 0
+    
     testcase = TestCase(
+        seq_id=max_seq + 1,
         scenario_id=req.scenario_id,
         title=req.title,
         preconditions=req.preconditions,

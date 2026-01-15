@@ -5,6 +5,7 @@ import apiClient from './client';
 
 export interface Requirement {
   id: string;
+  seq_id?: number;
   title: string;
   content: string;
   version: string;
@@ -82,7 +83,7 @@ export const batchDeleteRequirements = async (ids: string[]): Promise<void> => {
 export const uploadRequirement = async (file: File): Promise<Requirement> => {
   const formData = new FormData();
   formData.append('file', file);
-  
+
   return apiClient.post('/api/v1/upload/requirement', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',

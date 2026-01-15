@@ -17,7 +17,9 @@ interface TestStep {
 
 interface TestCase {
   id: string;
+  seq_id?: number;
   scenario_id: string;
+  scenario_seq_id?: number;
   title: string;
   steps: TestStep[];
   approval_status: string;
@@ -63,7 +65,7 @@ const TestCasesPage: React.FC = () => {
       setTotal(data.total || 0);
       setSelectedRowKeys([]);
     } catch (error) {
-       // global handler
+      // global handler
     } finally {
       setLoading(false);
     }
@@ -136,7 +138,7 @@ const TestCasesPage: React.FC = () => {
             )
           );
         } catch (error) {
-           // global handler
+          // global handler
         }
       },
     });
@@ -165,7 +167,7 @@ const TestCasesPage: React.FC = () => {
       loadTestcases();
     } catch (error) {
       console.error(error);
-       // global handler
+      // global handler
     } finally {
       setGlobalLoading(false);
       setGenerating(false);
@@ -186,7 +188,7 @@ const TestCasesPage: React.FC = () => {
           message.success("执行任务已创建");
           navigate("/executions");
         } catch (error) {
-           // global handler
+          // global handler
         }
       },
     });
@@ -206,7 +208,7 @@ const TestCasesPage: React.FC = () => {
           setTestcases((prev) => prev.filter((item) => item.id !== id));
           setTotal((prev) => prev - 1);
         } catch (error) {
-           // global handler
+          // global handler
         }
       },
     });
@@ -215,10 +217,17 @@ const TestCasesPage: React.FC = () => {
   const columns: ColumnsType<TestCase> = [
     {
       title: "ID",
-      dataIndex: "id",
-      key: "id",
-      width: 100,
-      ellipsis: true,
+      dataIndex: "seq_id",
+      key: "seq_id",
+      width: 80,
+      render: (seq_id: number) => seq_id || "-",
+    },
+    {
+      title: "场景ID",
+      dataIndex: "scenario_seq_id",
+      key: "scenario_seq_id",
+      width: 80,
+      render: (seq_id: number) => seq_id || "-",
     },
     {
       title: "标题",

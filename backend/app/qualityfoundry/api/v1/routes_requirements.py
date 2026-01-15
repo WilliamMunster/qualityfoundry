@@ -6,6 +6,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from qualityfoundry.database.config import get_db
@@ -40,7 +41,11 @@ def create_requirement(
     db: Session = Depends(get_db)
 ):
     """创建需求"""
+    # 生成 seq_id
+    max_seq = db.query(func.max(Requirement.seq_id)).scalar() or 0
+    
     requirement = Requirement(
+        seq_id=max_seq + 1,
         title=req.title,
         content=req.content,
         file_path=req.file_path,
