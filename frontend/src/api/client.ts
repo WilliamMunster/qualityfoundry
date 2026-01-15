@@ -2,6 +2,7 @@
  * API 客户端配置
  */
 import axios from 'axios';
+import { message } from 'antd';
 
 // 创建 axios 实例
 const apiClient = axios.create({
@@ -16,10 +17,10 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     // 可以在这里添加认证 token
-    // const token = localStorage.getItem('token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -40,22 +41,25 @@ apiClient.interceptors.response.use(
       switch (status) {
         case 401:
           // 未授权，跳转登录
-          console.error('未授权，请登录');
+          message.error('未授权，请登录');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
           break;
         case 403:
-          console.error('无权限访问');
+          message.error('无权限访问');
           break;
         case 404:
-          console.error('资源不存在');
+          message.error('资源不存在');
           break;
         case 500:
-          console.error('服务器错误');
+          message.error('服务器错误');
           break;
         default:
-          console.error(data?.detail || '请求失败');
+          message.error(data?.detail || '请求失败');
       }
     } else {
-      console.error('网络错误');
+      message.error('网络错误');
     }
     
     return Promise.reject(error);

@@ -15,7 +15,7 @@ import {
 } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import axios from "axios";
+import apiClient from "../api/client";
 
 interface User {
   id: string;
@@ -41,10 +41,11 @@ const UsersPage: React.FC = () => {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("http://localhost:8000/api/v1/users");
-      setUsers(response.data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.get("/api/v1/users");
+      setUsers(data);
     } catch (error) {
-      message.error("加载用户列表失败");
+      // global error handler will show message
     } finally {
       setLoading(false);
     }
@@ -52,13 +53,13 @@ const UsersPage: React.FC = () => {
 
   const handleCreate = async (values: any) => {
     try {
-      await axios.post("http://localhost:8000/api/v1/users", values);
+      await apiClient.post("/api/v1/users", values);
       message.success("创建成功");
       setModalVisible(false);
       form.resetFields();
       loadUsers();
     } catch (error) {
-      message.error("创建失败");
+       // global error handler will show message
     }
   };
 
@@ -68,12 +69,11 @@ const UsersPage: React.FC = () => {
       content: "确定要删除这个用户吗？",
       onOk: async () => {
         try {
-          await axios.delete(`http://localhost:8000/api/v1/users/${id}`);
+          await apiClient.delete(`/api/v1/users/${id}`);
           message.success("删除成功");
-          // loadUsers();
           setUsers((prev) => prev.filter((item) => item.id !== id));
         } catch (error: any) {
-          message.error(error.response?.data?.detail || "删除失败");
+           // global error handler will show message
         }
       },
     });

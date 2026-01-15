@@ -7,7 +7,7 @@ import React, { useState } from "react";
 import { Form, Input, Button, message, Typography } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import apiClient from "../api/client";
 import ParticleBackground from "../components/ParticleBackground";
 
 const { Title, Text } = Typography;
@@ -22,8 +22,9 @@ const LoginPage: React.FC = () => {
   }) => {
     setLoading(true);
     try {
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/users/login",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.post(
+        "/api/v1/users/login",
         {
           username: values.username,
           password: values.password,
@@ -31,13 +32,14 @@ const LoginPage: React.FC = () => {
       );
 
       // 保存 token 和用户信息
-      localStorage.setItem("token", response.data.access_token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.user));
 
       message.success("登录成功");
       navigate("/");
     } catch {
-      message.error("登录失败，请检查用户名和密码");
+      // 错误已经由拦截器处理，或者是网络错误
+      // 但为了保证 UI 状态正确，这里还是 catch 一下，虽然拦截器可能已经弹窗
     } finally {
       setLoading(false);
     }

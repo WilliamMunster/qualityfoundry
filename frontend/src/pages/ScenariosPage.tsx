@@ -16,7 +16,7 @@ import {
 } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import axios from "axios";
+import apiClient from "../api/client";
 import { getRequirements, type Requirement } from "../api/requirements";
 
 interface Scenario {
@@ -48,16 +48,17 @@ const ScenariosPage: React.FC = () => {
   const loadScenarios = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/v1/scenarios", {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.get("/api/v1/scenarios", {
         params: {
           page,
           page_size: pageSize,
         },
       });
-      setScenarios(response.data.items || []);
-      setTotal(response.data.total || 0);
+      setScenarios(data.items || []);
+      setTotal(data.total || 0);
     } catch (error) {
-      message.error("加载场景列表失败");
+      // global error handler
     } finally {
       setLoading(false);
     }
@@ -91,7 +92,7 @@ const ScenariosPage: React.FC = () => {
       content: "确定要批准这个场景吗？",
       onOk: async () => {
         try {
-          await axios.post(`/api/v1/scenarios/${id}/approve`);
+          await apiClient.post(`/api/v1/scenarios/${id}/approve`);
           message.success("审核通过");
           // loadScenarios();
           setScenarios((prev) =>
@@ -100,7 +101,7 @@ const ScenariosPage: React.FC = () => {
             )
           );
         } catch (error) {
-          message.error("审核失败");
+           // global error handler
         }
       },
     });
@@ -121,11 +122,12 @@ const ScenariosPage: React.FC = () => {
     );
 
     try {
-      const response = await axios.post("/api/v1/scenarios/generate", {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.post("/api/v1/scenarios/generate", {
         requirement_id: selectedRequirement,
       });
 
-      const count = response.data?.length || 0;
+      const count = data?.length || 0;
       message.success(`成功生成 ${count} 个场景`);
       setGenerateModalVisible(false);
       setSelectedRequirement(""); // 清空选择
@@ -133,7 +135,7 @@ const ScenariosPage: React.FC = () => {
       loadScenarios();
     } catch (error) {
       console.error(error);
-      message.error("场景生成失败，请检查后端服务");
+      // global error handler
     } finally {
       hideLoading(); // 关闭 loading
       setGenerating(false);
@@ -147,13 +149,13 @@ const ScenariosPage: React.FC = () => {
       content: "确定要删除这个场景吗？",
       onOk: async () => {
         try {
-          await axios.delete(`/api/v1/scenarios/${id}`);
+          await apiClient.delete(`/api/v1/scenarios/${id}`);
           message.success("删除成功");
           // loadScenarios();
           setScenarios((prev) => prev.filter((item) => item.id !== id));
           setTotal((prev) => prev - 1);
         } catch (error) {
-          message.error("删除失败");
+           // global error handler
         }
       },
     });

@@ -6,7 +6,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Table, Button, Space, Tag, message, Modal, Select, Form } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import axios from "axios";
+import apiClient from "../api/client";
 
 interface TestStep {
   step: string;
@@ -47,16 +47,17 @@ const TestCasesPage: React.FC = () => {
   const loadTestcases = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/v1/testcases", {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.get("/api/v1/testcases", {
         params: {
           page,
           page_size: pageSize,
         },
       });
-      setTestcases(response.data.items || []);
-      setTotal(response.data.total || 0);
+      setTestcases(data.items || []);
+      setTotal(data.total || 0);
     } catch (error) {
-      message.error("加载用例列表失败");
+       // global handler
     } finally {
       setLoading(false);
     }
@@ -65,8 +66,9 @@ const TestCasesPage: React.FC = () => {
   // 加载场景列表
   const loadScenarios = async () => {
     try {
-      const response = await axios.get("/api/v1/scenarios");
-      setScenarios(response.data.items || []);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.get("/api/v1/scenarios");
+      setScenarios(data.items || []);
     } catch (error) {
       console.error("加载场景列表失败");
     }
@@ -100,7 +102,7 @@ const TestCasesPage: React.FC = () => {
       content: "确定要批准这个用例吗？",
       onOk: async () => {
         try {
-          await axios.post(`/api/v1/testcases/${id}/approve`);
+          await apiClient.post(`/api/v1/testcases/${id}/approve`);
           message.success("审核通过");
           // loadTestcases();
           setTestcases((prev) =>
@@ -109,7 +111,7 @@ const TestCasesPage: React.FC = () => {
             )
           );
         } catch (error) {
-          message.error("审核失败");
+           // global handler
         }
       },
     });
@@ -129,10 +131,11 @@ const TestCasesPage: React.FC = () => {
     );
 
     try {
-      const response = await axios.post("/api/v1/testcases/generate", {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.post("/api/v1/testcases/generate", {
         scenario_id: selectedScenario,
       });
-      const count = response.data?.length || 0;
+      const count = data?.length || 0;
       message.success(`成功生成 ${count} 条测试用例`);
       setGenerateModalVisible(false);
       setSelectedScenario(""); // 清空选择
@@ -140,7 +143,7 @@ const TestCasesPage: React.FC = () => {
       loadTestcases();
     } catch (error) {
       console.error(error);
-      message.error("用例生成失败");
+       // global handler
     } finally {
       hideLoading();
       setGenerating(false);
@@ -150,14 +153,14 @@ const TestCasesPage: React.FC = () => {
   // 执行用例
   const handleExecute = async (id: string) => {
     try {
-      await axios.post("/api/v1/executions", {
+      await apiClient.post("/api/v1/executions", {
         testcase_id: id,
         mode: "dsl",
       });
       message.success("执行任务已创建");
       navigate("/executions");
     } catch (error) {
-      message.error("创建执行任务失败");
+       // global handler
     }
   };
 
@@ -168,14 +171,14 @@ const TestCasesPage: React.FC = () => {
       content: "确定要删除这个用例吗？",
       onOk: async () => {
         try {
-          await axios.delete(`/api/v1/testcases/${id}`);
+          await apiClient.delete(`/api/v1/testcases/${id}`);
           message.success("删除成功");
           // loadTestcases();
           // loadTestcases();
           setTestcases((prev) => prev.filter((item) => item.id !== id));
           setTotal((prev) => prev - 1);
         } catch (error) {
-          message.error("删除失败");
+           // global handler
         }
       },
     });

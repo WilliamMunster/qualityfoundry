@@ -11,7 +11,7 @@ import {
   ClockCircleOutlined,
   EyeOutlined,
 } from "@ant-design/icons";
-import axios from "axios";
+import apiClient from "../api/client";
 
 interface Execution {
   id: string;
@@ -38,14 +38,15 @@ const ReportDashboardPage: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [statsRes, execRes] = await Promise.all([
-          axios.get("/api/v1/reports/dashboard-stats"),
-          axios.get("/api/v1/executions", {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const [statsData, execData]: [any, any] = await Promise.all([
+          apiClient.get("/api/v1/reports/dashboard-stats"),
+          apiClient.get("/api/v1/executions", {
             params: { page: 1, page_size: 10 },
           }),
         ]);
-        setStats(statsRes.data);
-        setRecentExecutions(execRes.data.items || []);
+        setStats(statsData);
+        setRecentExecutions(execData.items || []);
       } catch (error) {
         console.error("Failed to fetch data:", error);
       } finally {

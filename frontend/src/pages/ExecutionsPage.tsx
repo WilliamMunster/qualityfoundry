@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { Table, Button, Space, Tag, Select, Modal, message } from "antd";
 import { PlayCircleOutlined, StopOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import axios from "axios";
+import apiClient from "../api/client";
 
 interface Execution {
   id: string;
@@ -35,10 +35,11 @@ const ExecutionsPage: React.FC = () => {
     setLoading(true);
     try {
       const params = selectedEnv ? { environment_id: selectedEnv } : {};
-      const response = await axios.get("/api/v1/executions", { params });
-      setExecutions(response.data.items || response.data || []);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.get("/api/v1/executions", { params });
+      setExecutions(data.items || data || []);
     } catch (error) {
-      message.error("加载执行记录失败");
+      // global handler
     } finally {
       setLoading(false);
     }
@@ -47,8 +48,9 @@ const ExecutionsPage: React.FC = () => {
   // 加载环境列表
   const loadEnvironments = async () => {
     try {
-      const response = await axios.get("/api/v1/environments");
-      setEnvironments(response.data.items || response.data || []);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.get("/api/v1/environments");
+      setEnvironments(data.items || data || []);
     } catch (error) {
       console.error("加载环境列表失败");
     }
@@ -66,11 +68,11 @@ const ExecutionsPage: React.FC = () => {
   // 停止执行
   const handleStop = async (id: string) => {
     try {
-      await axios.post(`/api/v1/executions/${id}/stop`);
+      await apiClient.post(`/api/v1/executions/${id}/stop`);
       message.success("已发送停止命令");
       loadExecutions();
     } catch (error) {
-      message.error("停止执行失败");
+      // global handler
     }
   };
 
@@ -127,7 +129,8 @@ const ExecutionsPage: React.FC = () => {
   // 查看日志
   const handleViewLogs = async (id: string) => {
     try {
-      const response = await axios.get(`/api/v1/executions/${id}/logs`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await apiClient.get(`/api/v1/executions/${id}/logs`);
       Modal.info({
         title: "执行日志",
         width: 700,
@@ -142,12 +145,12 @@ const ExecutionsPage: React.FC = () => {
               borderRadius: 4,
             }}
           >
-            {response.data.logs?.join("\n") || "暂无日志"}
+            {data.logs?.join("\n") || "暂无日志"}
           </pre>
         ),
       });
     } catch (error) {
-      message.error("获取日志失败");
+      // global handler
     }
   };
 
