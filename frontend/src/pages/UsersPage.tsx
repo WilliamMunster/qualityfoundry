@@ -31,6 +31,7 @@ const UsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
   const [modal, contextHolder] = Modal.useModal();
 
@@ -52,6 +53,7 @@ const UsersPage: React.FC = () => {
   };
 
   const handleCreate = async (values: any) => {
+    setSubmitting(true);
     try {
       await apiClient.post("/api/v1/users", values);
       message.success("创建成功");
@@ -60,6 +62,8 @@ const UsersPage: React.FC = () => {
       loadUsers();
     } catch (error) {
        // global error handler will show message
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -161,16 +165,17 @@ const UsersPage: React.FC = () => {
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         onOk={() => form.submit()}
+        confirmLoading={submitting}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
           <Form.Item
             name="username"
             label="用户名"
-            rules={[{ required: true }]}
+            rules={[{ required: true, message: '请输入用户名' }]}
           >
             <Input />
           </Form.Item>
-          <Form.Item name="password" label="密码" rules={[{ required: true }]}>
+          <Form.Item name="password" label="密码" rules={[{ required: true, message: '请输入密码' }]}>
             <Input.Password />
           </Form.Item>
           <Form.Item name="full_name" label="姓名">
