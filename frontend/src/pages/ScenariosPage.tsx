@@ -18,6 +18,7 @@ import { PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import apiClient from "../api/client";
 import { getRequirements, type Requirement } from "../api/requirements";
+import { batchDeleteScenarios } from "../api/scenarios";
 import { useAppStore } from "../store";
 
 interface Scenario {
@@ -42,6 +43,7 @@ const ScenariosPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const { setLoading: setGlobalLoading } = useAppStore();
 
@@ -60,6 +62,7 @@ const ScenariosPage: React.FC = () => {
       });
       setScenarios(data.items || []);
       setTotal(data.total || 0);
+      setSelectedRowKeys([]);
     } catch (error) {
       // global error handler
     } finally {
@@ -87,6 +90,25 @@ const ScenariosPage: React.FC = () => {
   useEffect(() => {
     loadRequirements();
   }, []);
+
+  // 批量删除
+  const handleBatchDelete = () => {
+    if (selectedRowKeys.length === 0) return;
+
+    modal.confirm({
+      title: "确认批量删除",
+      content: `确定要删除选中的 ${selectedRowKeys.length} 个场景吗？`,
+      onOk: async () => {
+        try {
+          await batchDeleteScenarios(selectedRowKeys as string[]);
+          message.success("批量删除成功");
+          loadScenarios();
+        } catch (error) {
+          message.error("批量删除失败");
+        }
+      },
+    });
+  };
 
   // 审核场景
   const handleApprove = (id: string) => {
@@ -276,19 +298,30 @@ const ScenariosPage: React.FC = () => {
         }}
       >
         <h2>场景管理</h2>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => {
-            loadRequirements();
-            setGenerateModalVisible(true);
-          }}
-        >
-          AI 生成场景
-        </Button>
+        <Space>
+          {selectedRowKeys.length > 0 && (
+            <Button danger onClick={handleBatchDelete}>
+              批量删除 ({selectedRowKeys.length})
+            </Button>
+          )}
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              loadRequirements();
+              setGenerateModalVisible(true);
+            }}
+          >
+            AI 生成场景
+          </Button>
+        </Space>
       </div>
 
       <Table
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
         columns={columns}
         dataSource={scenarios}
         rowKey="id"

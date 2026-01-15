@@ -14,6 +14,7 @@ import {
   getRequirements,
   deleteRequirement,
   uploadRequirement,
+  batchDeleteRequirements,
   type Requirement,
 } from "../api/requirements";
 
@@ -28,6 +29,7 @@ const RequirementsPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [searchText, setSearchText] = useState("");
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const [modal, contextHolder] = Modal.useModal();
 
@@ -42,6 +44,7 @@ const RequirementsPage: React.FC = () => {
       });
       setRequirements(data.items);
       setTotal(data.total);
+      setSelectedRowKeys([]); // 清空选择
     } catch (error) {
       message.error("加载需求列表失败");
     } finally {
@@ -52,6 +55,25 @@ const RequirementsPage: React.FC = () => {
   useEffect(() => {
     loadRequirements();
   }, [page, pageSize, searchText]);
+
+  // 批量删除
+  const handleBatchDelete = () => {
+    if (selectedRowKeys.length === 0) return;
+
+    modal.confirm({
+      title: "确认批量删除",
+      content: `确定要删除选中的 ${selectedRowKeys.length} 个需求吗？`,
+      onOk: async () => {
+        try {
+          await batchDeleteRequirements(selectedRowKeys as string[]);
+          message.success("批量删除成功");
+          loadRequirements();
+        } catch (error) {
+          message.error("批量删除失败");
+        }
+      },
+    });
+  };
 
   // 删除需求
   const handleDelete = (id: string) => {
@@ -179,6 +201,11 @@ const RequirementsPage: React.FC = () => {
             style={{ width: 300 }}
             prefix={<SearchOutlined />}
           />
+          {selectedRowKeys.length > 0 && (
+            <Button danger onClick={handleBatchDelete}>
+              批量删除 ({selectedRowKeys.length})
+            </Button>
+          )}
         </Space>
         <Space>
           <Upload
@@ -199,6 +226,10 @@ const RequirementsPage: React.FC = () => {
       </div>
 
       <Table
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
         columns={columns}
         dataSource={requirements}
         rowKey="id"

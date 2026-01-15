@@ -70,6 +70,13 @@ export const deleteRequirement = async (id: string): Promise<void> => {
 };
 
 /**
+ * 批量删除需求
+ */
+export const batchDeleteRequirements = async (ids: string[]): Promise<void> => {
+  return apiClient.post('/api/v1/requirements/batch-delete', { ids });
+};
+
+/**
  * 上传需求文档
  */
 export const uploadRequirement = async (file: File): Promise<Requirement> => {

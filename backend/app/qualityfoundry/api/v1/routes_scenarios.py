@@ -22,8 +22,20 @@ from qualityfoundry.models.scenario_schemas import (
     ScenarioUpdate,
 )
 from qualityfoundry.services.approval_service import ApprovalService
+from qualityfoundry.models.schemas import BatchDeleteRequest
 
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
+
+
+@router.post("/batch-delete", status_code=204)
+def batch_delete_scenarios(
+    req: BatchDeleteRequest,
+    db: Session = Depends(get_db)
+):
+    """批量删除场景"""
+    db.query(Scenario).filter(Scenario.id.in_(req.ids)).delete(synchronize_session=False)
+    db.commit()
+    return None
 
 
 @router.post("/generate", response_model=list[ScenarioResponse], status_code=201)

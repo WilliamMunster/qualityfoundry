@@ -22,8 +22,20 @@ from qualityfoundry.models.testcase_schemas import (
     TestCaseUpdate,
 )
 from qualityfoundry.services.approval_service import ApprovalService
+from qualityfoundry.models.schemas import BatchDeleteRequest
 
 router = APIRouter(prefix="/testcases", tags=["testcases"])
+
+
+@router.post("/batch-delete", status_code=204)
+def batch_delete_testcases(
+    req: BatchDeleteRequest,
+    db: Session = Depends(get_db)
+):
+    """批量删除测试用例"""
+    db.query(TestCase).filter(TestCase.id.in_(req.ids)).delete(synchronize_session=False)
+    db.commit()
+    return None
 
 
 @router.post("/generate", response_model=list[TestCaseResponse], status_code=201)

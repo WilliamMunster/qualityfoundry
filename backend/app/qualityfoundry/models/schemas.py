@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
@@ -17,6 +18,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer
 # ============================================================
 # 1) Test Asset Schemas（结构化测试资产）
 # ============================================================
+
+class BatchDeleteRequest(BaseModel):
+    """批量删除请求"""
+    ids: list[UUID]
+
 
 class Priority(str, Enum):
     """用例优先级（用于筛选/冒烟/回归分层）"""

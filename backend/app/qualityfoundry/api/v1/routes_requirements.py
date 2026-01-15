@@ -18,8 +18,20 @@ from qualityfoundry.models.requirement_schemas import (
     RequirementVersionCreate,
     RequirementVersionResponse,
 )
+from qualityfoundry.models.schemas import BatchDeleteRequest
 
 router = APIRouter(prefix="/requirements", tags=["requirements"])
+
+
+@router.post("/batch-delete", status_code=204)
+def batch_delete_requirements(
+    req: BatchDeleteRequest,
+    db: Session = Depends(get_db)
+):
+    """批量删除需求"""
+    db.query(Requirement).filter(Requirement.id.in_(req.ids)).delete(synchronize_session=False)
+    db.commit()
+    return None
 
 
 @router.post("", response_model=RequirementResponse, status_code=201)

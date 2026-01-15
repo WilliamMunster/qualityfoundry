@@ -59,3 +59,7 @@ export const approveScenario = async (id: string, reviewer: string, comment?: st
 export const rejectScenario = async (id: string, reviewer: string, comment?: string): Promise<Scenario> => {
   return apiClient.post(`/api/v1/scenarios/${id}/reject`, { reviewer, comment });
 };
+
+export const batchDeleteScenarios = async (ids: string[]): Promise<void> => {
+  return apiClient.post('/api/v1/scenarios/batch-delete', { ids });
+};
