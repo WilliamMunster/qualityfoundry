@@ -23,7 +23,9 @@ import { useAppStore } from "../store";
 
 interface Scenario {
   id: string;
+  seq_id?: number;
   requirement_id: string;
+  requirement_seq_id?: number;
   title: string;
   description?: string;
   steps: string[];
@@ -126,7 +128,7 @@ const ScenariosPage: React.FC = () => {
             )
           );
         } catch (error) {
-           // global error handler
+          // global error handler
         }
       },
     });
@@ -177,7 +179,7 @@ const ScenariosPage: React.FC = () => {
           setScenarios((prev) => prev.filter((item) => item.id !== id));
           setTotal((prev) => prev - 1);
         } catch (error) {
-           // global error handler
+          // global error handler
         }
       },
     });
@@ -186,10 +188,17 @@ const ScenariosPage: React.FC = () => {
   const columns: ColumnsType<Scenario> = [
     {
       title: "ID",
-      dataIndex: "id",
-      key: "id",
-      width: 100,
-      ellipsis: true,
+      dataIndex: "seq_id",
+      key: "seq_id",
+      width: 80,
+      render: (seq_id: number) => seq_id || "-",
+    },
+    {
+      title: "需求ID",
+      dataIndex: "requirement_seq_id",
+      key: "requirement_seq_id",
+      width: 80,
+      render: (seq_id: number) => seq_id || "-",
     },
     {
       title: "标题",

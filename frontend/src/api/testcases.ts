@@ -5,7 +5,9 @@ import apiClient from './client';
 
 export interface TestCase {
   id: string;
+  seq_id?: number;
   scenario_id: string;
+  scenario_seq_id?: number;
   title: string;
   preconditions: string[];
   steps: string[];

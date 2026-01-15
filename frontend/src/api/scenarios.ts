@@ -5,7 +5,9 @@ import apiClient from './client';
 
 export interface Scenario {
   id: string;
+  seq_id?: number;
   requirement_id: string;
+  requirement_seq_id?: number;
   title: string;
   description?: string;
   steps: string[];

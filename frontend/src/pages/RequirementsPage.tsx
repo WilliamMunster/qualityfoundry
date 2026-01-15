@@ -118,10 +118,10 @@ const RequirementsPage: React.FC = () => {
   const columns: ColumnsType<Requirement> = [
     {
       title: "ID",
-      dataIndex: "id",
-      key: "id",
-      width: 100,
-      ellipsis: true,
+      dataIndex: "seq_id",
+      key: "seq_id",
+      width: 80,
+      render: (seq_id: number) => seq_id || "-",
     },
     {
       title: "标题",

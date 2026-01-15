@@ -69,6 +69,7 @@ class Requirement(Base):
     __tablename__ = "requirements"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    seq_id = Column(Integer, unique=True, index=True, nullable=True)  # 人工友好序号
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)  # 需求文档内容
     file_path = Column(String(512), nullable=True)  # 上传文件路径
@@ -87,6 +88,7 @@ class Scenario(Base):
     __tablename__ = "scenarios"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    seq_id = Column(Integer, index=True, nullable=True)  # 人工友好序号
     requirement_id = Column(UUID(as_uuid=True), ForeignKey("requirements.id"), nullable=False)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -108,6 +110,7 @@ class TestCase(Base):
     __tablename__ = "testcases"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    seq_id = Column(Integer, index=True, nullable=True)  # 人工友好序号
     scenario_id = Column(UUID(as_uuid=True), ForeignKey("scenarios.id"), nullable=False)
     title = Column(String(255), nullable=False)
     preconditions = Column(JSON, nullable=False, default=list)  # 前置条件（JSON 数组）

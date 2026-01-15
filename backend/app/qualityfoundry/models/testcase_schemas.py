@@ -53,7 +53,9 @@ class TestCaseGenerateRequest(BaseModel):
 class TestCaseResponse(BaseModel):
     """测试用例响应"""
     id: UUID
+    seq_id: Optional[int] = None
     scenario_id: UUID
+    scenario_seq_id: Optional[int] = None  # 关联场景的 seq_id
     title: str
     preconditions: list[str]
     steps: list[TestStep]

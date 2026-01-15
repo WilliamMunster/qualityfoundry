@@ -6,6 +6,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from qualityfoundry.database.config import get_db
@@ -133,7 +134,11 @@ async def generate_scenarios(
             else:
                 steps = []
             
+            # 获取下一个 seq_id
+            max_seq = db.query(func.max(Scenario.seq_id)).scalar() or 0
+            
             scenario = Scenario(
+                seq_id=max_seq + 1,
                 requirement_id=req.requirement_id,
                 title=title,
                 description=description,
@@ -142,6 +147,8 @@ async def generate_scenarios(
                 version="v1.0"
             )
             db.add(scenario)
+            db.flush()  # 确保 seq_id 被分配
+            max_seq += 1  # 更新下一个 seq_id
             created_scenarios.append(scenario)
             
         db.commit()
@@ -173,7 +180,11 @@ def create_scenario(
     db: Session = Depends(get_db)
 ):
     """创建场景"""
+    # 生成 seq_id
+    max_seq = db.query(func.max(Scenario.seq_id)).scalar() or 0
+    
     scenario = Scenario(
+        seq_id=max_seq + 1,
         requirement_id=req.requirement_id,
         title=req.title,
         description=req.description,
