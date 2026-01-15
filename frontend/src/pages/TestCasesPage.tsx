@@ -7,6 +7,7 @@ import { Table, Button, Space, Tag, message, Modal, Select, Form } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import apiClient from "../api/client";
+import { batchDeleteTestCases } from "../api/testcases";
 import { useAppStore } from "../store";
 
 interface TestStep {
@@ -41,6 +42,7 @@ const TestCasesPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const { setLoading: setGlobalLoading } = useAppStore();
 
@@ -59,6 +61,7 @@ const TestCasesPage: React.FC = () => {
       });
       setTestcases(data.items || []);
       setTotal(data.total || 0);
+      setSelectedRowKeys([]);
     } catch (error) {
        // global handler
     } finally {
@@ -97,6 +100,25 @@ const TestCasesPage: React.FC = () => {
       setGenerateModalVisible(true);
     }
   }, []);
+
+  // 批量删除
+  const handleBatchDelete = () => {
+    if (selectedRowKeys.length === 0) return;
+
+    modal.confirm({
+      title: "确认批量删除",
+      content: `确定要删除选中的 ${selectedRowKeys.length} 个用例吗？`,
+      onOk: async () => {
+        try {
+          await batchDeleteTestCases(selectedRowKeys as string[]);
+          message.success("批量删除成功");
+          loadTestcases();
+        } catch (error) {
+          message.error("批量删除失败");
+        }
+      },
+    });
+  };
 
   // 审核用例
   const handleApprove = (id: string) => {
@@ -314,16 +336,27 @@ const TestCasesPage: React.FC = () => {
         }}
       >
         <h2>用例管理</h2>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={openGenerateModal}
-        >
-          AI 生成用例
-        </Button>
+        <Space>
+          {selectedRowKeys.length > 0 && (
+            <Button danger onClick={handleBatchDelete}>
+              批量删除 ({selectedRowKeys.length})
+            </Button>
+          )}
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={openGenerateModal}
+          >
+            AI 生成用例
+          </Button>
+        </Space>
       </div>
 
       <Table
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
         columns={columns}
         dataSource={testcases}
         rowKey="id"

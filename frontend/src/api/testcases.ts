@@ -61,3 +61,7 @@ export const approveTestCase = async (id: string, reviewer: string, comment?: st
 export const rejectTestCase = async (id: string, reviewer: string, comment?: string): Promise<TestCase> => {
   return apiClient.post(`/api/v1/testcases/${id}/reject`, { reviewer, comment });
 };
+
+export const batchDeleteTestCases = async (ids: string[]): Promise<void> => {
+  return apiClient.post('/api/v1/testcases/batch-delete', { ids });
+};
