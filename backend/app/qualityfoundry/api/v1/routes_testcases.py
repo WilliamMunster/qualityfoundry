@@ -60,38 +60,59 @@ async def generate_testcases(
     import json
     import traceback
     
+    import logging
+    logger = logging.getLogger("qualityfoundry.api.testcases")
+    
     try:
         # 构建场景内容
-        scenario_content = f"标题: {scenario.title}\n描述: {scenario.description or '无'}\n步骤:\n"
+        scenario_content = f"场景 ID: SC-{scenario.seq_id}\n标题: {scenario.title}\n描述: {scenario.description or '无'}\n步骤:\n"
         for i, step in enumerate(scenario.steps or [], 1):
             scenario_content += f"{i}. {step}\n"
         
-        # 定义变量注入模板
-        prompt_variables = {"scenario": scenario_content}
-        
         # 调用 AI
+        logger.info(f"Calling AI for testcase generation (scenario_id: {req.scenario_id})")
         response_content = await AIService.call_ai(
             db=db,
             step=AIStep.TESTCASE_GENERATION,
-            prompt_variables=prompt_variables
+            prompt_variables={"scenario": scenario_content},
+            config_id=req.config_id
         )
         
-        # 清理 Markdown 代码块标记
-        cleaned_content = response_content.strip()
-        if cleaned_content.startswith("```json"):
-            cleaned_content = cleaned_content[7:]
-        if cleaned_content.startswith("```"):
-            cleaned_content = cleaned_content[3:]
-        if cleaned_content.endswith("```"):
-            cleaned_content = cleaned_content[:-3]
-            
-        testcases_data = json.loads(cleaned_content)
+        logger.info(f"AI returned response of length {len(response_content)}")
         
+        import re
+        # 提取 JSON 数组内容
+        json_match = re.search(r'\[\s*\{.*\}\s*\]', response_content, re.DOTALL)
+        if json_match:
+            cleaned_content = json_match.group(0)
+        else:
+            cleaned_content = response_content.strip()
+            if "```json" in cleaned_content:
+                cleaned_content = cleaned_content.split("```json")[-1].split("```")[0].strip()
+            elif "```" in cleaned_content:
+                cleaned_content = cleaned_content.split("```")[-1].split("```")[0].strip()
+            
+        try:
+            testcases_data = json.loads(cleaned_content)
+            if not isinstance(testcases_data, list):
+                if isinstance(testcases_data, dict):
+                    testcases_data = [testcases_data]
+                else:
+                    raise ValueError("Parsed JSON is not a list or dictionary")
+        except Exception as e:
+            logger.error(f"Failed to parse JSON: {e}. Content: {cleaned_content[:200]}")
+            raise HTTPException(status_code=500, detail=f"AI 返回格式解析失败: {str(e)}")
+            
         # 3. 保存用例
+        logger.info(f"Saving {len(testcases_data)} testcases to DB...")
         created_testcases = []
-        for item in testcases_data:
+        
+        # 预先获取当前最大 seq_id
+        current_max_seq = db.query(func.max(TestCase.seq_id)).scalar() or 0
+        
+        for i, item in enumerate(testcases_data):
             # 数据清洗
-            title = str(item.get("title", "未命名用例"))
+            title = str(item.get("title", f"未命名用例 {i+1}"))
             
             raw_preconditions = item.get("preconditions", [])
             if isinstance(raw_preconditions, str):
@@ -108,13 +129,11 @@ async def generate_testcases(
             if isinstance(raw_steps, list):
                 for s in raw_steps:
                     if isinstance(s, dict):
-                        # 核心重构：保留结构化对象
                         step_data = {
                             "step": str(s.get("step", "")),
                             "expected": str(s.get("expected", ""))
                         }
                         steps.append(step_data)
-                        # 同时同步到旧的 expected_results 以防万一某些地方还在读它
                         expected_results.append(step_data["expected"])
                     else:
                         steps.append({"step": str(s), "expected": "见步骤说明"})
@@ -123,21 +142,18 @@ async def generate_testcases(
                     if s.strip():
                         steps.append({"step": s.strip(), "expected": "待补充"})
             
-            # expected_results 可能不存在，从 steps 中提取
-            raw_expected = item.get("expected_results", [])
-            if isinstance(raw_expected, str):
-                expected_results = [s.strip() for s in raw_expected.split('\n') if s.strip()]
-            elif isinstance(raw_expected, list):
-                expected_results = [str(s) for s in raw_expected]
-            else:
-                expected_results = []
-            
-            # 获取下一个 seq_id
-            max_seq = db.query(func.max(TestCase.seq_id)).scalar() or 0
+            # expected_results 可能由上一步已生成，也可显式从 item 中合并
+            item_expected = item.get("expected_results", [])
+            if not expected_results: # 如果从 steps 中没有提取到，则尝试从 item_expected 中提取
+                if isinstance(item_expected, str):
+                    expected_results.extend([s.strip() for s in item_expected.split('\n') if s.strip()])
+                elif isinstance(item_expected, list):
+                    expected_results.extend([str(s) for s in item_expected])
             
             testcase = TestCase(
-                seq_id=max_seq + 1,
+                seq_id=current_max_seq + 1,
                 scenario_id=req.scenario_id,
+                scenario=scenario,
                 title=title,
                 preconditions=preconditions,
                 steps=steps,
@@ -146,11 +162,11 @@ async def generate_testcases(
                 version="v1.0"
             )
             db.add(testcase)
-            db.flush()  # 确保 seq_id 被分配
-            max_seq += 1  # 更新下一个 seq_id
+            current_max_seq += 1
             created_testcases.append(testcase)
             
         db.commit()
+        logger.info(f"Successfully committed {len(created_testcases)} testcases.")
         
         for tc in created_testcases:
             db.refresh(tc)
@@ -209,7 +225,8 @@ def list_testcases(
     db: Session = Depends(get_db)
 ):
     """测试用例列表"""
-    query = db.query(TestCase)
+    from sqlalchemy.orm import joinedload
+    query = db.query(TestCase).options(joinedload(TestCase.scenario))
     
     # 按场景筛选
     if scenario_id:

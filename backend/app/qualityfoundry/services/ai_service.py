@@ -24,7 +24,7 @@ class GenerationConfig:
     top_p: float = 0.95
     max_retries: int = 3
     retry_delay: float = 1.0
-    timeout: float = 60.0
+    timeout: float = 120.0
 
 
 class AIServiceError(Exception):
@@ -41,13 +41,33 @@ class AIService:
         step: AIStep,
         prompt_variables: Dict[str, Any],
         system_prompt: Optional[str] = None,
-        generation_config: Optional[GenerationConfig] = None
+        generation_config: Optional[GenerationConfig] = None,
+        config_id: Optional[str] = None
     ) -> str:
         """
         调用 AI 模型（会尝试从数据库加载动态提示词）
+        
+        Args:
+            db: 数据库会话
+            step: AI 执行步骤
+            prompt_variables: 提示词变量
+            system_prompt: 自定义系统提示词
+            generation_config: 生成配置
+            config_id: 显式指定的 AI 配置 ID（优先级最高）
         """
-        # 1. 获取模型配置
-        config = AIService.get_config_for_step(db, step)
+        # 1. 获取模型配置（优先级：config_id > 步骤绑定 > 默认配置）
+        config = None
+        if config_id:
+            from uuid import UUID as UUIDType
+            config = db.query(AIConfig).filter(
+                AIConfig.id == UUIDType(config_id),
+                AIConfig.is_active
+            ).first()
+            if not config:
+                logger.warning(f"指定的配置 {config_id} 不存在或未激活，将使用步骤绑定配置")
+        
+        if not config:
+            config = AIService.get_config_for_step(db, step)
         if not config:
             config = db.query(AIConfig).filter(AIConfig.is_default, AIConfig.is_active).first()
         if not config:
@@ -84,7 +104,9 @@ class AIService:
             config=config,
             prompt=final_prompt,
             system_prompt=sys_template,
-            gen_config=gen_config
+            gen_config=gen_config,
+            db=db,
+            step=step.value
         )
     
     @staticmethod
@@ -106,7 +128,9 @@ class AIService:
         prompt: str,
         system_prompt: Optional[str] = None,
         gen_config: Optional[GenerationConfig] = None,
-        validator: Optional[Callable[[str], bool]] = None
+        validator: Optional[Callable[[str], bool]] = None,
+        db: Optional[Session] = None,
+        step: Optional[str] = None
     ) -> str:
         """
         带重试机制的 AI 调用
@@ -133,7 +157,9 @@ class AIService:
                     config=config,
                     prompt=prompt,
                     system_prompt=system_prompt,
-                    gen_config=gen_config
+                    gen_config=gen_config,
+                    db=db,
+                    step=step
                 )
                 
                 # 验证响应（如果提供了验证器）
@@ -169,17 +195,25 @@ class AIService:
         config: AIConfig,
         prompt: str,
         system_prompt: Optional[str] = None,
-        gen_config: Optional[GenerationConfig] = None
+        gen_config: Optional[GenerationConfig] = None,
+        db: Optional[Session] = None,
+        step: Optional[str] = None
     ) -> str:
-        """
-        调用 OpenAI 兼容接口
+        import time
+        start_time = time.time()
         
-        支持 OpenAI、DeepSeek、Anthropic 等兼容接口
-        """
         gen_config = gen_config or GenerationConfig()
         
-        base_url = config.base_url or "https://api.openai.com/v1"
-        url = f"{base_url}/chat/completions"
+        # 获取提供商默认 URL
+        provider_defaults = {
+            "openai": "https://api.openai.com/v1",
+            "deepseek": "https://api.deepseek.com",
+            "anthropic": "https://api.anthropic.com/v1",
+            "zhipu": "https://open.bigmodel.cn/api/paas/v4",
+        }
+        
+        base_url = config.base_url or provider_defaults.get(config.provider.lower(), "https://api.openai.com/v1")
+        url = f"{base_url.rstrip('/')}/chat/completions"
         
         messages = []
         if system_prompt:
@@ -197,21 +231,62 @@ class AIService:
         if config.extra_params:
             payload.update(config.extra_params)
         
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                url,
-                json=payload,
-                headers={
-                    "Authorization": f"Bearer {config.api_key}",
-                    "Content-Type": "application/json",
-                },
-                timeout=gen_config.timeout
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    url,
+                    json=payload,
+                    headers={
+                        "Authorization": f"Bearer {config.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    timeout=gen_config.timeout
+                )
+                
+                response.raise_for_status()
+                result = response.json()
+                content = result["choices"][0]["message"]["content"]
+                
+                duration = int((time.time() - start_time) * 1000)
+                if db:
+                    AIService._log_execution(db, step, config, messages, content, "success", None, duration)
+                
+                return content
+        except Exception as e:
+            duration = int((time.time() - start_time) * 1000)
+            if db:
+                AIService._log_execution(db, step, config, messages, None, "failed", str(e), duration)
+            raise
+
+    @staticmethod
+    def _log_execution(
+        db: Session,
+        step: Optional[str],
+        config: Optional[AIConfig],
+        request_messages: List[Dict[str, Any]],
+        response_content: Optional[str],
+        status: str,
+        error_message: Optional[str],
+        duration_ms: int
+    ):
+        """记录 AI 执行日志"""
+        try:
+            from qualityfoundry.database.ai_config_models import AIExecutionLog
+            log = AIExecutionLog(
+                step=step,
+                config_id=config.id if config else None,
+                provider=config.provider if config else None,
+                model=config.model if config else None,
+                request_messages=request_messages,
+                response_content=response_content,
+                status=status,
+                error_message=error_message,
+                duration_ms=duration_ms
             )
-            
-            response.raise_for_status()
-            result = response.json()
-            
-            return result["choices"][0]["message"]["content"]
+            db.add(log)
+            db.commit()
+        except Exception as e:
+            logger.error(f"Failed to log AI execution: {e}")
     
     @staticmethod
     async def test_config(config: AIConfig, prompt: str = "Hello") -> Dict[str, Any]:
@@ -325,6 +400,31 @@ FALLBACK_PROMPTS = {
   }}
 ]
 ```
+"""
+    },
+    AIStep.GLOBAL_OBSERVER: {
+        "system": "你是一个上帝视角的质量保障专家，负责全链路的监督和一致性分析。",
+        "user": """请分析以下上下文内容的质量和一致性：
+
+{context}
+
+请从以下维度进行详细评估：
+1. 需求到场景的覆盖度
+2. 场景到用例的逻辑一致性
+3. 发现的潜在风险点
+4. 改进建议
+"""
+    },
+    AIStep.EXECUTION_ANALYSIS: {
+        "system": "你是一个自动测试执行结果分析专家。",
+        "user": """请分析以下测试执行结果和相关日志：
+
+{execution_data}
+
+请给出：
+1. 失败原因归类（代码缺陷、环境问题、脚本错误、网络抖动等）
+2. 修复建议
+3. 是否建议重试执行
 """
     }
 }

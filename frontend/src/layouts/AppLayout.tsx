@@ -17,7 +17,9 @@ import {
   SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  HomeOutlined
+  HomeOutlined,
+  EyeOutlined,
+  RobotOutlined
 } from "@ant-design/icons";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 
@@ -27,6 +29,7 @@ const { Text } = Typography;
 // 路由名称映射
 const routeNameMap: Record<string, string> = {
   "report-dashboard": "测试报表",
+  observer: "上帝视角",
   requirements: "需求管理",
   new: "新建",
   edit: "编辑",
@@ -36,6 +39,7 @@ const routeNameMap: Record<string, string> = {
   executions: "执行管理",
   users: "用户管理",
   "config-center": "配置中心",
+  "ai-logs": "AI 调用日志",
 };
 
 const AppLayout: React.FC = () => {
@@ -55,6 +59,11 @@ const AppLayout: React.FC = () => {
       key: "/report-dashboard",
       icon: <DashboardOutlined />,
       label: "测试报表",
+    },
+    {
+      key: "/observer",
+      icon: <EyeOutlined />,
+      label: "上帝视角",
     },
     {
       key: "/requirements",
@@ -91,6 +100,11 @@ const AppLayout: React.FC = () => {
       icon: <SettingOutlined />,
       label: "配置中心",
     },
+    {
+      key: "/ai-logs",
+      icon: <RobotOutlined />,
+      label: "AI 调用日志",
+    },
   ];
 
   const username = JSON.parse(
@@ -98,14 +112,14 @@ const AppLayout: React.FC = () => {
   ).username;
 
   // 计算当前选中的菜单项
-  const activeMenuKey = menuItems.find(item => 
+  const activeMenuKey = menuItems.find(item =>
     location.pathname === item.key || location.pathname.startsWith(`${item.key}/`)
   )?.key || location.pathname;
 
   // 生成面包屑
   const breadcrumbItems = useMemo(() => {
     const pathSnippets = location.pathname.split("/").filter((i) => i);
-    
+
     const items: { title: React.ReactNode }[] = [
       {
         title: <Link to="/"><HomeOutlined /></Link>,
@@ -114,7 +128,7 @@ const AppLayout: React.FC = () => {
 
     pathSnippets.forEach((snippet, index) => {
       const url = `/${pathSnippets.slice(0, index + 1).join("/")}`;
-      
+
       // 如果是ID（简单的判断：包含数字或长度很长），不显示或显示为"详情"
       let title = routeNameMap[snippet] || snippet;
       if (snippet.match(/^\d+$/) || snippet.length > 20) {
@@ -122,7 +136,7 @@ const AppLayout: React.FC = () => {
       }
 
       const isLast = index === pathSnippets.length - 1;
-      
+
       items.push({
         title: isLast ? title : <Link to={url}>{title}</Link>,
       });
@@ -204,9 +218,9 @@ const AppLayout: React.FC = () => {
           )}
         </div>
 
-        <Button 
-          type="text" 
-          icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} 
+        <Button
+          type="text"
+          icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
           onClick={() => setCollapsed(!collapsed)}
           style={{ fontSize: '16px', width: 48, height: 48, marginRight: 16 }}
         />
@@ -233,7 +247,7 @@ const AppLayout: React.FC = () => {
         {/* 侧边栏 */}
         <Sider
           trigger={null}
-          collapsible 
+          collapsible
           collapsed={collapsed}
           width={240}
           style={{

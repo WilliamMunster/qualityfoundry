@@ -85,7 +85,7 @@ const ScenarioGeneratePage: React.FC = () => {
                 {generating && (
                     <div style={{ textAlign: 'center', padding: 40 }}>
                         <Spin size="large" />
-                        <p style={{ marginTop: 16 }}>AI 正在生成测试场景...</p>
+                        <p style={{ marginTop: 16 }}>AI 正在生成测试场景 (大型模型响应较慢，请耐心等待 1-2 分钟)...</p>
                     </div>
                 )}
 

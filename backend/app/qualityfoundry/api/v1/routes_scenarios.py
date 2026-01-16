@@ -102,57 +102,73 @@ async def generate_scenarios(
     import json
     import traceback
     
+    import logging
+    logger = logging.getLogger("qualityfoundry.api.scenarios")
+    
     try:
-        # 定义需要注入提示词模板的变量
-        prompt_variables = {"requirement": requirement.content}
+        # 定义包含 ID 的需求文本
+        requirement_text = f"需求 ID: REQ-{requirement.seq_id}\n需求标题: {requirement.title}\n需求内容: {requirement.content}"
         
-        # 调用 AI (内部会自动根据 AIStep 加载或 Fallback 提示词)
+        # 调用 AI
+        logger.info(f"Calling AI for scenario generation (requirement_id: {req.requirement_id})")
         response_content = await AIService.call_ai(
             db=db,
             step=AIStep.SCENARIO_GENERATION,
-            prompt_variables=prompt_variables
+            prompt_variables={"requirement": requirement_text},
+            config_id=req.config_id
         )
         
-        # 验证并解析 JSON
-        if not validate_scenario_response(response_content):
-            # 记录原始内容以便调试
-            print(f"AI Response validation failed. Content: {response_content}")
-            raise ValueError(f"AI 响应格式验证失败: {response_content[:100]}...")
-            
-        # 尝试清理 Markdown 代码块标记（如果存在）
-        cleaned_content = response_content.strip()
-        if cleaned_content.startswith("```json"):
-            cleaned_content = cleaned_content[7:]
-        if cleaned_content.startswith("```"):
-            cleaned_content = cleaned_content[3:]
-        if cleaned_content.endswith("```"):
-            cleaned_content = cleaned_content[:-3]
-            
-        scenarios_data = json.loads(cleaned_content)
+        # 调试输出
+        logger.info(f"AI returned response of length {len(response_content)}")
         
+        import re
+        # 提取 JSON 数组内容
+        json_match = re.search(r'\[\s*\{.*\}\s*\]', response_content, re.DOTALL)
+        if json_match:
+            cleaned_content = json_match.group(0)
+        else:
+            cleaned_content = response_content.strip()
+            # 基础剥离
+            if "```json" in cleaned_content:
+                cleaned_content = cleaned_content.split("```json")[-1].split("```")[0].strip()
+            elif "```" in cleaned_content:
+                cleaned_content = cleaned_content.split("```")[-1].split("```")[0].strip()
+        
+        try:
+            scenarios_data = json.loads(cleaned_content)
+            if not isinstance(scenarios_data, list):
+                if isinstance(scenarios_data, dict):
+                    scenarios_data = [scenarios_data]
+                else:
+                    raise ValueError("Parsed JSON is not a list or dictionary")
+        except Exception as e:
+            logger.error(f"Failed to parse JSON: {e}. Content: {cleaned_content[:200]}")
+            raise HTTPException(status_code=500, detail=f"AI 返回格式解析失败: {str(e)}")
+            
         # 3. 保存场景
+        logger.info(f"Saving {len(scenarios_data)} scenarios to DB...")
         created_scenarios = []
-        for item in scenarios_data:
+        
+        # 预先获取当前最大 seq_id
+        current_max_seq = db.query(func.max(Scenario.seq_id)).scalar() or 0
+        
+        for i, item in enumerate(scenarios_data):
             # 数据清洗与容错
-            title = str(item.get("title", "未命名场景"))
+            title = str(item.get("title", f"未命名场景 {i+1}"))
             description = str(item.get("description", "")) if item.get("description") else None
             
             raw_steps = item.get("steps", [])
             if isinstance(raw_steps, str):
-                # 如果步骤是字符串，尝试按换行符分割
                 steps = [s.strip() for s in raw_steps.split('\n') if s.strip()]
             elif isinstance(raw_steps, list):
-                # 如果是列表，确保每一项都是字符串
                 steps = [str(s) for s in raw_steps]
             else:
                 steps = []
             
-            # 获取下一个 seq_id
-            max_seq = db.query(func.max(Scenario.seq_id)).scalar() or 0
-            
             scenario = Scenario(
-                seq_id=max_seq + 1,
+                seq_id=current_max_seq + 1,
                 requirement_id=req.requirement_id,
+                requirement=requirement,
                 title=title,
                 description=description,
                 steps=steps,
@@ -160,11 +176,11 @@ async def generate_scenarios(
                 version="v1.0"
             )
             db.add(scenario)
-            db.flush()  # 确保 seq_id 被分配
-            max_seq += 1  # 更新下一个 seq_id
+            current_max_seq += 1
             created_scenarios.append(scenario)
             
         db.commit()
+        logger.info(f"Successfully committed {len(created_scenarios)} scenarios.")
         
         for s in created_scenarios:
             db.refresh(s)
@@ -221,7 +237,8 @@ def list_scenarios(
     db: Session = Depends(get_db)
 ):
     """场景列表"""
-    query = db.query(Scenario)
+    from sqlalchemy.orm import joinedload
+    query = db.query(Scenario).options(joinedload(Scenario.requirement))
     
     # 按需求筛选
     if requirement_id:

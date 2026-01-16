@@ -41,6 +41,8 @@ const ScenariosPage: React.FC = () => {
   const [generateModalVisible, setGenerateModalVisible] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [selectedRequirement, setSelectedRequirement] = useState<string>("");
+  const [selectedConfig, setSelectedConfig] = useState<string | undefined>(undefined);
+  const [aiConfigs, setAiConfigs] = useState<any[]>([]);
   // 分页状态
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -134,7 +136,16 @@ const ScenariosPage: React.FC = () => {
     });
   };
 
-  // AI 生成场景
+  // 加载 AI 配置
+  const loadAiConfigs = async () => {
+    try {
+      const data: any = await apiClient.get("/api/v1/ai-configs", { params: { is_active: true } });
+      setAiConfigs(data || []);
+    } catch (error) {
+      console.error("加载 AI 配置失败");
+    }
+  };
+
   // AI 生成场景
   const handleGenerate = async () => {
     if (!selectedRequirement) {
@@ -143,13 +154,14 @@ const ScenariosPage: React.FC = () => {
     }
     setGenerating(true);
     // 显示全局 loading
-    setGlobalLoading(true, "AI 正在深度思考并生成场景中 (预计 30-60 秒)...");
+    setGlobalLoading(true, "AI 正在深度思考并生成场景中 (预计 30-120 秒)...");
     setGenerateModalVisible(false);
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data: any = await apiClient.post("/api/v1/scenarios/generate", {
         requirement_id: selectedRequirement,
+        config_id: selectedConfig,
       });
 
       const count = data?.length || 0;
@@ -163,6 +175,7 @@ const ScenariosPage: React.FC = () => {
     } finally {
       setGlobalLoading(false); // 关闭 global loading
       setGenerating(false);
+      setSelectedConfig(undefined);
     }
   };
 
@@ -318,6 +331,7 @@ const ScenariosPage: React.FC = () => {
             icon={<PlusOutlined />}
             onClick={() => {
               loadRequirements();
+              loadAiConfigs();
               setGenerateModalVisible(true);
             }}
           >
@@ -369,6 +383,22 @@ const ScenariosPage: React.FC = () => {
               {requirements.map((req) => (
                 <Select.Option key={req.id} value={req.id}>
                   {req.title}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item label="AI 配置 (可选)">
+            <Select
+              placeholder="使用默认配置"
+              value={selectedConfig}
+              onChange={setSelectedConfig}
+              allowClear
+              style={{ width: "100%" }}
+            >
+              {aiConfigs.map((config) => (
+                <Select.Option key={config.id} value={config.id}>
+                  {config.name} ({config.model})
                 </Select.Option>
               ))}
             </Select>

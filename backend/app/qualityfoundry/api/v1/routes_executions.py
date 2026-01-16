@@ -115,6 +115,17 @@ async def _execute_testcase(
         if _task_manager and _task_id:
             _task_manager.add_log(_task_id, f"执行失败: {str(e)}")
         
+        # [NEW] 触发 AI 诊断
+        try:
+            from qualityfoundry.services.observer_service import ObserverService
+            # 使用默认配置进行异步诊断分析
+            await ObserverService.analyze_execution_failure(db, execution_id)
+            db.commit() # 在此处提交诊断结果
+            if _task_manager and _task_id:
+                _task_manager.add_log(_task_id, "AI 诊断已完成并记录。")
+        except Exception as ai_err:
+            logger.error(f"AI 诊断触发失败: {ai_err}")
+
         raise
         
     finally:
