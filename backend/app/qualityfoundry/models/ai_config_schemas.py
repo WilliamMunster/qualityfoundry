@@ -26,6 +26,8 @@ class AIConfigCreate(BaseModel):
 class AIConfigUpdate(BaseModel):
     """更新 AI 配置"""
     name: Optional[str] = None
+    provider: Optional[str] = None
+    model: Optional[str] = None
     api_key: Optional[str] = None
     base_url: Optional[str] = None
     assigned_steps: Optional[List[str]] = None

@@ -124,6 +124,10 @@ def update_ai_config(
     # 更新字段
     if config_data.name is not None:
         config.name = config_data.name
+    if config_data.provider is not None:
+        config.provider = config_data.provider
+    if config_data.model is not None:
+        config.model = config_data.model
     if config_data.api_key is not None:
         config.api_key = config_data.api_key
     if config_data.base_url is not None:

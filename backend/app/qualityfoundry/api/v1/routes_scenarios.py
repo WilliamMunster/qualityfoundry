@@ -25,6 +25,11 @@ from qualityfoundry.models.scenario_schemas import (
 )
 from qualityfoundry.services.approval_service import ApprovalService
 from qualityfoundry.models.schemas import BatchDeleteRequest
+from qualityfoundry.models.approval_schemas import (
+    BatchApprovalRequest,
+    BatchApprovalResponse,
+    BatchApprovalResult,
+)
 
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
 
@@ -392,3 +397,67 @@ def reject_scenario(
     
     db.refresh(scenario)
     return scenario
+
+
+@router.post("/batch-approve", response_model=BatchApprovalResponse)
+def batch_approve_scenarios(
+    req: BatchApprovalRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    批量审核场景（批准）
+    
+    一次性批准多个场景
+    """
+    if req.entity_type != "scenario":
+        raise HTTPException(status_code=400, detail="实体类型必须为 scenario")
+    
+    approval_service = ApprovalService(db)
+    results = approval_service.batch_approve(
+        entity_type="scenario",
+        entity_ids=req.entity_ids,
+        reviewer=req.reviewer,
+        comment=req.comment
+    )
+    
+    success_count = sum(1 for r in results if r.get("success"))
+    failed_count = len(results) - success_count
+    
+    return BatchApprovalResponse(
+        total=len(results),
+        success_count=success_count,
+        failed_count=failed_count,
+        results=[BatchApprovalResult(**r) for r in results]
+    )
+
+
+@router.post("/batch-reject", response_model=BatchApprovalResponse)
+def batch_reject_scenarios(
+    req: BatchApprovalRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    批量审核场景（拒绝）
+    
+    一次性拒绝多个场景
+    """
+    if req.entity_type != "scenario":
+        raise HTTPException(status_code=400, detail="实体类型必须为 scenario")
+    
+    approval_service = ApprovalService(db)
+    results = approval_service.batch_reject(
+        entity_type="scenario",
+        entity_ids=req.entity_ids,
+        reviewer=req.reviewer,
+        comment=req.comment
+    )
+    
+    success_count = sum(1 for r in results if r.get("success"))
+    failed_count = len(results) - success_count
+    
+    return BatchApprovalResponse(
+        total=len(results),
+        success_count=success_count,
+        failed_count=failed_count,
+        results=[BatchApprovalResult(**r) for r in results]
+    )

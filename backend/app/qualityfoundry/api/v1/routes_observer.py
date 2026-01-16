@@ -11,7 +11,7 @@ from qualityfoundry.models.observer_schemas import (
     GodSuggestionsResponse
 )
 
-router = APIRouter()
+router = APIRouter(prefix="/observer", tags=["observer"])
 
 @router.get("/consistency/{requirement_id}", response_model=ConsistencyResponse)
 async def analyze_consistency(

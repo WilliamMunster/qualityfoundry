@@ -231,16 +231,28 @@ class AIService:
         if config.extra_params:
             payload.update(config.extra_params)
         
+        logger.info(f"AI 调用: provider={config.provider}, model={config.model}, url={url}")
+        logger.debug(f"Payload size: {len(str(payload))} chars")
+        
         try:
-            async with httpx.AsyncClient() as client:
+            # 使用更细粒度的超时设置，避免长时间 AI 调用时连接中断
+            timeout_config = httpx.Timeout(
+                connect=30.0,           # 连接超时
+                read=gen_config.timeout, # 读取超时（AI 响应可能很长）
+                write=30.0,             # 写入超时
+                pool=10.0               # 连接池超时
+            )
+            async with httpx.AsyncClient(
+                timeout=timeout_config,
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            ) as client:
                 response = await client.post(
                     url,
                     json=payload,
                     headers={
                         "Authorization": f"Bearer {config.api_key}",
                         "Content-Type": "application/json",
-                    },
-                    timeout=gen_config.timeout
+                    }
                 )
                 
                 response.raise_for_status()

@@ -24,6 +24,11 @@ from qualityfoundry.models.testcase_schemas import (
 )
 from qualityfoundry.services.approval_service import ApprovalService
 from qualityfoundry.models.schemas import BatchDeleteRequest
+from qualityfoundry.models.approval_schemas import (
+    BatchApprovalRequest,
+    BatchApprovalResponse,
+    BatchApprovalResult,
+)
 
 router = APIRouter(prefix="/testcases", tags=["testcases"])
 
@@ -48,11 +53,19 @@ async def generate_testcases(
     AI 生成测试用例
     
     根据场景自动生成测试用例
+    注意：只有审核通过的场景才能生成用例
     """
     # 1. 获取场景
     scenario = db.query(Scenario).filter(Scenario.id == req.scenario_id).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="场景未找到")
+    
+    # 1.1 检查场景审核状态
+    if scenario.approval_status != DBApprovalStatus.APPROVED:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"场景尚未审核通过，当前状态: {scenario.approval_status.value}。请先审核通过场景后再生成用例。"
+        )
     
     # 2. 调用 AI 服务
     from qualityfoundry.services.ai_service import AIService
@@ -377,3 +390,67 @@ def reject_testcase(
     
     db.refresh(testcase)
     return testcase
+
+
+@router.post("/batch-approve", response_model=BatchApprovalResponse)
+def batch_approve_testcases(
+    req: BatchApprovalRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    批量审核测试用例（批准）
+    
+    一次性批准多个测试用例
+    """
+    if req.entity_type != "testcase":
+        raise HTTPException(status_code=400, detail="实体类型必须为 testcase")
+    
+    approval_service = ApprovalService(db)
+    results = approval_service.batch_approve(
+        entity_type="testcase",
+        entity_ids=req.entity_ids,
+        reviewer=req.reviewer,
+        comment=req.comment
+    )
+    
+    success_count = sum(1 for r in results if r.get("success"))
+    failed_count = len(results) - success_count
+    
+    return BatchApprovalResponse(
+        total=len(results),
+        success_count=success_count,
+        failed_count=failed_count,
+        results=[BatchApprovalResult(**r) for r in results]
+    )
+
+
+@router.post("/batch-reject", response_model=BatchApprovalResponse)
+def batch_reject_testcases(
+    req: BatchApprovalRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    批量审核测试用例（拒绝）
+    
+    一次性拒绝多个测试用例
+    """
+    if req.entity_type != "testcase":
+        raise HTTPException(status_code=400, detail="实体类型必须为 testcase")
+    
+    approval_service = ApprovalService(db)
+    results = approval_service.batch_reject(
+        entity_type="testcase",
+        entity_ids=req.entity_ids,
+        reviewer=req.reviewer,
+        comment=req.comment
+    )
+    
+    success_count = sum(1 for r in results if r.get("success"))
+    failed_count = len(results) - success_count
+    
+    return BatchApprovalResponse(
+        total=len(results),
+        success_count=success_count,
+        failed_count=failed_count,
+        results=[BatchApprovalResult(**r) for r in results]
+    )

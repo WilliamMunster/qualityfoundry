@@ -142,9 +142,8 @@ const TestCasesPage: React.FC = () => {
       content: "确定要批准这个用例吗？",
       onOk: async () => {
         try {
-          await apiClient.post(`/api/v1/testcases/${id}/approve`);
+          await apiClient.post(`/api/v1/testcases/${id}/approve?reviewer=admin`);
           message.success("审核通过");
-          // loadTestcases();
           setTestcases((prev) =>
             prev.map((item) =>
               item.id === id ? { ...item, approval_status: "approved" } : item
@@ -152,6 +151,82 @@ const TestCasesPage: React.FC = () => {
           );
         } catch (error) {
           // global handler
+        }
+      },
+    });
+  };
+
+  // 批量审核（通过）
+  const handleBatchApprove = () => {
+    const pendingIds = selectedRowKeys.filter((key) => {
+      const tc = testcases.find((t) => t.id === key);
+      return tc?.approval_status === "pending";
+    });
+
+    if (pendingIds.length === 0) {
+      message.warning("请选择待审核状态的用例");
+      return;
+    }
+
+    modal.confirm({
+      title: "批量审核通过",
+      content: `确定要批准选中的 ${pendingIds.length} 个用例吗？`,
+      onOk: async () => {
+        try {
+          await apiClient.post("/api/v1/testcases/batch-approve", {
+            entity_type: "testcase",
+            entity_ids: pendingIds,
+            reviewer: "admin",
+          });
+          message.success(`成功审核通过 ${pendingIds.length} 个用例`);
+          setTestcases((prev) =>
+            prev.map((item) =>
+              pendingIds.includes(item.id)
+                ? { ...item, approval_status: "approved" }
+                : item
+            )
+          );
+          setSelectedRowKeys([]);
+        } catch (error) {
+          // global error handler
+        }
+      },
+    });
+  };
+
+  // 批量审核（拒绝）
+  const handleBatchReject = () => {
+    const pendingIds = selectedRowKeys.filter((key) => {
+      const tc = testcases.find((t) => t.id === key);
+      return tc?.approval_status === "pending";
+    });
+
+    if (pendingIds.length === 0) {
+      message.warning("请选择待审核状态的用例");
+      return;
+    }
+
+    modal.confirm({
+      title: "批量审核拒绝",
+      content: `确定要拒绝选中的 ${pendingIds.length} 个用例吗？`,
+      onOk: async () => {
+        try {
+          await apiClient.post("/api/v1/testcases/batch-reject", {
+            entity_type: "testcase",
+            entity_ids: pendingIds,
+            reviewer: "admin",
+          });
+          message.success(`成功拒绝 ${pendingIds.length} 个用例`);
+          setTestcases((prev) =>
+            prev.map((item) =>
+              pendingIds.includes(item.id)
+                ? { ...item, approval_status: "rejected" }
+                : item
+            )
+          );
+          setSelectedRowKeys([]);
+        } catch (error) {
+          // global error handler
         }
       },
     });
@@ -362,9 +437,17 @@ const TestCasesPage: React.FC = () => {
         <h2>用例管理</h2>
         <Space>
           {selectedRowKeys.length > 0 && (
-            <Button danger onClick={handleBatchDelete}>
-              批量删除 ({selectedRowKeys.length})
-            </Button>
+            <>
+              <Button type="primary" onClick={handleBatchApprove}>
+                批量通过 ({selectedRowKeys.length})
+              </Button>
+              <Button onClick={handleBatchReject}>
+                批量拒绝 ({selectedRowKeys.length})
+              </Button>
+              <Button danger onClick={handleBatchDelete}>
+                批量删除 ({selectedRowKeys.length})
+              </Button>
+            </>
           )}
           <Button
             type="primary"
