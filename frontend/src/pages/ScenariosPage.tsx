@@ -106,7 +106,7 @@ const ScenariosPage: React.FC = () => {
           message.success("批量删除成功");
           loadScenarios();
         } catch (error) {
-          message.error("批量删除失败");
+          // 全局错误处理器已显示详细错误消息
         }
       },
     });
