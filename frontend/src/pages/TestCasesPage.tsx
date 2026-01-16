@@ -40,6 +40,8 @@ const TestCasesPage: React.FC = () => {
   const [generateModalVisible, setGenerateModalVisible] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState<string>("");
+  const [selectedConfig, setSelectedConfig] = useState<string | undefined>(undefined);
+  const [aiConfigs, setAiConfigs] = useState<any[]>([]);
   // 分页状态
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -82,6 +84,16 @@ const TestCasesPage: React.FC = () => {
     }
   };
 
+  // 加载 AI 配置
+  const loadAiConfigs = async () => {
+    try {
+      const data: any = await apiClient.get("/api/v1/ai-configs", { params: { is_active: true } });
+      setAiConfigs(data || []);
+    } catch (error) {
+      console.error("加载 AI 配置失败");
+    }
+  };
+
   useEffect(() => {
     loadTestcases();
   }, [page, pageSize]);
@@ -89,6 +101,7 @@ const TestCasesPage: React.FC = () => {
   // 展开弹窗时自动刷新场景列表
   const openGenerateModal = () => {
     loadScenarios();
+    loadAiConfigs();
     setGenerateModalVisible(true);
   };
 
@@ -129,9 +142,8 @@ const TestCasesPage: React.FC = () => {
       content: "确定要批准这个用例吗？",
       onOk: async () => {
         try {
-          await apiClient.post(`/api/v1/testcases/${id}/approve`);
+          await apiClient.post(`/api/v1/testcases/${id}/approve?reviewer=admin`);
           message.success("审核通过");
-          // loadTestcases();
           setTestcases((prev) =>
             prev.map((item) =>
               item.id === id ? { ...item, approval_status: "approved" } : item
@@ -139,6 +151,82 @@ const TestCasesPage: React.FC = () => {
           );
         } catch (error) {
           // global handler
+        }
+      },
+    });
+  };
+
+  // 批量审核（通过）
+  const handleBatchApprove = () => {
+    const pendingIds = selectedRowKeys.filter((key) => {
+      const tc = testcases.find((t) => t.id === key);
+      return tc?.approval_status === "pending";
+    });
+
+    if (pendingIds.length === 0) {
+      message.warning("请选择待审核状态的用例");
+      return;
+    }
+
+    modal.confirm({
+      title: "批量审核通过",
+      content: `确定要批准选中的 ${pendingIds.length} 个用例吗？`,
+      onOk: async () => {
+        try {
+          await apiClient.post("/api/v1/testcases/batch-approve", {
+            entity_type: "testcase",
+            entity_ids: pendingIds,
+            reviewer: "admin",
+          });
+          message.success(`成功审核通过 ${pendingIds.length} 个用例`);
+          setTestcases((prev) =>
+            prev.map((item) =>
+              pendingIds.includes(item.id)
+                ? { ...item, approval_status: "approved" }
+                : item
+            )
+          );
+          setSelectedRowKeys([]);
+        } catch (error) {
+          // global error handler
+        }
+      },
+    });
+  };
+
+  // 批量审核（拒绝）
+  const handleBatchReject = () => {
+    const pendingIds = selectedRowKeys.filter((key) => {
+      const tc = testcases.find((t) => t.id === key);
+      return tc?.approval_status === "pending";
+    });
+
+    if (pendingIds.length === 0) {
+      message.warning("请选择待审核状态的用例");
+      return;
+    }
+
+    modal.confirm({
+      title: "批量审核拒绝",
+      content: `确定要拒绝选中的 ${pendingIds.length} 个用例吗？`,
+      onOk: async () => {
+        try {
+          await apiClient.post("/api/v1/testcases/batch-reject", {
+            entity_type: "testcase",
+            entity_ids: pendingIds,
+            reviewer: "admin",
+          });
+          message.success(`成功拒绝 ${pendingIds.length} 个用例`);
+          setTestcases((prev) =>
+            prev.map((item) =>
+              pendingIds.includes(item.id)
+                ? { ...item, approval_status: "rejected" }
+                : item
+            )
+          );
+          setSelectedRowKeys([]);
+        } catch (error) {
+          // global error handler
         }
       },
     });
@@ -152,13 +240,14 @@ const TestCasesPage: React.FC = () => {
     }
     setGenerating(true);
     // 显示全局 loading
-    setGlobalLoading(true, "AI 正在分析场景并拆解测试步骤 (预计 20-40 秒)...");
+    setGlobalLoading(true, "AI 正在分析场景并拆解测试步骤 (预计 30-120 秒)...");
     setGenerateModalVisible(false);
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data: any = await apiClient.post("/api/v1/testcases/generate", {
         scenario_id: selectedScenario,
+        config_id: selectedConfig,
       });
       const count = data?.length || 0;
       message.success(`成功生成 ${count} 条测试用例`);
@@ -171,6 +260,7 @@ const TestCasesPage: React.FC = () => {
     } finally {
       setGlobalLoading(false);
       setGenerating(false);
+      setSelectedConfig(undefined);
     }
   };
 
@@ -347,9 +437,17 @@ const TestCasesPage: React.FC = () => {
         <h2>用例管理</h2>
         <Space>
           {selectedRowKeys.length > 0 && (
-            <Button danger onClick={handleBatchDelete}>
-              批量删除 ({selectedRowKeys.length})
-            </Button>
+            <>
+              <Button type="primary" onClick={handleBatchApprove}>
+                批量通过 ({selectedRowKeys.length})
+              </Button>
+              <Button onClick={handleBatchReject}>
+                批量拒绝 ({selectedRowKeys.length})
+              </Button>
+              <Button danger onClick={handleBatchDelete}>
+                批量删除 ({selectedRowKeys.length})
+              </Button>
+            </>
           )}
           <Button
             type="primary"
@@ -404,6 +502,22 @@ const TestCasesPage: React.FC = () => {
               {scenarios.map((s) => (
                 <Select.Option key={s.id} value={s.id}>
                   {s.title}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item label="AI 配置 (可选)">
+            <Select
+              placeholder="使用默认配置"
+              value={selectedConfig}
+              onChange={setSelectedConfig}
+              allowClear
+              style={{ width: "100%" }}
+            >
+              {aiConfigs.map((config) => (
+                <Select.Option key={config.id} value={config.id}>
+                  {config.name} ({config.model})
                 </Select.Option>
               ))}
             </Select>

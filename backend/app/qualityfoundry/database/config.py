@@ -12,10 +12,9 @@ from pathlib import Path
 Base = declarative_base()
 
 # 数据库 URL
-# 支持 SQLite（开发）和 PostgreSQL（生产）
-# 计算项目根目录 (app/qualityfoundry/database/config.py -> ... -> root)
 BASE_DIR = Path(__file__).resolve().parents[4]
-DATABASE_URL = getattr(settings, "database_url", f"sqlite:///{BASE_DIR / 'qualityfoundry.db'}")
+# 优先使用配置中的 DB_URL (QF_DB_URL 环境变量)
+DATABASE_URL = settings.DB_URL if settings.DB_URL else f"sqlite:///{BASE_DIR / 'qualityfoundry.db'}"
 
 # 创建引擎
 engine = create_engine(

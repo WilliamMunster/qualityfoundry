@@ -115,6 +115,17 @@ async def _execute_testcase(
         if _task_manager and _task_id:
             _task_manager.add_log(_task_id, f"执行失败: {str(e)}")
         
+        # [NEW] 触发 AI 诊断
+        try:
+            from qualityfoundry.services.observer_service import ObserverService
+            # 使用默认配置进行异步诊断分析
+            await ObserverService.analyze_execution_failure(db, execution_id)
+            db.commit() # 在此处提交诊断结果
+            if _task_manager and _task_id:
+                _task_manager.add_log(_task_id, "AI 诊断已完成并记录。")
+        except Exception as ai_err:
+            logger.error(f"AI 诊断触发失败: {ai_err}")
+
         raise
         
     finally:
@@ -130,7 +141,21 @@ async def create_execution(
     触发执行
     
     创建执行任务并异步执行测试用例
+    注意：只有审核通过的用例才能执行
     """
+    from qualityfoundry.database.models import ApprovalStatus as DBApprovalStatus
+    
+    # 0. 检查用例是否存在且已审核通过
+    testcase = db.query(TestCase).filter(TestCase.id == req.testcase_id).first()
+    if not testcase:
+        raise HTTPException(status_code=404, detail="测试用例未找到")
+    
+    if testcase.approval_status != DBApprovalStatus.APPROVED:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"测试用例尚未审核通过，当前状态: {testcase.approval_status.value}。请先审核通过用例后再执行。"
+        )
+    
     # 创建执行记录
     execution = Execution(
         testcase_id=req.testcase_id,

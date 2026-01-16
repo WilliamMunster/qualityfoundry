@@ -183,6 +183,100 @@ class ApprovalService:
         
         return query.order_by(Approval.created_at.desc()).all()
     
+    def batch_approve(
+        self,
+        entity_type: str,
+        entity_ids: list[UUID],
+        reviewer: str,
+        comment: Optional[str] = None
+    ) -> list[dict]:
+        """
+        批量批准审核
+        
+        Args:
+            entity_type: 实体类型（scenario/testcase）
+            entity_ids: 实体 ID 列表
+            reviewer: 审核人
+            comment: 审核意见
+            
+        Returns:
+            批量操作结果列表
+        """
+        results = []
+        
+        for entity_id in entity_ids:
+            try:
+                # 查找待审核记录
+                approval = self.db.query(Approval).filter(
+                    Approval.entity_type == entity_type,
+                    Approval.entity_id == entity_id,
+                    Approval.status == DBApprovalStatus.PENDING
+                ).first()
+                
+                if approval:
+                    approval.status = DBApprovalStatus.APPROVED
+                    approval.reviewer = reviewer
+                    approval.review_comment = comment
+                    approval.reviewed_at = datetime.now(timezone.utc)
+                    self._update_entity_status(entity_type, entity_id, DBApprovalStatus.APPROVED, reviewer)
+                    results.append({"entity_id": str(entity_id), "status": "approved", "success": True})
+                else:
+                    # 没有待审核记录，直接更新实体状态
+                    self._update_entity_status(entity_type, entity_id, DBApprovalStatus.APPROVED, reviewer)
+                    results.append({"entity_id": str(entity_id), "status": "approved", "success": True, "note": "直接审核"})
+            except Exception as e:
+                results.append({"entity_id": str(entity_id), "status": "error", "success": False, "error": str(e)})
+        
+        self.db.commit()
+        return results
+    
+    def batch_reject(
+        self,
+        entity_type: str,
+        entity_ids: list[UUID],
+        reviewer: str,
+        comment: Optional[str] = None
+    ) -> list[dict]:
+        """
+        批量拒绝审核
+        
+        Args:
+            entity_type: 实体类型（scenario/testcase）
+            entity_ids: 实体 ID 列表
+            reviewer: 审核人
+            comment: 审核意见
+            
+        Returns:
+            批量操作结果列表
+        """
+        results = []
+        
+        for entity_id in entity_ids:
+            try:
+                # 查找待审核记录
+                approval = self.db.query(Approval).filter(
+                    Approval.entity_type == entity_type,
+                    Approval.entity_id == entity_id,
+                    Approval.status == DBApprovalStatus.PENDING
+                ).first()
+                
+                if approval:
+                    approval.status = DBApprovalStatus.REJECTED
+                    approval.reviewer = reviewer
+                    approval.review_comment = comment
+                    approval.reviewed_at = datetime.now(timezone.utc)
+                    self._update_entity_status(entity_type, entity_id, DBApprovalStatus.REJECTED, reviewer)
+                    results.append({"entity_id": str(entity_id), "status": "rejected", "success": True})
+                else:
+                    # 没有待审核记录，直接更新实体状态
+                    self._update_entity_status(entity_type, entity_id, DBApprovalStatus.REJECTED, reviewer)
+                    results.append({"entity_id": str(entity_id), "status": "rejected", "success": True, "note": "直接拒绝"})
+            except Exception as e:
+                results.append({"entity_id": str(entity_id), "status": "error", "success": False, "error": str(e)})
+        
+        self.db.commit()
+        return results
+    
     def _update_entity_status(
         self,
         entity_type: str,

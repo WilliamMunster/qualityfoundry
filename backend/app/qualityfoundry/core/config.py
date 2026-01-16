@@ -7,6 +7,7 @@
 """
 
 from __future__ import annotations
+from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -24,7 +25,8 @@ class Settings(BaseSettings):
     # ---------- 数据库 ----------
     # 兼容旧代码：core/db.py 读取 settings.DB_URL
     # 环境变量：QF_DB_URL
-    DB_URL: str = "sqlite:///./qualityfoundry.db"
+    # 默认为 None，以便在 database/config.py 中根据运行环境自动计算绝对路径
+    DB_URL: Optional[str] = None
 
     # ---------- 执行产物 ----------
     # 执行证据、截图、日志、报告等的输出目录

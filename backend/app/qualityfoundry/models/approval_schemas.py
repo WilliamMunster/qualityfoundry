@@ -64,3 +64,28 @@ class ApprovalHistoryResponse(BaseModel):
     """审核历史响应"""
     total: int
     items: list[ApprovalResponse]
+
+
+class BatchApprovalRequest(BaseModel):
+    """批量审核请求"""
+    entity_type: EntityType
+    entity_ids: list[UUID]
+    reviewer: str = Field(..., min_length=1, max_length=100)
+    comment: Optional[str] = None
+
+
+class BatchApprovalResult(BaseModel):
+    """单个实体的批量审核结果"""
+    entity_id: str
+    status: str
+    success: bool
+    note: Optional[str] = None
+    error: Optional[str] = None
+
+
+class BatchApprovalResponse(BaseModel):
+    """批量审核响应"""
+    total: int
+    success_count: int
+    failed_count: int
+    results: list[BatchApprovalResult]

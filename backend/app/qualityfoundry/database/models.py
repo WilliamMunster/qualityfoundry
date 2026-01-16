@@ -7,6 +7,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 from enum import Enum as PyEnum
+from typing import Optional
 
 from sqlalchemy import (
     Boolean,
@@ -104,6 +105,10 @@ class Scenario(Base):
     requirement = relationship("Requirement", back_populates="scenarios")
     testcases = relationship("TestCase", back_populates="scenario", cascade="all, delete-orphan")
 
+    @property
+    def requirement_seq_id(self) -> Optional[int]:
+        return self.requirement.seq_id if self.requirement else None
+
 
 class TestCase(Base):
     """测试用例模型"""
@@ -126,6 +131,10 @@ class TestCase(Base):
     # 关联
     scenario = relationship("Scenario", back_populates="testcases")
     executions = relationship("Execution", back_populates="testcase", cascade="all, delete-orphan")
+
+    @property
+    def scenario_seq_id(self) -> Optional[int]:
+        return self.scenario.seq_id if self.scenario else None
 
 
 class Environment(Base):
