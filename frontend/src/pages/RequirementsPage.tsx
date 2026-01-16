@@ -69,7 +69,7 @@ const RequirementsPage: React.FC = () => {
           message.success("批量删除成功");
           loadRequirements();
         } catch (error) {
-          message.error("批量删除失败");
+          // 全局错误处理器已显示详细错误消息
         }
       },
     });
@@ -87,7 +87,7 @@ const RequirementsPage: React.FC = () => {
           setRequirements((prev) => prev.filter((item) => item.id !== id));
           setTotal((prev) => prev - 1);
         } catch (error) {
-          message.error("删除失败");
+          // 全局错误处理器已显示详细错误消息
         }
       },
     });

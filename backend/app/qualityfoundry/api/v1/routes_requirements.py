@@ -10,7 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from qualityfoundry.database.config import get_db
-from qualityfoundry.database.models import Requirement, RequirementStatus as DBRequirementStatus
+from qualityfoundry.database.models import Requirement, Scenario, RequirementStatus as DBRequirementStatus
 from qualityfoundry.models.requirement_schemas import (
     RequirementCreate,
     RequirementListResponse,
@@ -30,6 +30,18 @@ def batch_delete_requirements(
     db: Session = Depends(get_db)
 ):
     """批量删除需求"""
+    # 检查是否有关联的场景
+    requirements_with_scenarios = db.query(Requirement.id, Requirement.seq_id).filter(
+        Requirement.id.in_(req.ids)
+    ).join(Scenario, Requirement.id == Scenario.requirement_id).distinct().all()
+
+    if requirements_with_scenarios:
+        seq_ids = [r.seq_id for r in requirements_with_scenarios]
+        raise HTTPException(
+            status_code=400,
+            detail=f"需求 {seq_ids} 下存在关联的场景，请先删除场景后再删除需求"
+        )
+
     db.query(Requirement).filter(Requirement.id.in_(req.ids)).delete(synchronize_session=False)
     db.commit()
     return None
@@ -140,7 +152,15 @@ def delete_requirement(
     requirement = db.query(Requirement).filter(Requirement.id == requirement_id).first()
     if not requirement:
         raise HTTPException(status_code=404, detail="Requirement not found")
-    
+
+    # 检查是否有关联的场景
+    scenario_count = db.query(Scenario).filter(Scenario.requirement_id == requirement_id).count()
+    if scenario_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"该需求下存在 {scenario_count} 个关联的场景，请先删除场景后再删除需求"
+        )
+
     db.delete(requirement)
     db.commit()
     return None

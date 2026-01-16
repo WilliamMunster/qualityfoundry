@@ -14,6 +14,7 @@ from qualityfoundry.database.models import (
     ApprovalStatus as DBApprovalStatus,
     Scenario,
     Requirement,
+    TestCase,
 )
 from qualityfoundry.models.scenario_schemas import (
     ScenarioCreate,
@@ -34,6 +35,18 @@ def batch_delete_scenarios(
     db: Session = Depends(get_db)
 ):
     """批量删除场景"""
+    # 检查是否有关联的测试用例
+    scenarios_with_testcases = db.query(Scenario.id, Scenario.seq_id).filter(
+        Scenario.id.in_(req.ids)
+    ).join(TestCase, Scenario.id == TestCase.scenario_id).distinct().all()
+
+    if scenarios_with_testcases:
+        seq_ids = [s.seq_id for s in scenarios_with_testcases]
+        raise HTTPException(
+            status_code=400,
+            detail=f"场景 {seq_ids} 下存在关联的测试用例，请先删除测试用例后再删除场景"
+        )
+
     db.query(Scenario).filter(Scenario.id.in_(req.ids)).delete(synchronize_session=False)
     db.commit()
     return None
@@ -278,7 +291,15 @@ def delete_scenario(
     scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="Scenario not found")
-    
+
+    # 检查是否有关联的测试用例
+    testcase_count = db.query(TestCase).filter(TestCase.scenario_id == scenario_id).count()
+    if testcase_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"该场景下存在 {testcase_count} 个关联的测试用例，请先删除测试用例后再删除场景"
+        )
+
     db.delete(scenario)
     db.commit()
     return None
