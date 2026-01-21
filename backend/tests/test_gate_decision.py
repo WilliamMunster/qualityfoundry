@@ -7,11 +7,11 @@
 from qualityfoundry.governance.gate import (
     GateDecision,
     GateResult,
-    HIGH_RISK_KEYWORDS,
     evaluate_gate,
     evaluate_gate_with_hitl,
     _check_high_risk,
 )
+from qualityfoundry.governance.policy_loader import get_default_policy
 from qualityfoundry.governance.tracing.collector import (
     Evidence,
     EvidenceSummary,
@@ -279,14 +279,17 @@ class TestGateResultProperties:
 
 
 class TestHighRiskKeywordsSet:
-    """高危关键词集合测试"""
+    """高危关键词集合测试（使用 Policy Config）"""
 
     def test_contains_critical_keywords(self):
-        """包含关键高危词"""
+        """默认策略包含关键高危词"""
+        policy = get_default_policy()
+        high_risk_keywords = set(policy.high_risk_keywords)
         critical = ["delete", "drop", "truncate", "production", "prod"]
         for keyword in critical:
-            assert keyword in HIGH_RISK_KEYWORDS
+            assert keyword in high_risk_keywords
 
-    def test_is_frozenset(self):
-        """关键词集合是不可变的"""
-        assert isinstance(HIGH_RISK_KEYWORDS, frozenset)
+    def test_keywords_is_list(self):
+        """关键词是列表类型"""
+        policy = get_default_policy()
+        assert isinstance(policy.high_risk_keywords, list)
