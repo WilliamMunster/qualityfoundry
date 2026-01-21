@@ -1,0 +1,154 @@
+"""QualityFoundry - Playwright Tool
+
+将现有的 Playwright runner 包装为统一的 Tool 接口。
+
+使用方式：
+    request = ToolRequest(
+        tool_name="run_playwright",
+        run_id=uuid4(),
+        args={
+            "actions": [...],  # DSL actions
+            "base_url": "https://example.com",
+            "headless": True,
+        }
+    )
+    result = await run_playwright(request)
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+from qualityfoundry.models.schemas import Action, ExecutionRequest, StepEvidence
+from qualityfoundry.runners.playwright.runner import run_actions
+from qualityfoundry.tools.base import ToolExecutionContext, log_tool_result
+from qualityfoundry.tools.contracts import (
+    ArtifactRef,
+    ArtifactType,
+    ToolMetrics,
+    ToolRequest,
+    ToolResult,
+)
+
+logger = logging.getLogger(__name__)
+
+# 线程池用于运行同步的 Playwright
+_executor = ThreadPoolExecutor(max_workers=4)
+
+
+async def run_playwright(request: ToolRequest) -> ToolResult:
+    """Playwright 工具：执行 DSL actions
+
+    Args:
+        request: ToolRequest，args 包含：
+            - actions: list[dict] - DSL 动作列表
+            - base_url: str (可选) - 基础 URL
+            - headless: bool (可选, 默认 True) - 是否无头模式
+
+    Returns:
+        ToolResult: 统一的执行结果
+    """
+    async with ToolExecutionContext(request) as ctx:
+        try:
+            # 解析参数
+            args = request.args
+            actions_raw = args.get("actions", [])
+            base_url = args.get("base_url")
+            headless = args.get("headless", True)
+
+            if not actions_raw:
+                return ctx.failed("No actions provided")
+
+            # 转换为 Action 对象
+            actions = [Action.model_validate(a) for a in actions_raw]
+
+            # 构建 ExecutionRequest
+            exec_request = ExecutionRequest(
+                actions=actions,
+                base_url=base_url,
+                headless=headless,
+            )
+
+            # 在线程池中运行同步的 Playwright（带超时）
+            loop = asyncio.get_event_loop()
+            try:
+                ok, evidence = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        _executor,
+                        lambda: run_actions(exec_request, ctx.artifact_dir),
+                    ),
+                    timeout=request.timeout_s,
+                )
+            except asyncio.TimeoutError:
+                return ctx.timeout()
+
+            # 收集 artifacts（截图等）
+            artifacts = _convert_evidence_to_artifacts(evidence, ctx.artifact_dir)
+            ctx.add_artifacts(artifacts)
+
+            # 更新 metrics
+            ctx.update_metrics(
+                steps_total=len(evidence),
+                steps_passed=sum(1 for e in evidence if e.ok),
+                steps_failed=sum(1 for e in evidence if not e.ok),
+            )
+
+            # 构建结果
+            if ok:
+                result = ctx.success(
+                    raw_output={
+                        "ok": ok,
+                        "evidence": [e.model_dump() for e in evidence],
+                    }
+                )
+            else:
+                # 找到第一个失败的步骤
+                failed_step = next((e for e in evidence if not e.ok), None)
+                error_msg = failed_step.error if failed_step else "Execution failed"
+                result = ctx.failed(
+                    error_message=error_msg,
+                )
+                result.raw_output = {
+                    "ok": ok,
+                    "evidence": [e.model_dump() for e in evidence],
+                }
+
+            log_tool_result(result, "run_playwright")
+            return result
+
+        except Exception as e:
+            logger.exception("Playwright tool failed")
+            return ctx.failed(error_message=str(e))
+
+
+def _convert_evidence_to_artifacts(
+    evidence: list[StepEvidence],
+    artifact_dir: Path,
+) -> list[ArtifactRef]:
+    """将 StepEvidence 转换为 ArtifactRef 列表"""
+    artifacts: list[ArtifactRef] = []
+
+    for ev in evidence:
+        if ev.screenshot:
+            path = Path(ev.screenshot)
+            if path.exists():
+                ref = ArtifactRef.from_file(path, ArtifactType.SCREENSHOT)
+                ref.metadata = {
+                    "step_index": ev.index,
+                    "step_ok": ev.ok,
+                }
+                artifacts.append(ref)
+
+    return artifacts
+
+
+# 工具元数据（用于注册）
+TOOL_METADATA = {
+    "name": "run_playwright",
+    "description": "Execute Playwright DSL actions for browser automation",
+    "version": "1.0.0",
+    "tags": ["browser", "automation", "testing"],
+}
