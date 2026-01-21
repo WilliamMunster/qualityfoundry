@@ -28,7 +28,6 @@ from qualityfoundry.tools.base import ToolExecutionContext, log_tool_result
 from qualityfoundry.tools.contracts import (
     ArtifactRef,
     ArtifactType,
-    ToolMetrics,
     ToolRequest,
     ToolResult,
 )
@@ -75,9 +74,7 @@ async def run_playwright(request: ToolRequest) -> ToolResult:
             )
 
             # 在线程池中运行同步的 Playwright（带超时）
-            # 留 5s 安全边界用于资源清理
             loop = asyncio.get_event_loop()
-            inner_timeout = max(request.timeout_s - 5, 10)
 
             try:
                 ok, evidence, trace_path = await asyncio.wait_for(

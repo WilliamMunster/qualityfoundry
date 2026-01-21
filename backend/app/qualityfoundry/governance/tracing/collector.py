@@ -32,7 +32,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from qualityfoundry.governance.tracing.junit_parser import JUnitSummary, parse_junit_xml
 from qualityfoundry.tools.base import make_relative_path
 from qualityfoundry.tools.config import get_artifacts_root
-from qualityfoundry.tools.contracts import ArtifactRef, ArtifactType, ToolResult, ToolStatus
+from qualityfoundry.tools.contracts import ArtifactType, ToolResult
 
 logger = logging.getLogger(__name__)
 

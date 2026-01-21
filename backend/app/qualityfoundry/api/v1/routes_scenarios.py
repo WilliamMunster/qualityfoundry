@@ -102,7 +102,7 @@ async def generate_scenarios(
 
         
     # 2. 调用 AI 服务
-    from qualityfoundry.services.ai_service import AIService, validate_scenario_response
+    from qualityfoundry.services.ai_service import AIService
     from qualityfoundry.database.ai_config_models import AIStep
     import json
     import traceback

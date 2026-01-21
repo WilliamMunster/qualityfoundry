@@ -144,7 +144,7 @@ def run_actions(
             context.close()
             browser.close()
 
-    except Exception as e:
+    except Exception:
         logger.exception("Playwright runner failed")
         # 确保资源释放
         if context:

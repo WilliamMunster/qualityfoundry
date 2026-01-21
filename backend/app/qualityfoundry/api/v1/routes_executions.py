@@ -2,6 +2,7 @@
 
 执行管理 API 路由
 """
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
@@ -25,6 +26,8 @@ from qualityfoundry.models.execution_schemas import (
 from qualityfoundry.services.execution.async_executor import (
     get_task_manager,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/executions", tags=["executions"])
 

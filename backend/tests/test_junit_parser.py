@@ -6,7 +6,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from qualityfoundry.governance.tracing.junit_parser import (
     parse_junit_xml,

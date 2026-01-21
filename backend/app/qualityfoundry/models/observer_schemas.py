@@ -2,7 +2,7 @@
 
 上帝视角 API 响应模型
 """
-from typing import Optional, List
+from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
 

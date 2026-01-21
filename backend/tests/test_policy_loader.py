@@ -3,10 +3,8 @@
 验证策略配置的加载、验证和默认值行为。
 """
 
-import tempfile
 from pathlib import Path
 
-import pytest
 
 from qualityfoundry.governance.policy_loader import (
     PolicyConfig,

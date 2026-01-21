@@ -4,8 +4,6 @@
 """
 
 import json
-import tempfile
-from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -67,7 +65,6 @@ class TestFetchLogs:
     @pytest.mark.asyncio
     async def test_fetch_with_existing_artifacts(self):
         """获取有 artifact 的 run 日志"""
-        import os
         from qualityfoundry.tools.config import get_artifacts_root
 
         # 创建临时 artifact 目录

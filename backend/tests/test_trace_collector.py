@@ -8,10 +8,8 @@ import tempfile
 from pathlib import Path
 from uuid import uuid4
 
-import pytest
 
 from qualityfoundry.governance.tracing.collector import (
-    Evidence,
     EvidenceSummary,
     ToolCallSummary,
     TraceCollector,

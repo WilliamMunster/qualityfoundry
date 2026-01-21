@@ -3,7 +3,6 @@
 验证门禁决策逻辑的正确性。
 """
 
-import pytest
 
 from qualityfoundry.governance.gate import (
     GateDecision,

@@ -14,7 +14,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import TypeAlias
 
-from qualityfoundry.tools.contracts import ToolRequest, ToolResult, ToolStatus
+from qualityfoundry.tools.contracts import ToolRequest, ToolResult
 
 logger = logging.getLogger(__name__)
 
