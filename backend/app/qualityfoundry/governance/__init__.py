@@ -6,6 +6,7 @@
 - tracing: 证据收集与追溯
 - gate: 门禁决策（PASS/FAIL/NEED_HITL）
 - policy_loader: L1 策略配置加载
+- repro: 可复现性元数据
 """
 
 from qualityfoundry.governance.gate import (
@@ -19,6 +20,10 @@ from qualityfoundry.governance.policy_loader import (
     get_policy,
     load_policy,
     clear_policy_cache,
+)
+from qualityfoundry.governance.repro import (
+    ReproMeta,
+    get_repro_meta,
 )
 from qualityfoundry.governance.tracing import (
     Evidence,
@@ -38,6 +43,9 @@ __all__ = [
     "get_policy",
     "load_policy",
     "clear_policy_cache",
+    # Repro (L5 foundation)
+    "ReproMeta",
+    "get_repro_meta",
     # Tracing
     "Evidence",
     "EvidenceSummary",
