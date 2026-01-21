@@ -47,6 +47,7 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "[CI] pytest start"
+          cd backend
           pytest -q
           if ($LASTEXITCODE -eq 5) { exit 0 }  # 没有收集到测试用例也视为通过
           exit $LASTEXITCODE

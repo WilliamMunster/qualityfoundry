@@ -40,6 +40,9 @@ def test_create_execution():
     )
     testcase_id = testcase_response.json()["id"]
     
+    # 审批用例
+    client.post(f"/api/v1/testcases/{testcase_id}/approve", json={"reviewer": "test_admin"})
+    
     env_response = client.post(
         "/api/v1/environments",
         json={
@@ -94,6 +97,9 @@ def test_list_executions():
         }
     )
     testcase_id = testcase_response.json()["id"]
+    
+    # 审批用例
+    client.post(f"/api/v1/testcases/{testcase_id}/approve", json={"reviewer": "test_admin"})
     
     env_response = client.post(
         "/api/v1/environments",
@@ -151,6 +157,9 @@ def test_get_execution():
     )
     testcase_id = testcase_response.json()["id"]
     
+    # 审批用例
+    client.post(f"/api/v1/testcases/{testcase_id}/approve", json={"reviewer": "test_admin"})
+    
     env_response = client.post(
         "/api/v1/environments",
         json={
@@ -206,6 +215,9 @@ def test_get_execution_status():
         }
     )
     testcase_id = testcase_response.json()["id"]
+    
+    # 审批用例
+    client.post(f"/api/v1/testcases/{testcase_id}/approve", json={"reviewer": "test_admin"})
     
     env_response = client.post(
         "/api/v1/environments",

@@ -115,14 +115,14 @@ async def run_pytest(request: ToolRequest) -> ToolResult:
             extra_args = args.get("extra_args", [])
             working_dir = args.get("working_dir")
 
-            # JUnit XML 输出路径
-            junit_path = ctx.artifact_dir / "junit.xml"
-
+            # JUnit XML 输出路径 (使用正斜杠以确保跨平台兼容性，pytest 会处理)
+            junit_path_str = str(junit_path).replace("\\", "/")
+            
             # 构建 pytest 命令
             cmd = [
                 "python", "-m", "pytest",
                 "-q",
-                f"--junitxml={junit_path}",
+                f"--junitxml={junit_path_str}",
                 test_path,
             ]
 

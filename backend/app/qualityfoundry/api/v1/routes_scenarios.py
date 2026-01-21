@@ -29,6 +29,7 @@ from qualityfoundry.models.approval_schemas import (
     BatchApprovalRequest,
     BatchApprovalResponse,
     BatchApprovalResult,
+    SingleApprovalRequest,
 )
 
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
@@ -223,12 +224,20 @@ def create_scenario(
         title=req.title,
         description=req.description,
         steps=req.steps,
+        approval_status=DBApprovalStatus.PENDING,
         version="v1.0"
     )
     
     db.add(scenario)
     db.commit()
     db.refresh(scenario)
+    
+    # 创建审核记录
+    approval_service = ApprovalService(db)
+    approval_service.create_approval(
+        entity_type="scenario",
+        entity_id=scenario.id
+    )
     
     return scenario
 
@@ -330,8 +339,7 @@ def delete_scenario(
 @router.post("/{scenario_id}/approve", response_model=ScenarioResponse)
 def approve_scenario(
     scenario_id: UUID,
-    reviewer: str,
-    comment: Optional[str] = None,
+    req: SingleApprovalRequest,
     db: Session = Depends(get_db)
 ):
     """审核场景（批准）"""
@@ -355,8 +363,8 @@ def approve_scenario(
     # 批准第一个待审核记录
     approval_service.approve(
         approval_id=approvals[0].id,
-        reviewer=reviewer,
-        comment=comment
+        reviewer=req.reviewer,
+        comment=req.comment
     )
     
     db.refresh(scenario)
@@ -366,8 +374,7 @@ def approve_scenario(
 @router.post("/{scenario_id}/reject", response_model=ScenarioResponse)
 def reject_scenario(
     scenario_id: UUID,
-    reviewer: str,
-    comment: Optional[str] = None,
+    req: SingleApprovalRequest,
     db: Session = Depends(get_db)
 ):
     """审核场景（拒绝）"""
@@ -391,8 +398,8 @@ def reject_scenario(
     # 拒绝第一个待审核记录
     approval_service.reject(
         approval_id=approvals[0].id,
-        reviewer=reviewer,
-        comment=comment
+        reviewer=req.reviewer,
+        comment=req.comment
     )
     
     db.refresh(scenario)
