@@ -3,11 +3,11 @@
 上帝视角服务 - 提供全链路监督、一致性检查和改进建议
 """
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any, Optional
 from uuid import UUID
 
 from sqlalchemy.orm import Session
-from qualityfoundry.database.models import Requirement, Scenario, TestCase, Execution
+from qualityfoundry.database.models import Requirement, Execution
 from qualityfoundry.database.ai_config_models import AIStep
 from qualityfoundry.services.ai_service import AIService
 

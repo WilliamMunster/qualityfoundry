@@ -25,7 +25,7 @@ async def analyze_consistency(
         return result
     except ObserverError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/coverage/{requirement_id}", response_model=CoverageResponse)
@@ -40,7 +40,7 @@ async def evaluate_coverage(
         return result
     except ObserverError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/suggestions/{requirement_id}", response_model=GodSuggestionsResponse)
@@ -55,5 +55,5 @@ async def get_god_suggestions(
         return result
     except ObserverError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")

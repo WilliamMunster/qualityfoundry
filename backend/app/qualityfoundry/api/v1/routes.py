@@ -20,6 +20,8 @@ from qualityfoundry.api.v1.routes_config import router as config_router
 from qualityfoundry.api.v1.routes_ai_prompts import router as ai_prompts_router
 from qualityfoundry.api.v1.routes_websocket import router as websocket_router
 from qualityfoundry.api.v1.routes_observer import router as observer_router
+from qualityfoundry.api.v1.routes_orchestrations import router as orchestrations_router
+from qualityfoundry.api.v1.routes_artifacts import router as artifacts_router
 
 # v1 统一入口：所有 v1 API 都从 /api/v1 开始
 router = APIRouter(prefix="/api/v1")
@@ -44,4 +46,6 @@ router.include_router(config_router)
 router.include_router(ai_prompts_router)
 router.include_router(websocket_router)
 router.include_router(observer_router)
+router.include_router(orchestrations_router)
+router.include_router(artifacts_router)
 

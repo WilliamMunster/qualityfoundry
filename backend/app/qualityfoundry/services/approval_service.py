@@ -34,16 +34,30 @@ class ApprovalService:
         reviewer: Optional[str] = None
     ) -> Approval:
         """
-        创建审核记录
+        创建审核记录（幂等性：如果已存在 PENDING 记录，则返回现有记录）
         
         Args:
-            entity_type: 实体类型（scenario/testcase）
+            entity_type: 实体类型（scenario/testcase/orchestration）
             entity_id: 实体 ID
             reviewer: 审核人（可选）
             
         Returns:
             审核记录
         """
+        # 幂等性检查：查找是否已有待审核记录
+        existing = self.db.query(Approval).filter(
+            Approval.entity_type == entity_type,
+            Approval.entity_id == entity_id,
+            Approval.status == DBApprovalStatus.PENDING
+        ).first()
+        
+        if existing:
+            if reviewer:
+                existing.reviewer = reviewer
+                self.db.commit()
+                self.db.refresh(existing)
+            return existing
+
         approval = Approval(
             entity_type=entity_type,
             entity_id=entity_id,

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="3" time="0.053" timestamp="2026-01-21T15:09:21.993822+08:00" hostname="WilliamMacBook-Air.local"><testcase classname="tests.fixtures.sample_tests.test_with_failure" name="test_passing" time="0.005" /><testcase classname="tests.fixtures.sample_tests.test_with_failure" name="test_failing" time="0.009"><failure message="AssertionError: This test is designed to fail&#10;assert 1 == 2">def test_failing():
+        """A failing test."""
+&gt;       assert 1 == 2, "This test is designed to fail"
+E       AssertionError: This test is designed to fail
+E       assert 1 == 2
+
+tests/fixtures/sample_tests/test_with_failure.py:15: AssertionError</failure></testcase><testcase classname="tests.fixtures.sample_tests.test_with_failure" name="test_also_passing" time="0.009" /></testsuite></testsuites>

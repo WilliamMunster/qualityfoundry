@@ -62,12 +62,9 @@ async def test_analyze_execution_failure_not_found(db_session: Session):
 @pytest.mark.asyncio
 async def test_analyze_consistency_success(db_session: Session):
     # Setup req, scenario, testcase
-    from qualityfoundry.database.models import Requirement, Scenario
     req = Requirement(id=uuid4(), title="Req 1", content="Content 1")
     db_session.add(req)
-    scenario = DBTestCase(id=uuid4(), scenario_id=uuid4()) # Wait, wrong model for scenario
-    # Correcting: Scenario use Scenario model
-    from qualityfoundry.database.models import Scenario as DBScenario
+    # Create scenario using the correct model
     sc = DBScenario(id=uuid4(), requirement_id=req.id, title="Sc 1", steps=["step1"])
     db_session.add(sc)
     tc = DBTestCase(id=uuid4(), scenario_id=sc.id, title="TC 1", steps=[{"step": "s1", "expected": "e1"}])
@@ -85,7 +82,6 @@ async def test_analyze_consistency_success(db_session: Session):
 
 @pytest.mark.asyncio
 async def test_evaluate_coverage_success(db_session: Session):
-    from qualityfoundry.database.models import Requirement, Scenario as DBScenario
     req = Requirement(id=uuid4(), title="Req 1", content="Content 1")
     db_session.add(req)
     sc = DBScenario(id=uuid4(), requirement_id=req.id, title="Sc 1", steps=["step1"])

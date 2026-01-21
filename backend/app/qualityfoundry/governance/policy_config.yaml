@@ -1,0 +1,54 @@
+# QualityFoundry - Policy Configuration
+# Version 1.0 - L1 Policy Layer
+# 
+# This file defines the gate rules for orchestration decisions.
+# Modify this file to change gate behavior without code changes.
+
+version: "1.0"
+
+# High-risk keywords that trigger HITL (Human-In-The-Loop)
+# Any of these words in the nl_input will trigger NEED_HITL decision
+high_risk_keywords:
+  - delete
+  - drop
+  - truncate
+  - remove
+  - destroy
+  - prod
+  - production
+  - master
+  - main
+  - release
+  - deploy
+  - rollback
+  - migration
+  - schema
+  - database
+  - db
+
+# High-risk patterns (regex) that trigger HITL
+# Matched against the full nl_input using case-insensitive search
+high_risk_patterns:
+  - "\\bprod\\b"
+  - "\\bproduction\\b"
+  - "\\bdelete\\s+from\\b"
+  - "\\bdrop\\s+table\\b"
+  - "\\btruncate\\b"
+  - "\\brm\\s+-rf\\b"
+  - "\\bsudo\\b"
+
+# JUnit pass rule: thresholds for PASS decision
+# If failures <= max_failures AND errors <= max_errors, decision is PASS
+junit_pass_rule:
+  max_failures: 0
+  max_errors: 0
+
+# Fallback rule when no JUnit XML is available
+# If require_all_tools_success is true, all tool calls must succeed for PASS
+fallback_rule:
+  require_all_tools_success: true
+
+# Cost governance (future expansion)
+cost_governance:
+  timeout_s: 300
+  max_retries: 3

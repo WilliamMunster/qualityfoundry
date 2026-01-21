@@ -28,6 +28,7 @@ from qualityfoundry.models.approval_schemas import (
     BatchApprovalRequest,
     BatchApprovalResponse,
     BatchApprovalResult,
+    SingleApprovalRequest,
 )
 
 router = APIRouter(prefix="/testcases", tags=["testcases"])
@@ -219,12 +220,20 @@ def create_testcase(
         # Pydantic 已经处理了 TestStep -> dict 的转换 (from_attributes=True / model_dump)
         steps=[s.model_dump() if hasattr(s, 'model_dump') else s for s in req.steps],
         expected_results=req.expected_results or [s.expected for s in req.steps if hasattr(s, 'expected')],
+        approval_status=DBApprovalStatus.PENDING,
         version="v1.0"
     )
     
     db.add(testcase)
     db.commit()
     db.refresh(testcase)
+    
+    # 创建审核记录
+    approval_service = ApprovalService(db)
+    approval_service.create_approval(
+        entity_type="testcase",
+        entity_id=testcase.id
+    )
     
     return testcase
 
@@ -323,8 +332,7 @@ def delete_testcase(
 @router.post("/{testcase_id}/approve", response_model=TestCaseResponse)
 def approve_testcase(
     testcase_id: UUID,
-    reviewer: str,
-    comment: Optional[str] = None,
+    req: SingleApprovalRequest,
     db: Session = Depends(get_db)
 ):
     """审核测试用例（批准）"""
@@ -348,8 +356,8 @@ def approve_testcase(
     # 批准第一个待审核记录
     approval_service.approve(
         approval_id=approvals[0].id,
-        reviewer=reviewer,
-        comment=comment
+        reviewer=req.reviewer,
+        comment=req.comment
     )
     
     db.refresh(testcase)
@@ -359,8 +367,7 @@ def approve_testcase(
 @router.post("/{testcase_id}/reject", response_model=TestCaseResponse)
 def reject_testcase(
     testcase_id: UUID,
-    reviewer: str,
-    comment: Optional[str] = None,
+    req: SingleApprovalRequest,
     db: Session = Depends(get_db)
 ):
     """审核测试用例（拒绝）"""
@@ -384,8 +391,8 @@ def reject_testcase(
     # 拒绝第一个待审核记录
     approval_service.reject(
         approval_id=approvals[0].id,
-        reviewer=reviewer,
-        comment=comment
+        reviewer=req.reviewer,
+        comment=req.comment
     )
     
     db.refresh(testcase)

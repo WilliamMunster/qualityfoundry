@@ -33,7 +33,7 @@ def execute(req: ExecutionRequest) -> ExecutionResponse:
     run_dir = _new_run_dir(artifacts_root)
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    ok, evidence = run_actions(req=req, artifact_dir=run_dir)
+    ok, evidence, _trace_path = run_actions(req=req, artifact_dir=run_dir)
 
     finished = datetime.now(timezone.utc)
 

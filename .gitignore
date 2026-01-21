@@ -67,3 +67,4 @@ pnpm-debug.log*
 
 # Local generated bundles
 bundle.json
+artifacts/

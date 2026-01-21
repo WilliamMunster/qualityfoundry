@@ -42,6 +42,12 @@ class ApprovalDecision(BaseModel):
     review_comment: Optional[str] = None
 
 
+class SingleApprovalRequest(BaseModel):
+    """单体审核请求"""
+    reviewer: str = Field(..., min_length=1, max_length=100)
+    comment: Optional[str] = None
+
+
 # ============================================================
 # Response Schemas
 # ============================================================
