@@ -44,6 +44,7 @@ class TestCaseGenerateRequest(BaseModel):
     """AI 生成测试用例请求"""
     scenario_id: UUID
     auto_approve: bool = Field(default=False, description="是否自动批准")
+    config_id: Optional[str] = Field(default=None, description="显式指定的 AI 配置 ID")
 
 
 # ============================================================

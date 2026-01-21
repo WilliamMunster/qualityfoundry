@@ -3,7 +3,7 @@
 AI 模型配置数据模型
 """
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, JSON, Text
+from sqlalchemy import Column, String, Boolean, DateTime, JSON, Text, Integer
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 import enum
@@ -18,6 +18,8 @@ class AIStep(str, enum.Enum):
     TESTCASE_GENERATION = "testcase_generation"    # 场景 → 用例
     CODE_GENERATION = "code_generation"            # 代码生成
     REVIEW = "review"                              # 审核建议
+    EXECUTION_ANALYSIS = "execution_analysis"      # 执行结果分析
+    GLOBAL_OBSERVER = "global_observer"            # 上帝视角 - 全链路监督
 
 
 class AIConfig(Base):
@@ -61,3 +63,24 @@ class AIPrompt(Base):
     
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class AIExecutionLog(Base):
+    """AI 执行日志"""
+    __tablename__ = "ai_execution_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    step = Column(String(50), nullable=True)  # 对应 AIStep
+    config_id = Column(UUID(as_uuid=True), nullable=True) # 使用的配置ID
+    provider = Column(String(50), nullable=True)
+    model = Column(String(100), nullable=True)
+    
+    request_messages = Column(JSON, nullable=True) # 完整请求消息列表
+    response_content = Column(Text, nullable=True) # AI 响应内容
+    
+    status = Column(String(20), nullable=False) # success, failed
+    error_message = Column(Text, nullable=True) # 错误信息
+    
+    duration_ms = Column(Integer, nullable=True) # 执行耗时 (毫秒)
+    
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

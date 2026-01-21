@@ -18,7 +18,9 @@ import ExecutionsPage from "./pages/ExecutionsPage";
 import EnvironmentsPage from "./pages/EnvironmentsPage";
 import UsersPage from "./pages/UsersPage";
 import ReportDashboardPage from "./pages/ReportDashboardPage";
+import ObserverDashboard from "./pages/ObserverDashboard";
 import ConfigCenterPage from "./pages/ConfigCenterPage";
+import AIExecutionLogsPage from "./pages/AIExecutionLogsPage";
 import GlobalLoading from "./components/GlobalLoading";
 
 const App: React.FC = () => {
@@ -49,7 +51,9 @@ const App: React.FC = () => {
             <Route path="executions" element={<ExecutionsPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="report-dashboard" element={<ReportDashboardPage />} />
+            <Route path="observer" element={<ObserverDashboard />} />
             <Route path="config-center" element={<ConfigCenterPage />} />
+            <Route path="ai-logs" element={<AIExecutionLogsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

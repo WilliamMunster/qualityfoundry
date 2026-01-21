@@ -17,6 +17,7 @@ import {
   Divider,
   Typography,
   Alert,
+  AutoComplete,
 } from "antd";
 import {
   MailOutlined,
@@ -31,6 +32,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   FileTextOutlined,
+  ThunderboltOutlined,
 } from "@ant-design/icons";
 import apiClient from "../api/client";
 
@@ -65,6 +67,7 @@ interface AIConfig {
   max_tokens: string;
   is_default: boolean;
   is_active: boolean;
+  api_key_masked?: string;  // 掩码后的 API Key
 }
 
 interface MCPConfig {
@@ -86,13 +89,54 @@ interface AIPrompt {
   updated_at: string;
 }
 
-// 步骤名称映射
 const STEP_NAMES: Record<string, string> = {
   requirement_analysis: "需求分析",
   scenario_generation: "场景生成",
   testcase_generation: "用例生成",
   code_generation: "代码生成",
   review: "审核建议",
+};
+
+const AI_PROVIDER_MODELS: Record<string, { label: string; models: string[] }> = {
+  openai: {
+    label: "OpenAI",
+    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+  },
+  deepseek: {
+    label: "DeepSeek",
+    models: ["deepseek-chat", "deepseek-coder"],
+  },
+  anthropic: {
+    label: "Anthropic",
+    models: ["claude-3-5-sonnet-latest", "claude-3-opus-latest", "claude-3-haiku-latest"],
+  },
+  google: {
+    label: "Google Gemini",
+    models: ["gemini-1.5-pro", "gemini-1.5-flash"],
+  },
+  zhipu: {
+    label: "智谱 AI",
+    models: ["glm-4", "glm-4-air", "glm-4-flash"],
+  },
+  moonshot: {
+    label: "月之暗面 (Moonshot)",
+    models: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"],
+  },
+  aliyun: {
+    label: "通义千问 (Aliyun)",
+    models: ["qwen-max", "qwen-plus", "qwen-turbo"],
+  },
+  other: {
+    label: "其他",
+    models: [],
+  },
+};
+
+const AI_PROVIDER_BASE_URLS: Record<string, string> = {
+  openai: "https://api.openai.com/v1",
+  deepseek: "https://api.deepseek.com",
+  anthropic: "https://api.anthropic.com/v1",
+  zhipu: "https://open.bigmodel.cn/api/paas/v4",
 };
 
 const ConfigCenterPage: React.FC = () => {
@@ -149,7 +193,7 @@ const ConfigCenterPage: React.FC = () => {
           message.success("通知配置保存成功");
           loadNotificationConfig();
         } catch (error) {
-           // global handler
+          // global handler
         } finally {
           setLoading(false);
         }
@@ -216,6 +260,70 @@ const ConfigCenterPage: React.FC = () => {
         }
       },
     });
+  };
+
+  const [testLoading, setTestLoading] = useState(false);
+
+  // 测试 AI 连接
+  const handleTestConnection = async () => {
+    try {
+      const values = await aiForm.validateFields(["provider", "model", "api_key", "base_url"]);
+      const hide = message.loading("正在尝试与 AI 模型建立连接，请稍候...", 0);
+      setTestLoading(true);
+
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data: any = await apiClient.post("/api/v1/ai-configs/test", {
+          config_id: editingAI?.id,
+          provider: values.provider,
+          model: values.model,
+          api_key: values.api_key,
+          base_url: values.base_url,
+          prompt: "Hello, connectivity check",
+        });
+
+        hide();
+        setTestLoading(false);
+
+        if (data.success) {
+          message.success("连接测试成功！API 配置有效。");
+          // 成功时弹窗展示 AI 的回话内容
+          modal.info({
+            title: "连接测试成功",
+            content: (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ marginBottom: 8, fontWeight: 'bold' }}>AI 响应内容：</div>
+                <div style={{
+                  padding: 12,
+                  background: '#f5f5f5',
+                  borderRadius: 4,
+                  maxHeight: 300,
+                  overflowY: 'auto',
+                  whiteSpace: 'pre-wrap'
+                }}>
+                  {data.response}
+                </div>
+              </div>
+            ),
+            width: 600,
+            okText: "知道了",
+          });
+        } else {
+          message.error(`连接测试失败: ${data.error || '未知错误'}`);
+        }
+      } catch (error: any) {
+        hide();
+        setTestLoading(false);
+        // 确保详细错误被显示（如果全局拦截器没覆盖到）
+        const errorDetail = error.response?.data?.detail;
+        if (errorDetail) {
+          message.error(typeof errorDetail === 'string' ? errorDetail : JSON.stringify(errorDetail));
+        }
+      }
+    } catch (error) {
+      setTestLoading(false);
+      // Validation failed
+    }
   };
 
   // 加载 MCP 配置
@@ -812,8 +920,36 @@ const ConfigCenterPage: React.FC = () => {
         onCancel={() => setAIModalVisible(false)}
         confirmLoading={loading}
         width={600}
+        footer={[
+          <Button
+            key="test"
+            icon={<ThunderboltOutlined />}
+            onClick={handleTestConnection}
+            loading={testLoading}
+          >
+            测试连通性
+          </Button>,
+          <Button key="cancel" onClick={() => setAIModalVisible(false)}>
+            取消
+          </Button>,
+          <Button key="save" type="primary" onClick={saveAIConfig} loading={loading}>
+            保存
+          </Button>,
+        ]}
       >
-        <Form form={aiForm} layout="vertical">
+        <Form
+          form={aiForm}
+          layout="vertical"
+          onValuesChange={(changedValues) => {
+            if (changedValues.provider && AI_PROVIDER_BASE_URLS[changedValues.provider]) {
+              if (!aiForm.getFieldValue("base_url")) {
+                aiForm.setFieldsValue({
+                  base_url: AI_PROVIDER_BASE_URLS[changedValues.provider],
+                });
+              }
+            }
+          }}
+        >
           <Form.Item
             name="name"
             label="配置名称"
@@ -834,20 +970,43 @@ const ConfigCenterPage: React.FC = () => {
               label="提供商"
               rules={[{ required: true, message: "请选择提供商" }]}
             >
-              <Select>
-                <Select.Option value="openai">OpenAI</Select.Option>
-                <Select.Option value="deepseek">DeepSeek</Select.Option>
-                <Select.Option value="anthropic">Anthropic</Select.Option>
-                <Select.Option value="other">其他</Select.Option>
+              <Select
+                placeholder="请选择"
+                onChange={() => aiForm.setFieldValue("model", undefined)}
+              >
+                {Object.entries(AI_PROVIDER_MODELS).map(([value, info]) => (
+                  <Select.Option key={value} value={value}>
+                    {info.label}
+                  </Select.Option>
+                ))}
               </Select>
             </Form.Item>
 
             <Form.Item
-              name="model"
-              label="模型"
-              rules={[{ required: true, message: "请输入模型名称" }]}
+              noStyle
+              shouldUpdate={(prevValues, currentValues) => prevValues.provider !== currentValues.provider}
             >
-              <Input placeholder="例如：gpt-4、deepseek-chat" />
+              {({ getFieldValue }) => {
+                const provider = getFieldValue("provider");
+                const models = AI_PROVIDER_MODELS[provider]?.models || [];
+                const isOther = provider === "other";
+
+                return (
+                  <Form.Item
+                    name="model"
+                    label="模型"
+                    rules={[{ required: true, message: "请输入或选择模型名称" }]}
+                  >
+                    <AutoComplete
+                      placeholder="也可手动输入模型名称"
+                      options={models.map((m) => ({ value: m }))}
+                      filterOption={(inputValue, option) =>
+                        option!.value.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
+                      }
+                    />
+                  </Form.Item>
+                );
+              }}
             </Form.Item>
           </div>
 
@@ -857,7 +1016,7 @@ const ConfigCenterPage: React.FC = () => {
             rules={[{ required: !editingAI, message: "请输入 API Key" }]}
           >
             <Input.Password
-              placeholder={editingAI ? "留空表示不修改" : "请输入 API Key"}
+              placeholder={editingAI?.api_key_masked || (editingAI ? "留空表示不修改" : "请输入 API Key")}
             />
           </Form.Item>
 

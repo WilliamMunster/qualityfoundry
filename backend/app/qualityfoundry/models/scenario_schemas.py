@@ -36,6 +36,7 @@ class ScenarioGenerateRequest(BaseModel):
     """AI 生成场景请求"""
     requirement_id: UUID
     auto_approve: bool = Field(default=False, description="是否自动批准")
+    config_id: Optional[str] = Field(default=None, description="显式指定的 AI 配置 ID")
 
 
 # ============================================================

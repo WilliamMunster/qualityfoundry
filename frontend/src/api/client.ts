@@ -7,7 +7,7 @@ import { message } from 'antd';
 // 创建 axios 实例
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
-  timeout: 30000,
+  timeout: 150000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -52,7 +52,7 @@ apiClient.interceptors.response.use(
     // 统一错误处理
     if (error.response) {
       const { status, data } = error.response;
-      
+
       switch (status) {
         case 401:
           // 未授权，跳转登录
@@ -91,7 +91,7 @@ apiClient.interceptors.response.use(
       // 发送请求时出了点问题
       showErrorMessage('请求配置错误');
     }
-    
+
     return Promise.reject(error);
   }
 );
