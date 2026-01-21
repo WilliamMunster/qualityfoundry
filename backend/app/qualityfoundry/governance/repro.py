@@ -29,8 +29,10 @@ class ReproMeta(BaseModel):
     git_dirty: Optional[bool] = Field(default=None, description="Working tree has uncommitted changes")
     python_version: str = Field(..., description="Python version (e.g., '3.14.2')")
     platform_info: str = Field(..., description="Platform info (e.g., 'darwin-arm64')")
-    deps_fingerprint: Optional[str] = Field(default=None, description="SHA256 of deps file")
+    deps_fingerprint: Optional[str] = Field(default=None, description="Hash of deps file (e.g., 'sha256:abc123')")
+    deps_fingerprint_algo: str = Field(default="sha256", description="Hash algorithm used for deps fingerprint")
     deps_source: Optional[str] = Field(default=None, description="Source file for deps (e.g., 'pyproject.toml')")
+
 
 
 def _run_git_command(args: list[str], cwd: Path | None = None) -> str | None:
