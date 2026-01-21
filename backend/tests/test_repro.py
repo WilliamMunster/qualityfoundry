@@ -7,11 +7,10 @@ Reproducibility Metadata Tests
 import os
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import patch
 
 from qualityfoundry.governance.repro import (
+
     ReproMeta,
     get_repro_meta,
     get_git_sha,
