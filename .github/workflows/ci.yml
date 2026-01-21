@@ -51,3 +51,27 @@ jobs:
           pytest -q
           if ($LASTEXITCODE -eq 5) { exit 0 }  # 没有收集到测试用例也视为通过
           exit $LASTEXITCODE
+
+  # Smoke tests - required check for PR-4 governance
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [lint-test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend
+        run: |
+          python -m pip install -U pip setuptools wheel
+          python -m pip install -e ./backend
+
+      - name: Run smoke tests
+        run: |
+          cd backend
+          pytest tests/test_smoke_orchestration.py -v -m smoke --tb=short

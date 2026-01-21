@@ -2,9 +2,9 @@
 
 基于 Evidence 做出门禁决策：PASS / FAIL / NEED_HITL
 
-规则（MVP 硬编码版本）：
-1. 高危关键词 → NEED_HITL
-2. 有 JUnit summary：errors==0 && failures==0 → PASS，否则 FAIL
+规则（L1 Policy 配置驱动版本）：
+1. 高危关键词 → NEED_HITL（从 policy_config.yaml 加载）
+2. 有 JUnit summary：按 policy 阈值判断 → PASS / FAIL
 3. 无 summary：所有 tool_calls.status == success → PASS，否则 FAIL
 """
 
@@ -19,6 +19,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from qualityfoundry.governance.tracing.collector import Evidence
+from qualityfoundry.governance.policy_loader import PolicyConfig, get_policy
 
 logger = logging.getLogger(__name__)
 
@@ -30,36 +31,18 @@ class GateDecision(str, Enum):
     NEED_HITL = "NEED_HITL"
 
 
-# 高危关键词（触发 HITL）
-# 基于 input_nl 检测，不是 args
-HIGH_RISK_KEYWORDS = frozenset({
-    "delete",
-    "drop",
-    "truncate",
-    "remove",
-    "destroy",
-    "prod",
-    "production",
-    "master",
-    "main",
-    "release",
-    "deploy",
-    "rollback",
-    "migration",
-    "schema",
-    "database",
-    "db",
+# ==================== 保留用于向后兼容 ====================
+# 以下常量已废弃，请使用 PolicyConfig 替代
+# 仅用于未传入 policy 时的默认回退
+_LEGACY_HIGH_RISK_KEYWORDS = frozenset({
+    "delete", "drop", "truncate", "remove", "destroy",
+    "prod", "production", "master", "main", "release",
+    "deploy", "rollback", "migration", "schema", "database", "db",
 })
 
-# 高危模式（正则）
-HIGH_RISK_PATTERNS = [
-    r"\bprod\b",
-    r"\bproduction\b",
-    r"\bdelete\s+from\b",
-    r"\bdrop\s+table\b",
-    r"\btruncate\b",
-    r"\brm\s+-rf\b",
-    r"\bsudo\b",
+_LEGACY_HIGH_RISK_PATTERNS = [
+    r"\bprod\b", r"\bproduction\b", r"\bdelete\s+from\b",
+    r"\bdrop\s+table\b", r"\btruncate\b", r"\brm\s+-rf\b", r"\bsudo\b",
 ]
 
 
@@ -82,23 +65,31 @@ class GateResult(BaseModel):
         return self.decision == GateDecision.NEED_HITL
 
 
-def evaluate_gate(evidence: Evidence) -> GateResult:
+def evaluate_gate(
+    evidence: Evidence,
+    policy: PolicyConfig | None = None,
+) -> GateResult:
     """评估门禁
 
     Args:
         evidence: 证据对象
+        policy: 策略配置（可选，默认从文件加载）
 
     Returns:
         GateResult: 门禁决策结果
     """
+    # 加载策略
+    if policy is None:
+        policy = get_policy()
+
     triggered_rules: list[str] = []
     evidence_summary = None
 
     if evidence.summary:
         evidence_summary = evidence.summary.model_dump()
 
-    # Rule 1: 高危关键词检测 → NEED_HITL
-    hitl_reason = _check_high_risk(evidence.input_nl)
+    # Rule 1: 高危关键词检测 → NEED_HITL（使用 policy 配置）
+    hitl_reason = _check_high_risk(evidence.input_nl, policy)
     if hitl_reason:
         triggered_rules.append(f"high_risk_keyword:{hitl_reason}")
         return GateResult(
@@ -108,9 +99,11 @@ def evaluate_gate(evidence: Evidence) -> GateResult:
             evidence_summary=evidence_summary,
         )
 
-    # Rule 2: 基于 JUnit summary 判断
+    # Rule 2: 基于 JUnit summary 判断（使用 policy 阈值）
     if evidence.summary and evidence.summary.tests > 0:
-        if evidence.summary.errors == 0 and evidence.summary.failures == 0:
+        max_f = policy.junit_pass_rule.max_failures
+        max_e = policy.junit_pass_rule.max_errors
+        if evidence.summary.errors <= max_e and evidence.summary.failures <= max_f:
             triggered_rules.append("junit_all_passed")
             return GateResult(
                 decision=GateDecision.PASS,
@@ -128,23 +121,33 @@ def evaluate_gate(evidence: Evidence) -> GateResult:
                 evidence_summary=evidence_summary,
             )
 
-    # Rule 3: Fallback 到 tool_calls 状态
+    # Rule 3: Fallback 到 tool_calls 状态（使用 policy 配置）
     if evidence.tool_calls:
-        failed_tools = [tc for tc in evidence.tool_calls if tc.status != "success"]
-        if not failed_tools:
-            triggered_rules.append("all_tools_succeeded")
+        if policy.fallback_rule.require_all_tools_success:
+            failed_tools = [tc for tc in evidence.tool_calls if tc.status != "success"]
+            if not failed_tools:
+                triggered_rules.append("all_tools_succeeded")
+                return GateResult(
+                    decision=GateDecision.PASS,
+                    reason="All tool executions succeeded",
+                    triggered_rules=triggered_rules,
+                    evidence_summary=evidence_summary,
+                )
+            else:
+                triggered_rules.append("tool_execution_failed")
+                failed_names = [tc.tool_name for tc in failed_tools]
+                return GateResult(
+                    decision=GateDecision.FAIL,
+                    reason=f"Tool(s) failed: {', '.join(failed_names)}",
+                    triggered_rules=triggered_rules,
+                    evidence_summary=evidence_summary,
+                )
+        else:
+            # 不要求所有工具成功，则视为 PASS
+            triggered_rules.append("fallback_no_strict_check")
             return GateResult(
                 decision=GateDecision.PASS,
-                reason="All tool executions succeeded",
-                triggered_rules=triggered_rules,
-                evidence_summary=evidence_summary,
-            )
-        else:
-            triggered_rules.append("tool_execution_failed")
-            failed_names = [tc.tool_name for tc in failed_tools]
-            return GateResult(
-                decision=GateDecision.FAIL,
-                reason=f"Tool(s) failed: {', '.join(failed_names)}",
+                reason="Fallback rule passed (no strict tool check)",
                 triggered_rules=triggered_rules,
                 evidence_summary=evidence_summary,
             )
@@ -159,17 +162,32 @@ def evaluate_gate(evidence: Evidence) -> GateResult:
     )
 
 
-def _check_high_risk(input_nl: str) -> str | None:
+def _check_high_risk(
+    input_nl: str,
+    policy: PolicyConfig | None = None,
+) -> str | None:
     """检查输入是否包含高危关键词
+
+    Args:
+        input_nl: 自然语言输入
+        policy: 策略配置（可选）
 
     Returns:
         触发的关键词/模式，如果没有触发返回 None
     """
+    # 获取关键词和模式
+    if policy:
+        keywords = frozenset(policy.high_risk_keywords)
+        patterns = policy.high_risk_patterns
+    else:
+        keywords = _LEGACY_HIGH_RISK_KEYWORDS
+        patterns = _LEGACY_HIGH_RISK_PATTERNS
+
     text_lower = input_nl.lower()
 
     # 检查关键词
     words = set(re.findall(r"\b\w+\b", text_lower))
-    matched_keywords = words & HIGH_RISK_KEYWORDS
+    matched_keywords = words & keywords
     if matched_keywords:
         # 只返回最重要的（优先返回 prod/production）
         priority_keywords = ["production", "prod", "delete", "drop", "truncate"]
@@ -179,7 +197,7 @@ def _check_high_risk(input_nl: str) -> str | None:
         return matched_keywords.pop()
 
     # 检查模式
-    for pattern in HIGH_RISK_PATTERNS:
+    for pattern in patterns:
         if re.search(pattern, text_lower):
             return f"pattern:{pattern}"
 
