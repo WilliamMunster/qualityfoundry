@@ -29,6 +29,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from qualityfoundry.governance.repro import ReproMeta, get_repro_meta
 from qualityfoundry.governance.tracing.junit_parser import JUnitSummary, parse_junit_xml
 from qualityfoundry.tools.base import make_relative_path
 from qualityfoundry.tools.config import get_artifacts_root
@@ -117,6 +118,7 @@ class Evidence(BaseModel):
     tool_calls: list[ToolCallSummary] = Field(default_factory=list)
     artifacts: list[dict[str, Any]] = Field(default_factory=list)
     summary: EvidenceSummary | None = None
+    repro: ReproMeta | None = None
     collected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     def model_dump_json_for_file(self) -> str:
@@ -190,7 +192,10 @@ class TraceCollector:
         # 3. 生成 summary
         summary = self._generate_summary(junit_artifacts)
 
-        # 4. 构建 Evidence
+        # 4. 收集可复现性元数据
+        repro = get_repro_meta(self.artifact_root.parent if self.artifact_root else None)
+
+        # 5. 构建 Evidence
         return Evidence(
             run_id=self.run_id,
             input_nl=self.input_nl,
@@ -198,6 +203,7 @@ class TraceCollector:
             tool_calls=tool_calls,
             artifacts=all_artifacts,
             summary=summary,
+            repro=repro,
         )
 
     def _generate_summary(self, junit_paths: list[Path]) -> EvidenceSummary:

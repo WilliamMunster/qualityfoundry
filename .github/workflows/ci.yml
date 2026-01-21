@@ -75,3 +75,32 @@ jobs:
         run: |
           cd backend
           pytest tests/test_smoke_orchestration.py -v -m smoke --tb=short
+
+  # Regression smoke - run golden dataset evals (optional, non-blocking for now)
+  regression-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [lint-test]
+    continue-on-error: true  # Non-blocking until baseline is established
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend
+        run: |
+          python -m pip install -U pip setuptools wheel
+          python -m pip install -e "./backend[dev]"
+
+      - name: Run regression tests
+        run: |
+          cd backend
+          python -m qualityfoundry.governance.evals \
+            --dataset app/qualityfoundry/governance/golden/dataset.yaml \
+            --output /tmp/evals_results \
+            --baseline-id ci-baseline \
+            --fail-on-regression
