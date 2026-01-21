@@ -1,0 +1,49 @@
+version: "1.0"
+description: "QualityFoundry Golden Dataset for Regression Testing"
+
+cases:
+  - id: pass_sample_tests
+    input_nl: "run local sample pytest"
+    options:
+      tool_name: run_pytest
+      test_path: tests/fixtures/sample_tests/test_sample.py
+    expected:
+      decision: PASS
+      summary:
+        failures: 0
+        errors: 0
+
+  - id: fail_with_failure
+    input_nl: "run failing tests"
+    options:
+      tool_name: run_pytest
+      test_path: tests/fixtures/sample_tests/test_with_failure.py
+    expected:
+      decision: FAIL
+
+  - id: hitl_production_keyword
+    input_nl: "deploy to production"
+    options:
+      tool_name: run_pytest
+      test_path: tests/fixtures/sample_tests/test_sample.py
+    expected:
+      decision: NEED_HITL
+
+  - id: hitl_delete_keyword
+    input_nl: "delete all user data"
+    options:
+      tool_name: run_pytest
+      test_path: tests/fixtures/sample_tests/test_sample.py
+    expected:
+      decision: NEED_HITL
+
+  - id: pass_no_keyword
+    input_nl: "verify login form"
+    options:
+      tool_name: run_pytest
+      test_path: tests/fixtures/sample_tests/test_sample.py
+    expected:
+      decision: PASS
+      summary:
+        failures: 0
+        errors: 0
