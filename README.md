@@ -1,14 +1,33 @@
 # QualityFoundry 🏗️
 
-QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链，提供完整的企业级测试管理平台功能。
+**A framework to make AI agents controllable, auditable, regressible, and cost-bounded.**
 
-## 当前版本：V0.9 (Latest)
+QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
+
+## 1. 核心哲学 (Core Philosophy)
+- ⚖️ **Hybrid Quality**：针对确定性内容采用 assert 检查；不确定性内容使用评测/裁决（eval/judge）。
+- 🔍 **Evidence-First**：关键链路必须具备 Trace 证据链（含日志、模型结果与版本信息）。
+- 🔄 **Reproducibility**：模型参数、Prompt、工具版本及环境指纹化，确保失败可重放。
+- 🛡️ **Least Privilege**：工具调用分级授权，环境隔离运行并配套全量审计。
+- 📉 **Cost Governance**：预算与超时熔断，避免死循环导致的异常消耗。
+
+## 2. 参考架构 (Architecture Layers)
+- **L1 规则与门禁层 (Policy)**：定义 `policy_config.yaml`、风险分级与发布门禁。
+- **L2 编排层 (Orchestration)**：基于 **LangGraph** 的状态机，负责错误恢复、重试/回退及 HITL 机制。
+- **L3 执行层 (Execution)**：集成 Playwright、Pytest、SQL 等工具，支持沙箱隔离运行。
+- **L4 接口层 (Protocol)**：通过 MCP (Model Context Protocol) 标准化暴露工具能力，集成鉴权与审计。
+- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、变更对比报告及在线漂移监控。
+
+---
+
+## 当前版本：V0.9.5 (Latest)
 
 ### 核心功能
-
-- ✅ **需求管理**：支持需求文档上传、版本控制、状态追踪、自动编号
-- ✅ **场景管理**：AI 辅助生成测试场景，支持人工审核、自动编号
-- ✅ **用例管理**：从场景生成测试用例，支持独立编辑和审核、自动编号
+- ✅ **需求/场景/用例管理**：支持从 NL 需求到场景、用例的全链路生成与审核，支持自动补全 `seq_id`。
+- ✅ **全链路可复现性 (Phase 1.3)**：证据链自动记录 Git SHA、依赖指纹（Fingerprint）及运行时环境。
+- ✅ **回归评测体系 (Phase 5.2)**：支持 Golden Dataset 运行对比，一键产出 `diff_report.md`。
+- ✅ **多模型适配**：内置对接 OpenAI, DeepSeek, 智谱 AI 等主流提供商，支持 Prompt 模板动态调整。
+- ✅ **质量门禁**：基于 L1 Policy 的自动决策（PASS/FAIL/NEED_HITL），支持高危动作人工介入。
 - ✅ **环境管理**：多环境配置，健康检查，变量管理
 - ✅ **执行管理**：DSL/MCP 执行模式，实时状态追踪
 - ✅ **用户管理**：基于 JWT 的认证，角色权限控制
@@ -152,7 +171,8 @@ alembic upgrade head
 GitHub Actions 配置：
 
 - `ci.yml`：代码检查（ruff）+ 单元测试（pytest）
-- `quality-gate.yml`：Smoke 测试门禁
+- `smoke`：核心执行链路冒烟测试（Required）
+- `regression-smoke`：基于 Golden Dataset 的回归评测（非阻塞，输出 Diff）
 
 ---
 
@@ -164,7 +184,16 @@ MIT License
 
 ## 更新日志
 
-### V0.85 (2026-01-16)
+### V0.9.5 (2026-01-21)
+
+**回归基石：可复现性与回归体系 (Reliability & Evals Foundation)**
+
+- ✅ **全链路元数据 (Phase 1.3)**：实现 `ReproMeta` 工具集，自动记录 Git SHA、分支、Dirty 状态及依赖指纹（SHA256），确保测试证据“可追溯、可对齐”。
+- ✅ **Golden Dataset (Phase 5.2)**：建立 `governance/golden/dataset.yaml` 评测基准，包含 5 组针对不同决策逻辑（PASS/FAIL/HITL）的黄金案例。
+- ✅ **回归 CLI**：实现 `python -m qualityfoundry.governance.evals`：
+    - 快速运行评测集并计算 `Passed/Total` 成功率。
+    - 支持基线对比（Generate Diff），自动指出决策漂移或回归项。
+- ✅ **CI/CD 增强**：新增 `regression-smoke` 自动化评测流水线。
 
 **多 AI 模型支持 (Multi-AI Support)**
 
