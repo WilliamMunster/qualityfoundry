@@ -116,6 +116,7 @@ async def run_pytest(request: ToolRequest) -> ToolResult:
             working_dir = args.get("working_dir")
 
             # JUnit XML 输出路径 (使用正斜杠以确保跨平台兼容性，pytest 会处理)
+            junit_path = ctx.artifact_dir / "junit.xml"
             junit_path_str = str(junit_path).replace("\\", "/")
             
             # 构建 pytest 命令
