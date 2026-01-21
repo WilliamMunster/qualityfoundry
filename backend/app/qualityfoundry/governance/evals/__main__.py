@@ -51,6 +51,11 @@ def main():
         action="store_true",
         help="Update baseline with current results",
     )
+    parser.add_argument(
+        "--fail-on-regression",
+        action="store_true",
+        help="Exit with code 1 if any regressions are detected (default behavior when baseline exists)",
+    )
     args = parser.parse_args()
 
     # 确保路径
