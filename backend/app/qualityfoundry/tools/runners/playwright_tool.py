@@ -47,9 +47,10 @@ async def run_playwright(request: ToolRequest) -> ToolResult:
             - actions: list[dict] - DSL 动作列表
             - base_url: str (可选) - 基础 URL
             - headless: bool (可选, 默认 True) - 是否无头模式
+            - enable_tracing: bool (可选, 默认 True) - 是否启用 trace 收集
 
     Returns:
-        ToolResult: 统一的执行结果
+        ToolResult: 统一的执行结果，artifacts 包含 screenshots + trace.zip
     """
     async with ToolExecutionContext(request) as ctx:
         try:
@@ -58,6 +59,7 @@ async def run_playwright(request: ToolRequest) -> ToolResult:
             actions_raw = args.get("actions", [])
             base_url = args.get("base_url")
             headless = args.get("headless", True)
+            enable_tracing = args.get("enable_tracing", True)
 
             if not actions_raw:
                 return ctx.failed("No actions provided")
@@ -73,21 +75,34 @@ async def run_playwright(request: ToolRequest) -> ToolResult:
             )
 
             # 在线程池中运行同步的 Playwright（带超时）
+            # 留 5s 安全边界用于资源清理
             loop = asyncio.get_event_loop()
+            inner_timeout = max(request.timeout_s - 5, 10)
+
             try:
-                ok, evidence = await asyncio.wait_for(
+                ok, evidence, trace_path = await asyncio.wait_for(
                     loop.run_in_executor(
                         _executor,
-                        lambda: run_actions(exec_request, ctx.artifact_dir),
+                        lambda: run_actions(exec_request, ctx.artifact_dir, enable_tracing),
                     ),
                     timeout=request.timeout_s,
                 )
             except asyncio.TimeoutError:
+                # 尝试收集已有的 artifacts
+                ctx.collect_artifacts()
                 return ctx.timeout()
 
             # 收集 artifacts（截图等）
             artifacts = _convert_evidence_to_artifacts(evidence, ctx.artifact_dir)
             ctx.add_artifacts(artifacts)
+
+            # 添加 trace.zip artifact（PR-2 增强）
+            if trace_path:
+                trace_file = Path(trace_path)
+                if trace_file.exists():
+                    trace_artifact = ArtifactRef.from_file(trace_file, ArtifactType.TRACE)
+                    ctx.add_artifact(trace_artifact)
+                    logger.info(f"Added trace artifact: {trace_path}")
 
             # 更新 metrics
             ctx.update_metrics(
@@ -102,6 +117,7 @@ async def run_playwright(request: ToolRequest) -> ToolResult:
                     raw_output={
                         "ok": ok,
                         "evidence": [e.model_dump() for e in evidence],
+                        "trace_path": trace_path,
                     }
                 )
             else:
@@ -114,6 +130,7 @@ async def run_playwright(request: ToolRequest) -> ToolResult:
                 result.raw_output = {
                     "ok": ok,
                     "evidence": [e.model_dump() for e in evidence],
+                    "trace_path": trace_path,
                 }
 
             log_tool_result(result, "run_playwright")
@@ -121,6 +138,8 @@ async def run_playwright(request: ToolRequest) -> ToolResult:
 
         except Exception as e:
             logger.exception("Playwright tool failed")
+            # 尝试收集已有的 artifacts
+            ctx.collect_artifacts()
             return ctx.failed(error_message=str(e))
 
 

@@ -5,6 +5,7 @@
 - 日志记录
 - Artifact 落盘
 - 指标收集
+- 敏感数据脱敏
 """
 
 from __future__ import annotations
@@ -18,6 +19,11 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+from qualityfoundry.tools.config import (
+    get_artifacts_root,
+    redact_sensitive,
+    truncate_output,
+)
 from qualityfoundry.tools.contracts import (
     ArtifactRef,
     ArtifactType,
@@ -29,19 +35,29 @@ from qualityfoundry.tools.contracts import (
 
 logger = logging.getLogger(__name__)
 
-# 默认 artifact 根目录
-DEFAULT_ARTIFACT_ROOT = Path("artifacts")
-
 
 def get_artifact_dir(run_id: UUID, tool_name: str, root: Path | None = None) -> Path:
     """获取工具的 artifact 目录
 
     结构: {root}/{run_id}/tools/{tool_name}/
     """
-    root = root or DEFAULT_ARTIFACT_ROOT
+    root = root or get_artifacts_root()
     artifact_dir = root / str(run_id) / "tools" / tool_name
     artifact_dir.mkdir(parents=True, exist_ok=True)
     return artifact_dir
+
+
+def make_relative_path(absolute_path: Path, artifact_root: Path | None = None) -> str:
+    """将绝对路径转换为相对于 artifact_root 的路径
+
+    用于 ArtifactRef.path 统一存储相对路径。
+    """
+    root = artifact_root or get_artifacts_root()
+    try:
+        return str(absolute_path.relative_to(root))
+    except ValueError:
+        # 如果不在 root 下，返回原路径
+        return str(absolute_path)
 
 
 def collect_artifacts(
@@ -103,6 +119,8 @@ def save_tool_log(
 ) -> Path:
     """保存工具执行日志到 artifact 目录
 
+    自动脱敏敏感字段（password, token, cookie 等）。
+
     Args:
         artifact_dir: artifact 目录
         result: 工具执行结果
@@ -112,9 +130,24 @@ def save_tool_log(
         日志文件路径
     """
     log_path = artifact_dir / "tool_result.json"
+
+    # 脱敏 request.args
+    request_data = None
+    if request:
+        request_data = request.model_dump(mode="json")
+        if "args" in request_data and isinstance(request_data["args"], dict):
+            request_data["args"] = redact_sensitive(request_data["args"])
+
+    # 截断过长的 stdout/stderr
+    result_data = result.model_dump(mode="json")
+    if result_data.get("stdout"):
+        result_data["stdout"] = truncate_output(result_data["stdout"])
+    if result_data.get("stderr"):
+        result_data["stderr"] = truncate_output(result_data["stderr"])
+
     log_data = {
-        "result": result.model_dump(mode="json"),
-        "request": request.model_dump(mode="json") if request else None,
+        "result": result_data,
+        "request": request_data,
         "logged_at": datetime.now(timezone.utc).isoformat(),
     }
     log_path.write_text(json.dumps(log_data, indent=2, ensure_ascii=False))
@@ -167,7 +200,7 @@ class ToolExecutionContext:
         artifact_root: Path | None = None,
     ):
         self.request = request
-        self.artifact_root = artifact_root or DEFAULT_ARTIFACT_ROOT
+        self.artifact_root = artifact_root or get_artifacts_root()
         self._artifact_dir: Path | None = None
         self._artifacts: list[ArtifactRef] = []
         self._started_at: datetime | None = None
