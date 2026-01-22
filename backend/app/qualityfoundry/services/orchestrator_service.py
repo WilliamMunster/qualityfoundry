@@ -312,9 +312,11 @@ class OrchestratorService:
                 metadata=tool_request.metadata,
             )
 
+        def tool_func(req: ToolRequest) -> ToolResult:
+            return self.registry.execute(req.tool_name, req)
+
         try:
             # Execute with governance (timeout + retry enforcement)
-            tool_func = lambda req: self.registry.execute(req.tool_name, req)
             tool_result = await execute_with_governance(tool_func, tool_request)
         except ToolNotFoundError:
             now = datetime.now(timezone.utc)

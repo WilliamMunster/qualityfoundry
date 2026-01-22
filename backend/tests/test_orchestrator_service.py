@@ -682,7 +682,6 @@ class TestRunWithGraph:
         """run_with_graph should produce identical results to run."""
         from qualityfoundry.governance import GateDecision
         from qualityfoundry.governance.gate import GateResult
-        from qualityfoundry.services.orchestrator_service import OrchestrationResult
 
         db = MagicMock()
 

@@ -7,11 +7,10 @@ Tests verify that:
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 from qualityfoundry.governance import GateDecision
-from qualityfoundry.governance.gate import GateResult
 from qualityfoundry.governance.policy_loader import PolicyConfig, CostGovernance
 from qualityfoundry.services.orchestrator_service import (
     OrchestratorService,
@@ -19,7 +18,7 @@ from qualityfoundry.services.orchestrator_service import (
     OrchestrationState,
     GovernanceBudget,
 )
-from qualityfoundry.tools.contracts import ToolRequest, ToolResult, ToolMetrics
+from qualityfoundry.tools.contracts import ToolRequest, ToolResult
 
 
 class TestEnforceBudget:
