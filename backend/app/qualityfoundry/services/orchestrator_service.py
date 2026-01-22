@@ -69,6 +69,19 @@ class OrchestrationState(TypedDict, total=False):
     report_path: Path | None
 
 
+class GovernanceBudget(TypedDict, total=False):
+    """Cost governance budget tracking (Phase 5.1).
+
+    Tracks cumulative resource usage across all tool executions in a run.
+    Used for short-circuit decisions when budget is exceeded.
+    """
+    elapsed_ms_total: int
+    attempts_total: int
+    retries_used_total: int
+    short_circuited: bool
+    short_circuit_reason: str | None
+
+
 class LangGraphState(TypedDict, total=False):
     """State for LangGraph workflow.
 
@@ -88,6 +101,8 @@ class LangGraphState(TypedDict, total=False):
     report_path: Path | None
     # For future: message history accumulation
     messages: Annotated[list[str], add]
+    # Cost governance (Phase 5.1)
+    budget: GovernanceBudget
 
 
 # Type alias for collector factory (testability)
@@ -273,20 +288,34 @@ class OrchestratorService:
     async def _execute_tools(self, state: OrchestrationState) -> OrchestrationState:
         """Node 3: Execute tool and collect result.
 
-        Uses registry to execute the tool request.
-        Adds 'tool_result' to state.
+        Uses registry to execute the tool request with governance.
+        Adds 'tool_result' and updates 'budget' in state.
         """
         from datetime import datetime, timezone
-        from qualityfoundry.tools.contracts import ToolStatus
+        from qualityfoundry.tools.contracts import ToolStatus, ToolMetrics
         from qualityfoundry.tools.registry import ToolNotFoundError
+        from qualityfoundry.tools.base import execute_with_governance
 
         tool_request = state["tool_request"]
 
-        try:
-            tool_result = await self.registry.execute(
-                tool_request.tool_name,
-                tool_request,
+        # Get policy governance limits
+        policy = state.get("policy")
+        if policy and policy.cost_governance:
+            # Apply policy limits to request
+            tool_request = ToolRequest(
+                tool_name=tool_request.tool_name,
+                args=tool_request.args,
+                run_id=tool_request.run_id,
+                timeout_s=min(tool_request.timeout_s, policy.cost_governance.timeout_s),
+                max_retries=policy.cost_governance.max_retries,
+                dry_run=tool_request.dry_run,
+                metadata=tool_request.metadata,
             )
+
+        try:
+            # Execute with governance (timeout + retry enforcement)
+            tool_func = lambda req: self.registry.execute(req.tool_name, req)
+            tool_result = await execute_with_governance(tool_func, tool_request)
         except ToolNotFoundError:
             now = datetime.now(timezone.utc)
             tool_result = ToolResult(
@@ -296,11 +325,23 @@ class OrchestratorService:
                 error_message=f"Tool not found: {tool_request.tool_name}",
                 started_at=now,
                 ended_at=now,
+                metrics=ToolMetrics(attempts=1, retries_used=0),
             )
+
+        # Update budget with governance metrics
+        prev_budget = state.get("budget", {})
+        new_budget: GovernanceBudget = {
+            "elapsed_ms_total": prev_budget.get("elapsed_ms_total", 0) + tool_result.metrics.duration_ms,
+            "attempts_total": prev_budget.get("attempts_total", 0) + tool_result.metrics.attempts,
+            "retries_used_total": prev_budget.get("retries_used_total", 0) + tool_result.metrics.retries_used,
+            "short_circuited": False,
+            "short_circuit_reason": None,
+        }
 
         return {
             **state,
             "tool_result": tool_result,
+            "budget": new_budget,
         }
 
     def _collect_evidence(self, state: OrchestrationState) -> OrchestrationState:
@@ -308,11 +349,14 @@ class OrchestratorService:
 
         Uses collector_factory to create TraceCollector.
         Adds 'evidence' and 'report_path' to state.
+        Includes governance budget in evidence (Phase 5.1).
         """
         run_id = state["run_id"]
         input_data = state["input"]
         tool_request = state["tool_request"]
         tool_result = state["tool_result"]
+        budget = state.get("budget", {})
+        policy = state.get("policy")
 
         # Create collector with environment info
         environment = {
@@ -325,11 +369,28 @@ class OrchestratorService:
 
         # Collect and save evidence
         evidence = collector.collect()
+
+        # Add governance info to evidence dict (Phase 5.1)
+        evidence_dict = evidence.model_dump()
+        evidence_dict["governance"] = {
+            "budget": {
+                "elapsed_ms_total": budget.get("elapsed_ms_total", 0),
+                "attempts_total": budget.get("attempts_total", 0),
+                "retries_used_total": budget.get("retries_used_total", 0),
+            },
+            "policy_limits": {
+                "timeout_s": policy.cost_governance.timeout_s if policy else None,
+                "max_retries": policy.cost_governance.max_retries if policy else None,
+            },
+            "short_circuited": budget.get("short_circuited", False),
+            "short_circuit_reason": budget.get("short_circuit_reason"),
+        }
+
         report_path = collector.save(evidence)
 
         return {
             **state,
-            "evidence": evidence.model_dump(),
+            "evidence": evidence_dict,
             "report_path": report_path,
         }
 
