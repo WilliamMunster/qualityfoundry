@@ -648,3 +648,24 @@ class TestRun:
 
         assert result.decision == GateDecision.NEED_HITL
         assert result.approval_id == approval_id
+
+
+class TestLangGraphState:
+    """Tests for LangGraph state compatibility."""
+
+    def test_langgraph_state_has_required_annotations(self):
+        """LangGraphState should have all required field annotations for LangGraph."""
+        from qualityfoundry.services.orchestrator_service import LangGraphState
+        from typing import get_type_hints
+
+        hints = get_type_hints(LangGraphState)
+
+        # Required fields
+        assert "run_id" in hints
+        assert "input" in hints
+        assert "policy" in hints
+        assert "tool_request" in hints
+        assert "tool_result" in hints
+        assert "evidence" in hints
+        assert "decision" in hints
+        assert "reason" in hints

@@ -13,7 +13,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Protocol, TypedDict
+from operator import add
+from typing import Annotated, Any, Callable, Protocol, TypedDict
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -64,6 +65,27 @@ class OrchestrationState(TypedDict, total=False):
     reason: str
     approval_id: UUID | None
     report_path: Path | None
+
+
+class LangGraphState(TypedDict, total=False):
+    """State for LangGraph workflow.
+
+    This replaces OrchestrationState for LangGraph compatibility.
+    All fields are optional (total=False) to allow incremental building.
+    """
+    run_id: UUID
+    input: OrchestrationInput
+    policy: PolicyConfig
+    policy_meta: dict[str, Any]
+    tool_request: ToolRequest
+    tool_result: ToolResult
+    evidence: dict[str, Any]
+    decision: GateDecision
+    reason: str
+    approval_id: UUID | None
+    report_path: Path | None
+    # For future: message history accumulation
+    messages: Annotated[list[str], add]
 
 
 # Type alias for collector factory (testability)
