@@ -150,12 +150,44 @@ class OrchestratorService:
         )
 
     def _load_policy(self, state: OrchestrationState) -> OrchestrationState:
-        """Node 1: Load policy configuration."""
-        raise NotImplementedError("Task 4 will implement this")
+        """Node 1: Load policy configuration.
+
+        Uses injected policy_loader or default get_policy().
+        Adds 'policy' and 'policy_meta' to state.
+        """
+        policy = self._policy_loader()
+
+        # Return new state with policy added (preserve existing keys)
+        return {
+            **state,
+            "policy": policy,
+            "policy_meta": {
+                "version": policy.version,
+                "high_risk_keywords_count": len(policy.high_risk_keywords),
+                "high_risk_patterns_count": len(policy.high_risk_patterns),
+            },
+        }
 
     def _plan_tool_request(self, state: OrchestrationState) -> OrchestrationState:
-        """Node 2: Build tool request from input."""
-        raise NotImplementedError("Task 4 will implement this")
+        """Node 2: Build tool request from input.
+
+        Creates ToolRequest from OrchestrationInput.
+        Adds 'tool_request' to state.
+        """
+        input_data = state["input"]
+
+        tool_request = ToolRequest(
+            tool_name=input_data.tool_name,
+            args=input_data.tool_args,
+            run_id=state["run_id"],
+            timeout_s=input_data.timeout_s,
+            dry_run=input_data.dry_run,
+        )
+
+        return {
+            **state,
+            "tool_request": tool_request,
+        }
 
     async def _execute_tools(self, state: OrchestrationState) -> OrchestrationState:
         """Node 3: Execute tool and collect result."""
