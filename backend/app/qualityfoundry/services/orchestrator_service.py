@@ -184,6 +184,46 @@ class OrchestratorService:
             report_path=state.get("report_path"),
         )
 
+    async def run_with_graph(self, req: OrchestrationRequestProtocol) -> OrchestrationResult:
+        """Execute orchestration using LangGraph state machine.
+
+        This is the LangGraph-powered version of run().
+        Behavior should be identical to run() but uses StateGraph for execution.
+
+        Returns:
+            OrchestrationResult with decision, reason, evidence, and optional approval_id
+        """
+        from uuid import uuid4
+
+        # Generate run_id
+        run_id = uuid4()
+
+        # Normalize input
+        normalized_input = self._normalize_input(req)
+
+        # Build initial state
+        initial_state: LangGraphState = {
+            "run_id": run_id,
+            "input": normalized_input,
+            "messages": [],
+        }
+
+        # Build and run graph
+        graph = build_orchestration_graph(self)
+
+        # LangGraph invoke - handles async nodes automatically
+        final_state = await graph.ainvoke(initial_state)
+
+        # Build result from final state
+        return OrchestrationResult(
+            run_id=run_id,
+            decision=final_state["decision"],
+            reason=final_state["reason"],
+            evidence=final_state["evidence"],
+            approval_id=final_state.get("approval_id"),
+            report_path=final_state.get("report_path"),
+        )
+
     def _normalize_input(self, req: OrchestrationRequestProtocol) -> OrchestrationInput:
         """Convert API DTO to internal normalized input.
 
