@@ -108,6 +108,17 @@ class EvidenceSummary(BaseModel):
         )
 
 
+class GovernanceEvidence(BaseModel):
+    """Cost governance metadata (Phase 5.1)"""
+    model_config = ConfigDict(extra="allow")
+
+    budget: dict[str, Any] = Field(default_factory=dict)
+    policy_limits: dict[str, Any] = Field(default_factory=dict)
+    short_circuited: bool = False
+    short_circuit_reason: str | None = None
+    decision_source: str | None = None
+
+
 class Evidence(BaseModel):
     """完整证据结构"""
     model_config = ConfigDict(extra="forbid")
@@ -119,9 +130,8 @@ class Evidence(BaseModel):
     artifacts: list[dict[str, Any]] = Field(default_factory=list)
     summary: EvidenceSummary | None = None
     repro: ReproMeta | None = None
+    governance: GovernanceEvidence | None = None
     collected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    # Phase 5.1.1: Governance budget tracking
-    governance: dict[str, Any] | None = Field(default=None, description="Cost governance info")
 
     def model_dump_json_for_file(self) -> str:
         """导出为 JSON 字符串（用于写文件）"""
