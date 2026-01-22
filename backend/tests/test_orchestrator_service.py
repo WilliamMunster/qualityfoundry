@@ -594,7 +594,6 @@ class TestRun:
         """run should include approval_id when NEED_HITL."""
         from qualityfoundry.governance import GateDecision
         from qualityfoundry.governance.gate import GateResult
-        from qualityfoundry.services.orchestrator_service import OrchestrationResult
 
         db = MagicMock()
         approval_id = uuid4()
