@@ -50,4 +50,6 @@ testpaths = ["tests"]
 norecursedirs = ["fixtures"]
 markers = [
     "smoke: marks tests as smoke tests (fast, critical path)",
+    "smoke_fast: smoke tests with no external dependencies (pure mock, always pass in CI)",
+    "smoke_e2e: smoke tests requiring external tools (pytest subprocess, browser, etc.)",
 ]
