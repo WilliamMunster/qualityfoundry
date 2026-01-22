@@ -419,6 +419,7 @@ class TestGateAndHitl:
         mock_gate_evaluator = MagicMock(return_value=mock_gate_result)
 
         service = OrchestratorService(db, gate_evaluator=mock_gate_evaluator)
+        service._approval_service = MagicMock()
 
         run_id = uuid4()
         input_data = OrchestrationInput(
@@ -460,6 +461,7 @@ class TestGateAndHitl:
         mock_gate_evaluator = MagicMock(return_value=mock_gate_result)
 
         service = OrchestratorService(db, gate_evaluator=mock_gate_evaluator)
+        service._approval_service = MagicMock()
 
         run_id = uuid4()
         input_data = OrchestrationInput(
@@ -502,6 +504,10 @@ class TestGateAndHitl:
         mock_gate_evaluator = MagicMock(return_value=mock_gate_result)
 
         service = OrchestratorService(db, gate_evaluator=mock_gate_evaluator)
+        service._approval_service = MagicMock()
+        mock_approval = MagicMock()
+        mock_approval.id = approval_id
+        service._approval_service.create_approval.return_value = mock_approval
 
         run_id = uuid4()
         input_data = OrchestrationInput(
@@ -569,6 +575,7 @@ class TestRun:
             collector_factory=mock_collector_factory,
             gate_evaluator=mock_gate_evaluator,
         )
+        service._approval_service = MagicMock()
 
         req = OrchestrationRequest(
             nl_input="run tests",
@@ -594,7 +601,6 @@ class TestRun:
         """run should include approval_id when NEED_HITL."""
         from qualityfoundry.governance import GateDecision
         from qualityfoundry.governance.gate import GateResult
-        from qualityfoundry.services.orchestrator_service import OrchestrationResult
 
         db = MagicMock()
         approval_id = uuid4()
@@ -627,6 +633,10 @@ class TestRun:
             collector_factory=mock_collector_factory,
             gate_evaluator=mock_gate_evaluator,
         )
+        service._approval_service = MagicMock()
+        mock_approval = MagicMock()
+        mock_approval.id = approval_id
+        service._approval_service.create_approval.return_value = mock_approval
 
         req = OrchestrationRequest(
             nl_input="deploy to production",

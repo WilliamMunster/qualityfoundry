@@ -11,15 +11,14 @@ Design decisions:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, TypedDict
+from typing import Any, Callable, Protocol, TypedDict
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from qualityfoundry.api.v1.routes_orchestrations import OrchestrationRequest
-from qualityfoundry.governance import GateDecision, evaluate_gate_with_hitl
+from qualityfoundry.governance import GateDecision, evaluate_gate
 from qualityfoundry.governance.gate import GateResult
 from qualityfoundry.governance.tracing.collector import Evidence
 from qualityfoundry.governance.policy_loader import get_policy, PolicyConfig
@@ -76,6 +75,13 @@ def _default_collector_factory(run_id: UUID, input_nl: str, environment: dict[st
     return TraceCollector(run_id=str(run_id), input_nl=input_nl, environment=environment)
 
 
+class OrchestrationRequestProtocol(Protocol):
+    """Protocol for orchestration request (avoids circular import)."""
+    nl_input: str
+    environment_id: UUID | None
+    options: Any  # OrchestrationOptions or None
+
+
 class OrchestratorService:
     """Orchestration service with LangGraph-ready node boundaries.
 
@@ -93,13 +99,13 @@ class OrchestratorService:
         registry: ToolRegistry | None = None,
         collector_factory: CollectorFactory | None = None,
         policy_loader: Callable[[], PolicyConfig] | None = None,
-        gate_evaluator: Callable[[Evidence], GateResult] | None = None,
+        gate_evaluator: Callable[[Evidence, PolicyConfig | None], GateResult] | None = None,
     ):
         self._db = db
         self._registry = registry
         self._collector_factory = collector_factory or _default_collector_factory
         self._policy_loader = policy_loader or get_policy
-        self._gate_evaluator = gate_evaluator or evaluate_gate_with_hitl
+        self._gate_evaluator = gate_evaluator or evaluate_gate
         self._approval_service = ApprovalService(db)
 
     @property
@@ -107,7 +113,7 @@ class OrchestratorService:
         """Lazy registry access (allows late binding for tests)."""
         return self._registry or get_registry()
 
-    async def run(self, req: OrchestrationRequest) -> OrchestrationResult:
+    async def run(self, req: OrchestrationRequestProtocol) -> OrchestrationResult:
         """Execute orchestration pipeline.
 
         Pipeline: normalize → load_policy → plan → execute → collect → gate
@@ -154,7 +160,7 @@ class OrchestratorService:
             report_path=state.get("report_path"),
         )
 
-    def _normalize_input(self, req: OrchestrationRequest) -> OrchestrationInput:
+    def _normalize_input(self, req: OrchestrationRequestProtocol) -> OrchestrationInput:
         """Convert API DTO to internal normalized input.
 
         Priority:
@@ -239,12 +245,27 @@ class OrchestratorService:
         Uses registry to execute the tool request.
         Adds 'tool_result' to state.
         """
+        from datetime import datetime, timezone
+        from qualityfoundry.tools.contracts import ToolStatus
+        from qualityfoundry.tools.registry import ToolNotFoundError
+
         tool_request = state["tool_request"]
 
-        tool_result = await self.registry.execute(
-            tool_request.tool_name,
-            tool_request,
-        )
+        try:
+            tool_result = await self.registry.execute(
+                tool_request.tool_name,
+                tool_request,
+            )
+        except ToolNotFoundError:
+            now = datetime.now(timezone.utc)
+            tool_result = ToolResult(
+                status=ToolStatus.FAILED,
+                stdout=None,
+                stderr=f"Tool not found: {tool_request.tool_name}",
+                error_message=f"Tool not found: {tool_request.tool_name}",
+                started_at=now,
+                ended_at=now,
+            )
 
         return {
             **state,
@@ -288,16 +309,31 @@ class OrchestratorService:
         Adds 'decision', 'reason', and 'approval_id' to state.
         """
         evidence_dict = state["evidence"]
+        policy = state.get("policy")
 
         # Reconstruct Evidence object from dict for gate evaluation
         evidence = Evidence.model_validate(evidence_dict)
 
         # Evaluate gate
-        gate_result = self._gate_evaluator(evidence)
+        gate_result = self._gate_evaluator(evidence, policy)
+
+        # Create approval if NEED_HITL
+        approval_id = None
+        if gate_result.decision == GateDecision.NEED_HITL:
+            try:
+                approval = self._approval_service.create_approval(
+                    entity_type="orchestration",
+                    entity_id=state["run_id"],
+                    reviewer=None,
+                )
+                approval_id = approval.id
+            except Exception:
+                # Approval creation failure doesn't block main flow
+                pass
 
         return {
             **state,
             "decision": gate_result.decision,
             "reason": gate_result.reason,
-            "approval_id": gate_result.approval_id,
+            "approval_id": approval_id,
         }
