@@ -13,12 +13,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, Callable, TypedDict
 from uuid import UUID
 
+from sqlalchemy.orm import Session
+
+from qualityfoundry.api.v1.routes_orchestrations import OrchestrationRequest
 from qualityfoundry.governance import GateDecision
-from qualityfoundry.governance.policy_loader import PolicyConfig
+from qualityfoundry.governance.policy_loader import get_policy, PolicyConfig
+from qualityfoundry.governance.tracing.collector import TraceCollector
+from qualityfoundry.services.approval_service import ApprovalService
 from qualityfoundry.tools.contracts import ToolRequest, ToolResult
+from qualityfoundry.tools.registry import get_registry, ToolRegistry
 
 
 @dataclass(frozen=True)
@@ -57,3 +63,73 @@ class OrchestrationState(TypedDict, total=False):
     reason: str
     approval_id: UUID | None
     report_path: Path | None
+
+
+# Type alias for collector factory (testability)
+CollectorFactory = Callable[[UUID, str, dict[str, Any]], TraceCollector]
+
+
+def _default_collector_factory(run_id: UUID, input_nl: str, environment: dict[str, Any]) -> TraceCollector:
+    """Default factory creates real TraceCollector."""
+    return TraceCollector(run_id=str(run_id), input_nl=input_nl, environment=environment)
+
+
+class OrchestratorService:
+    """Orchestration service with LangGraph-ready node boundaries.
+
+    Dependency injection:
+    - db: Required (for ApprovalService)
+    - registry: Optional (default: global singleton)
+    - collector_factory: Optional (default: creates real TraceCollector)
+    - policy_loader: Optional (default: loads from file)
+    """
+
+    def __init__(
+        self,
+        db: Session,
+        *,
+        registry: ToolRegistry | None = None,
+        collector_factory: CollectorFactory | None = None,
+        policy_loader: Callable[[], PolicyConfig] | None = None,
+    ):
+        self._db = db
+        self._registry = registry
+        self._collector_factory = collector_factory or _default_collector_factory
+        self._policy_loader = policy_loader or get_policy
+        self._approval_service = ApprovalService(db)
+
+    @property
+    def registry(self) -> ToolRegistry:
+        """Lazy registry access (allows late binding for tests)."""
+        return self._registry or get_registry()
+
+    async def run(self, req: OrchestrationRequest) -> OrchestrationResult:
+        """Execute orchestration pipeline.
+
+        Pipeline: normalize → load_policy → plan → execute → collect → gate
+        """
+        raise NotImplementedError("Task 7 will implement this")
+
+    def _normalize_input(self, req: OrchestrationRequest) -> OrchestrationInput:
+        """Convert API DTO to internal normalized input."""
+        raise NotImplementedError("Task 3 will implement this")
+
+    def _load_policy(self, state: OrchestrationState) -> OrchestrationState:
+        """Node 1: Load policy configuration."""
+        raise NotImplementedError("Task 4 will implement this")
+
+    def _plan_tool_request(self, state: OrchestrationState) -> OrchestrationState:
+        """Node 2: Build tool request from input."""
+        raise NotImplementedError("Task 4 will implement this")
+
+    async def _execute_tools(self, state: OrchestrationState) -> OrchestrationState:
+        """Node 3: Execute tool and collect result."""
+        raise NotImplementedError("Task 5 will implement this")
+
+    def _collect_evidence(self, state: OrchestrationState) -> OrchestrationState:
+        """Node 4: Collect evidence and save to disk."""
+        raise NotImplementedError("Task 5 will implement this")
+
+    def _gate_and_hitl(self, state: OrchestrationState) -> OrchestrationState:
+        """Node 5: Evaluate gate and create approval if needed."""
+        raise NotImplementedError("Task 6 will implement this")
