@@ -19,7 +19,9 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from qualityfoundry.api.v1.routes_orchestrations import OrchestrationRequest
-from qualityfoundry.governance import GateDecision
+from qualityfoundry.governance import GateDecision, evaluate_gate_with_hitl
+from qualityfoundry.governance.gate import GateResult
+from qualityfoundry.governance.tracing.collector import Evidence
 from qualityfoundry.governance.policy_loader import get_policy, PolicyConfig
 from qualityfoundry.governance.tracing.collector import TraceCollector
 from qualityfoundry.services.approval_service import ApprovalService
@@ -91,11 +93,13 @@ class OrchestratorService:
         registry: ToolRegistry | None = None,
         collector_factory: CollectorFactory | None = None,
         policy_loader: Callable[[], PolicyConfig] | None = None,
+        gate_evaluator: Callable[[Evidence], GateResult] | None = None,
     ):
         self._db = db
         self._registry = registry
         self._collector_factory = collector_factory or _default_collector_factory
         self._policy_loader = policy_loader or get_policy
+        self._gate_evaluator = gate_evaluator or evaluate_gate_with_hitl
         self._approval_service = ApprovalService(db)
 
     @property
@@ -238,5 +242,22 @@ class OrchestratorService:
         }
 
     def _gate_and_hitl(self, state: OrchestrationState) -> OrchestrationState:
-        """Node 5: Evaluate gate and create approval if needed."""
-        raise NotImplementedError("Task 6 will implement this")
+        """Node 5: Evaluate gate and create approval if needed.
+
+        Uses gate_evaluator to evaluate evidence.
+        Adds 'decision', 'reason', and 'approval_id' to state.
+        """
+        evidence_dict = state["evidence"]
+
+        # Reconstruct Evidence object from dict for gate evaluation
+        evidence = Evidence.model_validate(evidence_dict)
+
+        # Evaluate gate
+        gate_result = self._gate_evaluator(evidence)
+
+        return {
+            **state,
+            "decision": gate_result.decision,
+            "reason": gate_result.reason,
+            "approval_id": gate_result.approval_id,
+        }

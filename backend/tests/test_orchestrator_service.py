@@ -399,3 +399,131 @@ class TestCollectEvidence:
         assert result["run_id"] == run_id
         assert result["input"] == input_data
         assert result["tool_result"] == tool_result
+
+
+class TestGateAndHitl:
+    """Tests for _gate_and_hitl method."""
+
+    def test_gate_and_hitl_pass_decision(self):
+        """_gate_and_hitl should set decision=PASS when gate passes."""
+        from qualityfoundry.governance import GateDecision
+        from qualityfoundry.governance.gate import GateResult
+
+        db = MagicMock()
+
+        # Mock gate evaluator that returns PASS
+        mock_gate_result = GateResult(
+            decision=GateDecision.PASS,
+            reason="All tests passed",
+        )
+        mock_gate_evaluator = MagicMock(return_value=mock_gate_result)
+
+        service = OrchestratorService(db, gate_evaluator=mock_gate_evaluator)
+
+        run_id = uuid4()
+        input_data = OrchestrationInput(
+            nl_input="run tests",
+            environment_id=None,
+            tool_name="run_pytest",
+            tool_args={},
+            timeout_s=120,
+            dry_run=False,
+        )
+
+        state: OrchestrationState = {
+            "run_id": run_id,
+            "input": input_data,
+            "policy": PolicyConfig(),
+            "policy_meta": {"version": "1.0"},
+            "tool_request": ToolRequest(tool_name="run_pytest", args={}, run_id=run_id, timeout_s=120),
+            "tool_result": ToolResult.success(),
+            "evidence": {"run_id": str(run_id), "input_nl": "run tests", "tool_calls": []},
+        }
+
+        result = service._gate_and_hitl(state)
+
+        assert result["decision"] == GateDecision.PASS
+        assert result["reason"] == "All tests passed"
+        assert result["approval_id"] is None
+
+    def test_gate_and_hitl_fail_decision(self):
+        """_gate_and_hitl should set decision=FAIL when gate fails."""
+        from qualityfoundry.governance import GateDecision
+        from qualityfoundry.governance.gate import GateResult
+
+        db = MagicMock()
+
+        mock_gate_result = GateResult(
+            decision=GateDecision.FAIL,
+            reason="2 tests failed",
+        )
+        mock_gate_evaluator = MagicMock(return_value=mock_gate_result)
+
+        service = OrchestratorService(db, gate_evaluator=mock_gate_evaluator)
+
+        run_id = uuid4()
+        input_data = OrchestrationInput(
+            nl_input="run tests",
+            environment_id=None,
+            tool_name="run_pytest",
+            tool_args={},
+            timeout_s=120,
+            dry_run=False,
+        )
+
+        state: OrchestrationState = {
+            "run_id": run_id,
+            "input": input_data,
+            "policy": PolicyConfig(),
+            "policy_meta": {"version": "1.0"},
+            "tool_request": ToolRequest(tool_name="run_pytest", args={}, run_id=run_id, timeout_s=120),
+            "tool_result": ToolResult.failed(error_message="Tests failed"),
+            "evidence": {"run_id": str(run_id), "input_nl": "run tests", "tool_calls": []},
+        }
+
+        result = service._gate_and_hitl(state)
+
+        assert result["decision"] == GateDecision.FAIL
+        assert result["reason"] == "2 tests failed"
+
+    def test_gate_and_hitl_need_hitl_creates_approval(self):
+        """_gate_and_hitl should create approval when NEED_HITL."""
+        from qualityfoundry.governance import GateDecision
+        from qualityfoundry.governance.gate import GateResult
+
+        db = MagicMock()
+
+        approval_id = uuid4()
+        mock_gate_result = GateResult(
+            decision=GateDecision.NEED_HITL,
+            reason="High-risk keyword detected: production",
+            approval_id=approval_id,
+        )
+        mock_gate_evaluator = MagicMock(return_value=mock_gate_result)
+
+        service = OrchestratorService(db, gate_evaluator=mock_gate_evaluator)
+
+        run_id = uuid4()
+        input_data = OrchestrationInput(
+            nl_input="deploy to production",
+            environment_id=None,
+            tool_name="run_pytest",
+            tool_args={},
+            timeout_s=120,
+            dry_run=False,
+        )
+
+        state: OrchestrationState = {
+            "run_id": run_id,
+            "input": input_data,
+            "policy": PolicyConfig(),
+            "policy_meta": {"version": "1.0"},
+            "tool_request": ToolRequest(tool_name="run_pytest", args={}, run_id=run_id, timeout_s=120),
+            "tool_result": ToolResult.success(),
+            "evidence": {"run_id": str(run_id), "input_nl": "deploy to production", "tool_calls": []},
+        }
+
+        result = service._gate_and_hitl(state)
+
+        assert result["decision"] == GateDecision.NEED_HITL
+        assert result["approval_id"] == approval_id
