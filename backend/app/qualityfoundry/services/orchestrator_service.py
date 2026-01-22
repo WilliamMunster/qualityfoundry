@@ -386,6 +386,7 @@ class OrchestratorService:
             },
             "short_circuited": budget.get("short_circuited", False),
             "short_circuit_reason": budget.get("short_circuit_reason"),
+            "decision_source": "governance_short_circuit" if budget.get("short_circuited") else "gate_evaluator",
         }
 
         report_path = collector.save(evidence)

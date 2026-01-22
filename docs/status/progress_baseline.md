@@ -1,7 +1,8 @@
 # QualityFoundry Progress Baseline
 
-> **Release Anchor**: `main@d0b6706` (2026-01-22)
+> **Release Anchor**: `main@983acf2` (2026-01-22)
 > **Last Verified**: 2026-01-22
+> **Git Tag**: `v0.12-cost-governance`
 > **Verification Method**: Code grep + file existence checks
 
 This document serves as the **single source of truth** for project progress. All claims are verifiable via the commands provided.
@@ -48,7 +49,7 @@ This document serves as the **single source of truth** for project progress. All
 | **Audit Log** | ✅ | `grep -r "audit_log" backend/` = 0 results | 🔴 Not exists |
 | **MCP Server** | L4 ✅ | No `mcp_server/`, no FastMCP entry | 🔴 Not started |
 | **LangGraph Integration** | ✅ Phase 2.2 | `from langgraph.graph import StateGraph` | ✅ Complete |
-| **Cost Governance** | Pending | No budget/timeout circuit breaker logic | 🔴 Not started |
+| **Cost Governance** | Phase 5.1 ✅ | Budget/timeout circuit breaker logic | ✅ Minimal (timeout) |
 
 ---
 
@@ -76,16 +77,16 @@ This document serves as the **single source of truth** for project progress. All
 | **Internal package version** | `pyproject.toml: version` | Use for pip/dependency management |
 
 **Current anchors:**
-- Git tag: `v0.10-mvp-orchestration`
-- Main HEAD: `d0b6706`
+- Git tag: `v0.12-cost-governance`
+- Main HEAD: `983acf2`
 - pyproject.toml: `0.1.0` (not updated)
 
 ---
 
 ## Next Priorities (Aligned with ChatGPT Roadmap)
 
-1. **Phase 2.2 LangGraph** - Replace linear pipeline with state machine (regression guardrails ready)
-2. **Phase 5.1 Cost Governance** - Minimal: timeout/max_retries enforcement + loop detector
+1. **Phase 5.3 Monitoring/Alerting** - Use `evidence.governance` and `decision_source` for failure clustering.
+2. **L4 MCP Server 化** - Expose tools as MCP server.
 3. **Security Enhancement Pack** - JWT/RBAC/Audit as separate epic (not mixed with LangGraph)
 
 ---
