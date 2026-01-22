@@ -138,51 +138,18 @@ class OrchestratorService:
         return self._registry or get_registry()
 
     async def run(self, req: OrchestrationRequestProtocol) -> OrchestrationResult:
-        """Execute orchestration pipeline.
+        """Execute orchestration pipeline using LangGraph.
 
         Pipeline: normalize → load_policy → plan → execute → collect → gate
+
+        This method now uses LangGraph internally for execution,
+        enabling future dynamic routing and conditional branching.
 
         Returns:
             OrchestrationResult with decision, reason, evidence, and optional approval_id
         """
-        from uuid import uuid4
-
-        # Generate run_id
-        run_id = uuid4()
-
-        # Step 1: Normalize input
-        normalized_input = self._normalize_input(req)
-
-        # Initialize state
-        state: OrchestrationState = {
-            "run_id": run_id,
-            "input": normalized_input,
-        }
-
-        # Step 2: Load policy
-        state = self._load_policy(state)
-
-        # Step 3: Plan tool request
-        state = self._plan_tool_request(state)
-
-        # Step 4: Execute tools
-        state = await self._execute_tools(state)
-
-        # Step 5: Collect evidence
-        state = self._collect_evidence(state)
-
-        # Step 6: Gate and HITL
-        state = self._gate_and_hitl(state)
-
-        # Build result
-        return OrchestrationResult(
-            run_id=run_id,
-            decision=state["decision"],
-            reason=state["reason"],
-            evidence=state["evidence"],
-            approval_id=state.get("approval_id"),
-            report_path=state.get("report_path"),
-        )
+        # Delegate to graph-based implementation
+        return await self.run_with_graph(req)
 
     async def run_with_graph(self, req: OrchestrationRequestProtocol) -> OrchestrationResult:
         """Execute orchestration using LangGraph state machine.
