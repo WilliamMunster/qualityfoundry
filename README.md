@@ -4,6 +4,10 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
+> **Release Anchor**: Use git tags/commit SHA (e.g., `v0.10-mvp-orchestration`, `main@d0b6706`)
+>
+> **Progress Baseline**: See [docs/status/progress_baseline.md](docs/status/progress_baseline.md) for verified status
+
 ## 1. 核心哲学 (Core Philosophy)
 - ⚖️ **Hybrid Quality**：针对确定性内容采用 assert 检查；不确定性内容使用评测/裁决（eval/judge）。
 - 🔍 **Evidence-First**：关键链路必须具备 Trace 证据链（含日志、模型结果与版本信息）。
@@ -12,28 +16,45 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - 📉 **Cost Governance**：预算与超时熔断，避免死循环导致的异常消耗。
 
 ## 2. 参考架构 (Architecture Layers)
+
+| Layer | Name | Current Status |
+|-------|------|----------------|
+| **L1** | Policy (规则与门禁) | ✅ Complete |
+| **L2** | Orchestration (编排层) | ✅ Phase 2.2 Complete (LangGraph state machine) |
+| **L3** | Execution (执行层) | 🟡 Tool runners complete; Sandbox TBD |
+| **L4** | Protocol (MCP) | 🟡 Client-only (no server yet) |
+| **L5** | Governance & Evals | ✅ Phase 5.2 Complete |
+
 - **L1 规则与门禁层 (Policy)**：定义 `policy_config.yaml`、风险分级与发布门禁。
-- **L2 编排层 (Orchestration)**：基于 **LangGraph** 的状态机，负责错误恢复、重试/回退及 HITL 机制。
-- **L3 执行层 (Execution)**：集成 Playwright、Pytest、SQL 等工具，支持沙箱隔离运行。
-- **L4 接口层 (Protocol)**：通过 MCP (Model Context Protocol) 标准化暴露工具能力，集成鉴权与审计。
-- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、变更对比报告及在线漂移监控。
+- **L2 编排层 (Orchestration)**：LangGraph 状态机执行，5 个节点支持动态路由扩展及 HITL 机制。
+- **L3 执行层 (Execution)**：集成 Playwright、Pytest 等工具，沙箱隔离待实现。
+- **L4 接口层 (Protocol)**：MCP Client 调用外部服务（独立 MCP Server 待实现）。
+- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、变更对比报告（在线漂移监控待实现）。
 
 ---
 
-## 当前版本：V0.9.5 (Latest)
+## Current Status (main@d0b6706)
 
-### 核心功能
-- ✅ **需求/场景/用例管理**：支持从 NL 需求到场景、用例的全链路生成与审核，支持自动补全 `seq_id`。
-- ✅ **全链路可复现性 (Phase 1.3)**：证据链自动记录 Git SHA、依赖指纹（Fingerprint）及运行时环境。
-- ✅ **回归评测体系 (Phase 5.2)**：支持 Golden Dataset 运行对比，一键产出 `diff_report.md`。
-- ✅ **多模型适配**：内置对接 OpenAI, DeepSeek, 智谱 AI 等主流提供商，支持 Prompt 模板动态调整。
-- ✅ **质量门禁**：基于 L1 Policy 的自动决策（PASS/FAIL/NEED_HITL），支持高危动作人工介入。
+### Completed Features (Verified)
+- ✅ **需求/场景/用例管理**：支持从 NL 需求到场景、用例的全链路生成与审核，支持自动补全 `seq_id`
+- ✅ **OrchestratorService (Phase 2.2)**：LangGraph 状态机执行，5 个节点支持动态路由扩展
+- ✅ **全链路可复现性 (Phase 1.3)**：证据链自动记录 Git SHA、依赖指纹（Fingerprint）及运行时环境
+- ✅ **回归评测体系 (Phase 5.2)**：支持 Golden Dataset 运行对比，一键产出 `diff_report.md`
+- ✅ **多模型适配**：内置对接 OpenAI, DeepSeek, 智谱 AI 等主流提供商
+- ✅ **质量门禁 (L1)**：基于 Policy 的自动决策（PASS/FAIL/NEED_HITL）
 - ✅ **环境管理**：多环境配置，健康检查，变量管理
-- ✅ **执行管理**：DSL/MCP 执行模式，实时状态追踪
-- ✅ **用户管理**：基于 JWT 的认证，角色权限控制
-- ✅ **AI 配置**：支持多个 AI 提供商（OpenAI、DeepSeek 等）
+- ✅ **执行管理**：DSL/MCP Client 执行模式，实时状态追踪
 - ✅ **测试报表**：仪表盘统计，执行历史记录
 - ✅ **批量操作**：支持多选删除，确认弹窗
+
+### Partial / In Progress
+- 🟡 **用户认证**：基于 token 的简单认证（非 JWT，待升级）
+- 🟡 **角色权限**：UserRole 模型存在，中间件强制执行待实现
+- 🟡 **MCP 集成**：仅 Client 模式，独立 Server 待实现
+
+### Not Started
+- 🔴 **成本治理 (Phase 5.1)**：预算/超时熔断
+- 🔴 **审计日志**：完整的操作审计
 
 ---
 

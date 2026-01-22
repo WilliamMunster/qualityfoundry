@@ -321,3 +321,131 @@ def log_tool_result(result: ToolResult, tool_name: str) -> None:
     log_data = result.to_json_log()
     log_data["tool_name"] = tool_name
     logger.info(f"Tool result: {json.dumps(log_data)}")
+
+
+async def execute_with_governance(
+    tool_func,
+    request: ToolRequest,
+    *,
+    retryable_statuses: frozenset[ToolStatus] | None = None,
+) -> ToolResult:
+    """Execute tool with cost governance (timeout + retry enforcement).
+
+    This is the primary entry point for governed tool execution.
+    It enforces:
+    - timeout_s: Hard timeout per attempt
+    - max_retries: Maximum retry attempts on failure/timeout
+
+    Args:
+        tool_func: Async tool function that takes ToolRequest and returns ToolResult
+        request: Tool request with governance parameters
+        retryable_statuses: Statuses that trigger retry (default: FAILED, TIMEOUT)
+
+    Returns:
+        ToolResult with governance metrics populated:
+        - metrics.attempts: Total attempts made (1 + retries_used)
+        - metrics.retries_used: Number of retries actually used
+        - metrics.timed_out: Whether final result was due to timeout
+        - metrics.duration_ms: Total elapsed time across all attempts
+    """
+    if retryable_statuses is None:
+        retryable_statuses = frozenset({ToolStatus.FAILED, ToolStatus.TIMEOUT})
+
+    max_retries = request.max_retries
+    timeout_s = request.timeout_s
+    attempts = 0
+    retries_used = 0
+    total_start_ns = time.perf_counter_ns()
+    last_result: ToolResult | None = None
+
+    while attempts <= max_retries:
+        attempts += 1
+        logger.info(
+            f"Governance: executing {request.tool_name} "
+            f"(attempt {attempts}/{max_retries + 1}, timeout={timeout_s}s)"
+        )
+
+        try:
+            # Execute with timeout
+            result = await asyncio.wait_for(
+                tool_func(request),
+                timeout=timeout_s,
+            )
+            last_result = result
+
+            # Success - no retry needed
+            if result.status == ToolStatus.SUCCESS:
+                break
+
+            # Check if we should retry
+            if result.status in retryable_statuses and attempts <= max_retries:
+                retries_used += 1
+                logger.warning(
+                    f"Governance: {request.tool_name} {result.status.value}, "
+                    f"retrying ({retries_used}/{max_retries})"
+                )
+                continue
+            else:
+                break
+
+        except asyncio.TimeoutError:
+            # Create timeout result
+            total_elapsed_ms = int((time.perf_counter_ns() - total_start_ns) / 1_000_000)
+            last_result = ToolResult(
+                status=ToolStatus.TIMEOUT,
+                error_message=f"Governance timeout after {timeout_s}s (attempt {attempts})",
+                metrics=ToolMetrics(
+                    duration_ms=total_elapsed_ms,
+                    timed_out=True,
+                ),
+            )
+            logger.warning(
+                f"Governance: {request.tool_name} timed out after {timeout_s}s"
+            )
+
+            # Check if we should retry timeout
+            if ToolStatus.TIMEOUT in retryable_statuses and attempts <= max_retries:
+                retries_used += 1
+                logger.warning(
+                    f"Governance: retrying after timeout ({retries_used}/{max_retries})"
+                )
+                continue
+            else:
+                break
+
+        except Exception as e:
+            # Unexpected error
+            total_elapsed_ms = int((time.perf_counter_ns() - total_start_ns) / 1_000_000)
+            last_result = ToolResult(
+                status=ToolStatus.FAILED,
+                error_message=f"Governance execution error: {e}",
+                metrics=ToolMetrics(duration_ms=total_elapsed_ms),
+            )
+            logger.exception(f"Governance: {request.tool_name} unexpected error")
+            break
+
+    # Finalize metrics
+    total_elapsed_ms = int((time.perf_counter_ns() - total_start_ns) / 1_000_000)
+
+    if last_result is None:
+        # Should not happen, but defensive
+        last_result = ToolResult(
+            status=ToolStatus.FAILED,
+            error_message="No result from tool execution",
+            metrics=ToolMetrics(duration_ms=total_elapsed_ms),
+        )
+
+    # Update governance metrics
+    last_result.metrics.attempts = attempts
+    last_result.metrics.retries_used = retries_used
+    last_result.metrics.duration_ms = total_elapsed_ms
+    if last_result.status == ToolStatus.TIMEOUT:
+        last_result.metrics.timed_out = True
+
+    logger.info(
+        f"Governance: {request.tool_name} completed - "
+        f"status={last_result.status.value}, attempts={attempts}, "
+        f"retries_used={retries_used}, duration_ms={total_elapsed_ms}"
+    )
+
+    return last_result

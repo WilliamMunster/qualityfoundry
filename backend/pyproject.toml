@@ -20,6 +20,7 @@ dependencies = [
   "sqlalchemy>=2.0",
   "alembic>=1.13",
   "httpx>=0.27",
+  "langgraph>=0.2.0",
   "cryptography>=42.0",
   "email-validator>=2.1",
   "pyyaml>=6.0",
@@ -49,4 +50,6 @@ testpaths = ["tests"]
 norecursedirs = ["fixtures"]
 markers = [
     "smoke: marks tests as smoke tests (fast, critical path)",
+    "smoke_fast: smoke tests with no external dependencies (pure mock, always pass in CI)",
+    "smoke_e2e: smoke tests requiring external tools (pytest subprocess, browser, etc.)",
 ]

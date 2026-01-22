@@ -251,8 +251,11 @@ class TestExecuteTools:
 
         result = await service._execute_tools(state)
 
-        mock_registry.execute.assert_called_once_with("run_pytest", tool_request)
+        # Registry execute was called (Phase 5.1 modifies tool_request with policy limits)
+        mock_registry.execute.assert_called_once()
         assert result["tool_result"] == mock_result
+        # Budget should be updated
+        assert "budget" in result
 
     @pytest.mark.asyncio
     async def test_execute_tools_preserves_state(self):
@@ -648,3 +651,120 @@ class TestRun:
 
         assert result.decision == GateDecision.NEED_HITL
         assert result.approval_id == approval_id
+
+
+class TestLangGraphState:
+    """Tests for LangGraph state compatibility."""
+
+    def test_langgraph_state_has_required_annotations(self):
+        """LangGraphState should have all required field annotations for LangGraph."""
+        from qualityfoundry.services.orchestrator_service import LangGraphState
+        from typing import get_type_hints
+
+        hints = get_type_hints(LangGraphState)
+
+        # Required fields
+        assert "run_id" in hints
+        assert "input" in hints
+        assert "policy" in hints
+        assert "tool_request" in hints
+        assert "tool_result" in hints
+        assert "evidence" in hints
+        assert "decision" in hints
+        assert "reason" in hints
+
+
+class TestRunWithGraph:
+    """Tests for run_with_graph method."""
+
+    @pytest.mark.asyncio
+    async def test_run_with_graph_returns_same_result_as_run(self):
+        """run_with_graph should produce identical results to run."""
+        from qualityfoundry.governance import GateDecision
+        from qualityfoundry.governance.gate import GateResult
+
+        db = MagicMock()
+
+        # Mock all dependencies (same as TestRun)
+        mock_policy = PolicyConfig()
+        mock_policy_loader = MagicMock(return_value=mock_policy)
+
+        mock_tool_result = ToolResult.success(stdout="All tests passed")
+        mock_registry = MagicMock()
+        mock_registry.execute = AsyncMock(return_value=mock_tool_result)
+
+        mock_evidence = MagicMock()
+        mock_evidence.model_dump.return_value = {"run_id": "test", "input_nl": "run tests", "tool_calls": []}
+        mock_collector = MagicMock()
+        mock_collector.collect.return_value = mock_evidence
+        mock_collector.save.return_value = "/path/to/evidence.json"
+        mock_collector_factory = MagicMock(return_value=mock_collector)
+
+        mock_gate_result = GateResult(
+            decision=GateDecision.PASS,
+            reason="All tests passed",
+        )
+        mock_gate_evaluator = MagicMock(return_value=mock_gate_result)
+
+        service = OrchestratorService(
+            db,
+            registry=mock_registry,
+            policy_loader=mock_policy_loader,
+            collector_factory=mock_collector_factory,
+            gate_evaluator=mock_gate_evaluator,
+        )
+        service._approval_service = MagicMock()
+
+        req = OrchestrationRequest(
+            nl_input="run tests",
+            environment_id=None,
+            options=None,
+        )
+
+        # Run both methods
+        result_legacy = await service.run(req)
+
+        # Reset mocks for second run
+        mock_policy_loader.reset_mock()
+        mock_registry.execute.reset_mock()
+        mock_collector.add_tool_result.reset_mock()
+        mock_gate_evaluator.reset_mock()
+
+        result_graph = await service.run_with_graph(req)
+
+        # Results should be equivalent (except run_id which is generated fresh)
+        assert result_graph.decision == result_legacy.decision
+        assert result_graph.reason == result_legacy.reason
+
+
+class TestGraphBuilder:
+    """Tests for LangGraph graph construction."""
+
+    def test_build_graph_returns_compiled_graph(self):
+        """build_orchestration_graph should return a compiled StateGraph."""
+        from langgraph.graph.state import CompiledStateGraph
+        from qualityfoundry.services.orchestrator_service import build_orchestration_graph, OrchestratorService
+        from unittest.mock import MagicMock
+
+        db = MagicMock()
+        service = OrchestratorService(db)
+
+        graph = build_orchestration_graph(service)
+
+        assert isinstance(graph, CompiledStateGraph)
+
+    def test_build_graph_has_expected_nodes(self):
+        """build_orchestration_graph should include all 5 node steps."""
+        from qualityfoundry.services.orchestrator_service import build_orchestration_graph, OrchestratorService
+        from unittest.mock import MagicMock
+
+        db = MagicMock()
+        service = OrchestratorService(db)
+
+        graph = build_orchestration_graph(service)
+
+        # Check nodes exist (LangGraph exposes nodes via .nodes)
+        node_names = set(graph.nodes.keys())
+        expected_nodes = {"load_policy", "plan_tool_request", "execute_tools", "enforce_budget", "collect_evidence", "gate_and_hitl"}
+
+        assert expected_nodes.issubset(node_names)

@@ -11,6 +11,7 @@ import pytest
 
 
 @pytest.mark.smoke
+@pytest.mark.smoke_e2e
 def test_orchestration_pass_with_sample_tests(client):
     """
     测试通过场景：跑 sample_tests 全部通过。
@@ -61,6 +62,7 @@ def test_orchestration_pass_with_sample_tests(client):
 
 
 @pytest.mark.smoke
+@pytest.mark.smoke_e2e
 def test_orchestration_fail_with_failing_tests(client):
     """
     测试失败场景：跑包含失败测试的 fixture。
@@ -93,6 +95,7 @@ def test_orchestration_fail_with_failing_tests(client):
 
 
 @pytest.mark.smoke
+@pytest.mark.smoke_e2e
 def test_orchestration_hitl_with_high_risk_input(client):
     """
     HITL 场景：高危关键词触发人工审核。
@@ -123,6 +126,7 @@ def test_orchestration_hitl_with_high_risk_input(client):
 
 
 @pytest.mark.smoke
+@pytest.mark.smoke_e2e
 def test_orchestration_report_url_downloadable(client):
     """
     验证 report_url 可下载。
@@ -168,6 +172,7 @@ def test_orchestration_report_url_downloadable(client):
 
 
 @pytest.mark.smoke
+@pytest.mark.smoke_fast
 def test_orchestration_tool_not_found(client):
     """
     工具不存在场景。
@@ -197,6 +202,7 @@ def test_orchestration_tool_not_found(client):
 
 
 @pytest.mark.smoke
+@pytest.mark.smoke_fast
 def test_artifacts_path_traversal_blocked(client):
     """
     安全测试：路径遍历攻击被阻止。
@@ -210,6 +216,7 @@ def test_artifacts_path_traversal_blocked(client):
 
 
 @pytest.mark.smoke
+@pytest.mark.smoke_fast
 def test_artifacts_nonexistent_run(client):
     """
     测试不存在的运行 ID。

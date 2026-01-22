@@ -13,9 +13,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Protocol, TypedDict
+from operator import add
+from typing import Annotated, Any, Callable, Protocol, TypedDict
 from uuid import UUID
 
+from langgraph.graph import StateGraph, END
+from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.orm import Session
 
 from qualityfoundry.governance import GateDecision, evaluate_gate
@@ -66,6 +69,42 @@ class OrchestrationState(TypedDict, total=False):
     report_path: Path | None
 
 
+class GovernanceBudget(TypedDict, total=False):
+    """Cost governance budget tracking (Phase 5.1).
+
+    Tracks cumulative resource usage across all tool executions in a run.
+    Used for short-circuit decisions when budget is exceeded.
+    """
+    elapsed_ms_total: int
+    attempts_total: int
+    retries_used_total: int
+    short_circuited: bool
+    short_circuit_reason: str | None
+
+
+class LangGraphState(TypedDict, total=False):
+    """State for LangGraph workflow.
+
+    This replaces OrchestrationState for LangGraph compatibility.
+    All fields are optional (total=False) to allow incremental building.
+    """
+    run_id: UUID
+    input: OrchestrationInput
+    policy: PolicyConfig
+    policy_meta: dict[str, Any]
+    tool_request: ToolRequest
+    tool_result: ToolResult
+    evidence: dict[str, Any]
+    decision: GateDecision
+    reason: str
+    approval_id: UUID | None
+    report_path: Path | None
+    # For future: message history accumulation
+    messages: Annotated[list[str], add]
+    # Cost governance (Phase 5.1)
+    budget: GovernanceBudget
+
+
 # Type alias for collector factory (testability)
 CollectorFactory = Callable[[UUID, str, dict[str, Any]], TraceCollector]
 
@@ -114,9 +153,24 @@ class OrchestratorService:
         return self._registry or get_registry()
 
     async def run(self, req: OrchestrationRequestProtocol) -> OrchestrationResult:
-        """Execute orchestration pipeline.
+        """Execute orchestration pipeline using LangGraph.
 
         Pipeline: normalize → load_policy → plan → execute → collect → gate
+
+        This method now uses LangGraph internally for execution,
+        enabling future dynamic routing and conditional branching.
+
+        Returns:
+            OrchestrationResult with decision, reason, evidence, and optional approval_id
+        """
+        # Delegate to graph-based implementation
+        return await self.run_with_graph(req)
+
+    async def run_with_graph(self, req: OrchestrationRequestProtocol) -> OrchestrationResult:
+        """Execute orchestration using LangGraph state machine.
+
+        This is the LangGraph-powered version of run().
+        Behavior should be identical to run() but uses StateGraph for execution.
 
         Returns:
             OrchestrationResult with decision, reason, evidence, and optional approval_id
@@ -126,38 +180,30 @@ class OrchestratorService:
         # Generate run_id
         run_id = uuid4()
 
-        # Step 1: Normalize input
+        # Normalize input
         normalized_input = self._normalize_input(req)
 
-        # Initialize state
-        state: OrchestrationState = {
+        # Build initial state
+        initial_state: LangGraphState = {
             "run_id": run_id,
             "input": normalized_input,
+            "messages": [],
         }
 
-        # Step 2: Load policy
-        state = self._load_policy(state)
+        # Build and run graph
+        graph = build_orchestration_graph(self)
 
-        # Step 3: Plan tool request
-        state = self._plan_tool_request(state)
+        # LangGraph invoke - handles async nodes automatically
+        final_state = await graph.ainvoke(initial_state)
 
-        # Step 4: Execute tools
-        state = await self._execute_tools(state)
-
-        # Step 5: Collect evidence
-        state = self._collect_evidence(state)
-
-        # Step 6: Gate and HITL
-        state = self._gate_and_hitl(state)
-
-        # Build result
+        # Build result from final state
         return OrchestrationResult(
             run_id=run_id,
-            decision=state["decision"],
-            reason=state["reason"],
-            evidence=state["evidence"],
-            approval_id=state.get("approval_id"),
-            report_path=state.get("report_path"),
+            decision=final_state["decision"],
+            reason=final_state["reason"],
+            evidence=final_state["evidence"],
+            approval_id=final_state.get("approval_id"),
+            report_path=final_state.get("report_path"),
         )
 
     def _normalize_input(self, req: OrchestrationRequestProtocol) -> OrchestrationInput:
@@ -242,20 +288,36 @@ class OrchestratorService:
     async def _execute_tools(self, state: OrchestrationState) -> OrchestrationState:
         """Node 3: Execute tool and collect result.
 
-        Uses registry to execute the tool request.
-        Adds 'tool_result' to state.
+        Uses registry to execute the tool request with governance.
+        Adds 'tool_result' and updates 'budget' in state.
         """
         from datetime import datetime, timezone
-        from qualityfoundry.tools.contracts import ToolStatus
+        from qualityfoundry.tools.contracts import ToolStatus, ToolMetrics
         from qualityfoundry.tools.registry import ToolNotFoundError
+        from qualityfoundry.tools.base import execute_with_governance
 
         tool_request = state["tool_request"]
 
-        try:
-            tool_result = await self.registry.execute(
-                tool_request.tool_name,
-                tool_request,
+        # Get policy governance limits
+        policy = state.get("policy")
+        if policy and policy.cost_governance:
+            # Apply policy limits to request
+            tool_request = ToolRequest(
+                tool_name=tool_request.tool_name,
+                args=tool_request.args,
+                run_id=tool_request.run_id,
+                timeout_s=min(tool_request.timeout_s, policy.cost_governance.timeout_s),
+                max_retries=policy.cost_governance.max_retries,
+                dry_run=tool_request.dry_run,
+                metadata=tool_request.metadata,
             )
+
+        def tool_func(req: ToolRequest) -> ToolResult:
+            return self.registry.execute(req.tool_name, req)
+
+        try:
+            # Execute with governance (timeout + retry enforcement)
+            tool_result = await execute_with_governance(tool_func, tool_request)
         except ToolNotFoundError:
             now = datetime.now(timezone.utc)
             tool_result = ToolResult(
@@ -265,11 +327,23 @@ class OrchestratorService:
                 error_message=f"Tool not found: {tool_request.tool_name}",
                 started_at=now,
                 ended_at=now,
+                metrics=ToolMetrics(attempts=1, retries_used=0),
             )
+
+        # Update budget with governance metrics
+        prev_budget = state.get("budget", {})
+        new_budget: GovernanceBudget = {
+            "elapsed_ms_total": prev_budget.get("elapsed_ms_total", 0) + tool_result.metrics.duration_ms,
+            "attempts_total": prev_budget.get("attempts_total", 0) + tool_result.metrics.attempts,
+            "retries_used_total": prev_budget.get("retries_used_total", 0) + tool_result.metrics.retries_used,
+            "short_circuited": False,
+            "short_circuit_reason": None,
+        }
 
         return {
             **state,
             "tool_result": tool_result,
+            "budget": new_budget,
         }
 
     def _collect_evidence(self, state: OrchestrationState) -> OrchestrationState:
@@ -277,11 +351,14 @@ class OrchestratorService:
 
         Uses collector_factory to create TraceCollector.
         Adds 'evidence' and 'report_path' to state.
+        Includes governance budget in evidence (Phase 5.1).
         """
         run_id = state["run_id"]
         input_data = state["input"]
         tool_request = state["tool_request"]
         tool_result = state["tool_result"]
+        budget = state.get("budget", {})
+        policy = state.get("policy")
 
         # Create collector with environment info
         environment = {
@@ -294,11 +371,28 @@ class OrchestratorService:
 
         # Collect and save evidence
         evidence = collector.collect()
+
+        # Add governance info to evidence dict (Phase 5.1)
+        evidence_dict = evidence.model_dump()
+        evidence_dict["governance"] = {
+            "budget": {
+                "elapsed_ms_total": budget.get("elapsed_ms_total", 0),
+                "attempts_total": budget.get("attempts_total", 0),
+                "retries_used_total": budget.get("retries_used_total", 0),
+            },
+            "policy_limits": {
+                "timeout_s": policy.cost_governance.timeout_s if policy else None,
+                "max_retries": policy.cost_governance.max_retries if policy else None,
+            },
+            "short_circuited": budget.get("short_circuited", False),
+            "short_circuit_reason": budget.get("short_circuit_reason"),
+        }
+
         report_path = collector.save(evidence)
 
         return {
             **state,
-            "evidence": evidence.model_dump(),
+            "evidence": evidence_dict,
             "report_path": report_path,
         }
 
@@ -337,3 +431,96 @@ class OrchestratorService:
             "reason": gate_result.reason,
             "approval_id": approval_id,
         }
+
+    def _enforce_budget(self, state: OrchestrationState) -> OrchestrationState:
+        """Node 3.5: Enforce budget constraints (short-circuit if exceeded).
+
+        Checks if cumulative elapsed time exceeds policy timeout.
+        If exceeded, sets short_circuit=True and decision=FAIL.
+        """
+        policy: PolicyConfig | None = state.get("policy")
+        budget: GovernanceBudget = state.get("budget", {})
+        elapsed_ms = budget.get("elapsed_ms_total", 0)
+
+        # Get budget limit from policy
+        budget_ms = (policy.cost_governance.timeout_s * 1000) if policy else 300000  # 5min default
+
+        if elapsed_ms > budget_ms:
+            return {
+                **state,
+                "budget": {
+                    **budget,
+                    "short_circuited": True,
+                    "short_circuit_reason": "budget_elapsed_exceeded",
+                },
+                "decision": GateDecision.FAIL,
+                "reason": f"Budget exceeded: {elapsed_ms}ms > {budget_ms}ms (policy.cost_governance.timeout_s={budget_ms // 1000}s)",
+            }
+
+        return state
+
+
+def build_orchestration_graph(service: OrchestratorService) -> CompiledStateGraph:
+    """Build LangGraph state machine for orchestration.
+
+    Nodes:
+    1. load_policy: Load policy configuration
+    2. plan_tool_request: Build tool request from input
+    3. execute_tools: Execute tool and get result
+    3.5. enforce_budget: Check budget constraints (may short-circuit)
+    4. collect_evidence: Collect and save evidence
+    5. gate_and_hitl: Evaluate gate and create approval if needed
+
+    Conditional routing:
+    - After enforce_budget: if short_circuited -> collect_evidence -> END (skip gate)
+    - Otherwise: collect_evidence -> gate_and_hitl -> END
+
+    Args:
+        service: OrchestratorService instance with injected dependencies
+
+    Returns:
+        Compiled StateGraph ready for invocation
+
+    Raises:
+        ValueError: If service is None
+    """
+    if service is None:
+        raise ValueError("service parameter is required")
+
+    def should_skip_gate(state: LangGraphState) -> str:
+        """Conditional edge: skip gate_and_hitl if short-circuited."""
+        budget = state.get("budget", {})
+        if budget.get("short_circuited"):
+            return "end"
+        return "gate_and_hitl"
+
+    # Create graph with our state type
+    graph = StateGraph(LangGraphState)
+
+    # Add nodes - wrap service methods
+    graph.add_node("load_policy", service._load_policy)
+    graph.add_node("plan_tool_request", service._plan_tool_request)
+    graph.add_node("execute_tools", service._execute_tools)
+    graph.add_node("enforce_budget", service._enforce_budget)
+    graph.add_node("collect_evidence", service._collect_evidence)
+    graph.add_node("gate_and_hitl", service._gate_and_hitl)
+
+    # Define edges with conditional routing for short-circuit
+    graph.set_entry_point("load_policy")
+    graph.add_edge("load_policy", "plan_tool_request")
+    graph.add_edge("plan_tool_request", "execute_tools")
+    graph.add_edge("execute_tools", "enforce_budget")
+    graph.add_edge("enforce_budget", "collect_evidence")
+    # Conditional edge after collect_evidence
+    graph.add_conditional_edges(
+        "collect_evidence",
+        should_skip_gate,
+        {
+            "gate_and_hitl": "gate_and_hitl",
+            "end": END,
+        }
+    )
+    graph.add_edge("gate_and_hitl", END)
+
+    # Compile and return
+    return graph.compile()

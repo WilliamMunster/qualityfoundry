@@ -114,6 +114,10 @@ class ToolMetrics(BaseModel):
     steps_passed: int = Field(default=0, description="成功步骤数")
     steps_failed: int = Field(default=0, description="失败步骤数")
     retries: int = Field(default=0, description="重试次数")
+    # Cost governance fields (Phase 5.1)
+    attempts: int = Field(default=1, ge=1, description="总尝试次数（1 + retries_used）")
+    retries_used: int = Field(default=0, ge=0, description="实际使用的重试次数")
+    timed_out: bool = Field(default=False, description="是否因超时终止")
 
 
 class ToolRequest(BaseModel):
@@ -127,6 +131,7 @@ class ToolRequest(BaseModel):
     args: dict[str, Any] = Field(default_factory=dict, description="工具参数")
     run_id: UUID = Field(..., description="执行运行 ID（用于关联和追溯）")
     timeout_s: int = Field(default=120, ge=1, le=3600, description="超时时间（秒）")
+    max_retries: int = Field(default=0, ge=0, le=10, description="最大重试次数")
     dry_run: bool = Field(default=False, description="是否为演练模式（不实际执行）")
     metadata: dict[str, Any] = Field(default_factory=dict, description="额外元数据")
 
