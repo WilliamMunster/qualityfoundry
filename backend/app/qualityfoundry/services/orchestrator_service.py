@@ -430,6 +430,33 @@ class OrchestratorService:
             "approval_id": approval_id,
         }
 
+    def _enforce_budget(self, state: OrchestrationState) -> OrchestrationState:
+        """Node 3.5: Enforce budget constraints (short-circuit if exceeded).
+
+        Checks if cumulative elapsed time exceeds policy timeout.
+        If exceeded, sets short_circuit=True and decision=FAIL.
+        """
+        policy: PolicyConfig | None = state.get("policy")
+        budget: GovernanceBudget = state.get("budget", {})
+        elapsed_ms = budget.get("elapsed_ms_total", 0)
+
+        # Get budget limit from policy
+        budget_ms = (policy.cost_governance.timeout_s * 1000) if policy else 300000  # 5min default
+
+        if elapsed_ms > budget_ms:
+            return {
+                **state,
+                "budget": {
+                    **budget,
+                    "short_circuited": True,
+                    "short_circuit_reason": "budget_elapsed_exceeded",
+                },
+                "decision": GateDecision.FAIL,
+                "reason": f"Budget exceeded: {elapsed_ms}ms > {budget_ms}ms (policy.cost_governance.timeout_s={budget_ms // 1000}s)",
+            }
+
+        return state
+
 
 def build_orchestration_graph(service: OrchestratorService) -> CompiledStateGraph:
     """Build LangGraph state machine for orchestration.
@@ -438,8 +465,13 @@ def build_orchestration_graph(service: OrchestratorService) -> CompiledStateGrap
     1. load_policy: Load policy configuration
     2. plan_tool_request: Build tool request from input
     3. execute_tools: Execute tool and get result
+    3.5. enforce_budget: Check budget constraints (may short-circuit)
     4. collect_evidence: Collect and save evidence
     5. gate_and_hitl: Evaluate gate and create approval if needed
+
+    Conditional routing:
+    - After enforce_budget: if short_circuited -> collect_evidence -> END (skip gate)
+    - Otherwise: collect_evidence -> gate_and_hitl -> END
 
     Args:
         service: OrchestratorService instance with injected dependencies
@@ -453,6 +485,13 @@ def build_orchestration_graph(service: OrchestratorService) -> CompiledStateGrap
     if service is None:
         raise ValueError("service parameter is required")
 
+    def should_skip_gate(state: LangGraphState) -> str:
+        """Conditional edge: skip gate_and_hitl if short-circuited."""
+        budget = state.get("budget", {})
+        if budget.get("short_circuited"):
+            return "end"
+        return "gate_and_hitl"
+
     # Create graph with our state type
     graph = StateGraph(LangGraphState)
 
@@ -460,15 +499,25 @@ def build_orchestration_graph(service: OrchestratorService) -> CompiledStateGrap
     graph.add_node("load_policy", service._load_policy)
     graph.add_node("plan_tool_request", service._plan_tool_request)
     graph.add_node("execute_tools", service._execute_tools)
+    graph.add_node("enforce_budget", service._enforce_budget)
     graph.add_node("collect_evidence", service._collect_evidence)
     graph.add_node("gate_and_hitl", service._gate_and_hitl)
 
-    # Define edges (linear flow for now, can add conditional routing later)
+    # Define edges with conditional routing for short-circuit
     graph.set_entry_point("load_policy")
     graph.add_edge("load_policy", "plan_tool_request")
     graph.add_edge("plan_tool_request", "execute_tools")
-    graph.add_edge("execute_tools", "collect_evidence")
-    graph.add_edge("collect_evidence", "gate_and_hitl")
+    graph.add_edge("execute_tools", "enforce_budget")
+    graph.add_edge("enforce_budget", "collect_evidence")
+    # Conditional edge after collect_evidence
+    graph.add_conditional_edges(
+        "collect_evidence",
+        should_skip_gate,
+        {
+            "gate_and_hitl": "gate_and_hitl",
+            "end": END,
+        }
+    )
     graph.add_edge("gate_and_hitl", END)
 
     # Compile and return

@@ -120,6 +120,8 @@ class Evidence(BaseModel):
     summary: EvidenceSummary | None = None
     repro: ReproMeta | None = None
     collected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # Phase 5.1.1: Governance budget tracking
+    governance: dict[str, Any] | None = Field(default=None, description="Cost governance info")
 
     def model_dump_json_for_file(self) -> str:
         """导出为 JSON 字符串（用于写文件）"""

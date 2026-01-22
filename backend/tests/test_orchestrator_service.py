@@ -251,8 +251,11 @@ class TestExecuteTools:
 
         result = await service._execute_tools(state)
 
-        mock_registry.execute.assert_called_once_with("run_pytest", tool_request)
+        # Registry execute was called (Phase 5.1 modifies tool_request with policy limits)
+        mock_registry.execute.assert_called_once()
         assert result["tool_result"] == mock_result
+        # Budget should be updated
+        assert "budget" in result
 
     @pytest.mark.asyncio
     async def test_execute_tools_preserves_state(self):
@@ -763,6 +766,6 @@ class TestGraphBuilder:
 
         # Check nodes exist (LangGraph exposes nodes via .nodes)
         node_names = set(graph.nodes.keys())
-        expected_nodes = {"load_policy", "plan_tool_request", "execute_tools", "collect_evidence", "gate_and_hitl"}
+        expected_nodes = {"load_policy", "plan_tool_request", "execute_tools", "enforce_budget", "collect_evidence", "gate_and_hitl"}
 
         assert expected_nodes.issubset(node_names)
