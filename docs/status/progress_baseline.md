@@ -13,7 +13,7 @@ This document serves as the **single source of truth** for project progress. All
 | Layer | Name | Status | Verification |
 |-------|------|--------|--------------|
 | **L1** | Policy (规则与门禁) | ✅ Complete | `ls governance/policy_loader.py gate.py` |
-| **L2** | Orchestration (编排层) | ✅ Phase 1.2 Complete | `git show main:...orchestrator_service.py` |
+| **L2** | Orchestration (编排层) | ✅ Phase 2.2 Complete (LangGraph) | `from langgraph.graph import StateGraph` in orchestrator_service.py |
 | **L3** | Execution (执行层) | 🟡 Partial | Tool contract + runners ✅; Sandbox/permissions 🔴 |
 | **L4** | Protocol (MCP) | 🟡 Client-only | No independent MCP Server (`mcp_server/` not exists) |
 | **L5** | Governance & Evals | ✅ Phase 5.2 Complete | `ls governance/evals/ golden/` |
@@ -29,6 +29,7 @@ This document serves as the **single source of truth** for project progress. All
 | **Phase 0** | Project skeleton | Directory structure exists | ✅ |
 | **Phase 1.1** | Requirement/Scenario/TestCase CRUD | `ls api/v1/routes_requirements.py` | ✅ |
 | **Phase 1.2** | OrchestratorService (5 nodes) | `git show main:...services/orchestrator_service.py` | ✅ |
+| **Phase 2.2** | LangGraph state machine | `build_orchestration_graph()` in orchestrator_service.py | ✅ |
 | **Phase 1.3** | ReproMeta reproducibility | `git show main:...governance/repro.py` | ✅ |
 | **Phase 5.2** | Golden Dataset + Regression CLI | `ls governance/golden/dataset.yaml governance/evals/runner.py` | ✅ |
 
@@ -46,7 +47,7 @@ This document serves as the **single source of truth** for project progress. All
 |---------|---------|-------------------|------------------|
 | **Audit Log** | ✅ | `grep -r "audit_log" backend/` = 0 results | 🔴 Not exists |
 | **MCP Server** | L4 ✅ | No `mcp_server/`, no FastMCP entry | 🔴 Not started |
-| **LangGraph Integration** | Pending | No `langgraph` imports | 🔴 Not started |
+| **LangGraph Integration** | ✅ Phase 2.2 | `from langgraph.graph import StateGraph` | ✅ Complete |
 | **Cost Governance** | Pending | No budget/timeout circuit breaker logic | 🔴 Not started |
 
 ---

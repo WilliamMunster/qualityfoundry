@@ -20,13 +20,13 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 | Layer | Name | Current Status |
 |-------|------|----------------|
 | **L1** | Policy (规则与门禁) | ✅ Complete |
-| **L2** | Orchestration (编排层) | ✅ Phase 1.2 Complete (LangGraph-ready nodes) |
+| **L2** | Orchestration (编排层) | ✅ Phase 2.2 Complete (LangGraph state machine) |
 | **L3** | Execution (执行层) | 🟡 Tool runners complete; Sandbox TBD |
 | **L4** | Protocol (MCP) | 🟡 Client-only (no server yet) |
 | **L5** | Governance & Evals | ✅ Phase 5.2 Complete |
 
 - **L1 规则与门禁层 (Policy)**：定义 `policy_config.yaml`、风险分级与发布门禁。
-- **L2 编排层 (Orchestration)**：5 个 LangGraph-ready 节点，支持错误恢复、重试/回退及 HITL 机制。
+- **L2 编排层 (Orchestration)**：LangGraph 状态机执行，5 个节点支持动态路由扩展及 HITL 机制。
 - **L3 执行层 (Execution)**：集成 Playwright、Pytest 等工具，沙箱隔离待实现。
 - **L4 接口层 (Protocol)**：MCP Client 调用外部服务（独立 MCP Server 待实现）。
 - **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、变更对比报告（在线漂移监控待实现）。
@@ -37,7 +37,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 
 ### Completed Features (Verified)
 - ✅ **需求/场景/用例管理**：支持从 NL 需求到场景、用例的全链路生成与审核，支持自动补全 `seq_id`
-- ✅ **OrchestratorService (Phase 1.2)**：5 个 LangGraph-ready 节点，支持依赖注入和可测试设计
+- ✅ **OrchestratorService (Phase 2.2)**：LangGraph 状态机执行，5 个节点支持动态路由扩展
 - ✅ **全链路可复现性 (Phase 1.3)**：证据链自动记录 Git SHA、依赖指纹（Fingerprint）及运行时环境
 - ✅ **回归评测体系 (Phase 5.2)**：支持 Golden Dataset 运行对比，一键产出 `diff_report.md`
 - ✅ **多模型适配**：内置对接 OpenAI, DeepSeek, 智谱 AI 等主流提供商
@@ -53,7 +53,6 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - 🟡 **MCP 集成**：仅 Client 模式，独立 Server 待实现
 
 ### Not Started
-- 🔴 **LangGraph 集成 (Phase 2.2)**：状态机替换线性管道
 - 🔴 **成本治理 (Phase 5.1)**：预算/超时熔断
 - 🔴 **审计日志**：完整的操作审计
 
