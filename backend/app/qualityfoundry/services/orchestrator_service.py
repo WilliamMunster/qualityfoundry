@@ -190,12 +190,52 @@ class OrchestratorService:
         }
 
     async def _execute_tools(self, state: OrchestrationState) -> OrchestrationState:
-        """Node 3: Execute tool and collect result."""
-        raise NotImplementedError("Task 5 will implement this")
+        """Node 3: Execute tool and collect result.
+
+        Uses registry to execute the tool request.
+        Adds 'tool_result' to state.
+        """
+        tool_request = state["tool_request"]
+
+        tool_result = await self.registry.execute(
+            tool_request.tool_name,
+            tool_request,
+        )
+
+        return {
+            **state,
+            "tool_result": tool_result,
+        }
 
     def _collect_evidence(self, state: OrchestrationState) -> OrchestrationState:
-        """Node 4: Collect evidence and save to disk."""
-        raise NotImplementedError("Task 5 will implement this")
+        """Node 4: Collect evidence and save to disk.
+
+        Uses collector_factory to create TraceCollector.
+        Adds 'evidence' and 'report_path' to state.
+        """
+        run_id = state["run_id"]
+        input_data = state["input"]
+        tool_request = state["tool_request"]
+        tool_result = state["tool_result"]
+
+        # Create collector with environment info
+        environment = {
+            "environment_id": str(input_data.environment_id) if input_data.environment_id else None,
+        }
+        collector = self._collector_factory(run_id, input_data.nl_input, environment)
+
+        # Add tool result
+        collector.add_tool_result(tool_request.tool_name, tool_result)
+
+        # Collect and save evidence
+        evidence = collector.collect()
+        report_path = collector.save(evidence)
+
+        return {
+            **state,
+            "evidence": evidence.model_dump(),
+            "report_path": report_path,
+        }
 
     def _gate_and_hitl(self, state: OrchestrationState) -> OrchestrationState:
         """Node 5: Evaluate gate and create approval if needed."""

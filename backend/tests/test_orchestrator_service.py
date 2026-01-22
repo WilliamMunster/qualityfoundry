@@ -11,7 +11,7 @@ from qualityfoundry.services.orchestrator_service import (
     OrchestrationInput,
     OrchestrationState,
 )
-from qualityfoundry.tools.contracts import ToolRequest
+from qualityfoundry.tools.contracts import ToolRequest, ToolResult
 
 
 class TestNormalizeInput:
@@ -208,3 +208,194 @@ class TestPlanToolRequest:
         assert result["input"] == input_data
         assert result["policy"] == mock_policy
 
+
+class TestExecuteTools:
+    """Tests for _execute_tools method (async)."""
+
+    @pytest.mark.asyncio
+    async def test_execute_tools_calls_registry(self):
+        """_execute_tools should use registry to execute tool."""
+        db = MagicMock()
+
+        # Mock registry
+        mock_result = ToolResult.success(stdout="All tests passed")
+        mock_registry = MagicMock()
+        mock_registry.execute = AsyncMock(return_value=mock_result)
+
+        service = OrchestratorService(db, registry=mock_registry)
+
+        run_id = uuid4()
+        input_data = OrchestrationInput(
+            nl_input="run tests",
+            environment_id=None,
+            tool_name="run_pytest",
+            tool_args={"test_path": "tests"},
+            timeout_s=120,
+            dry_run=False,
+        )
+        tool_request = ToolRequest(
+            tool_name="run_pytest",
+            args={"test_path": "tests"},
+            run_id=run_id,
+            timeout_s=120,
+            dry_run=False,
+        )
+
+        state: OrchestrationState = {
+            "run_id": run_id,
+            "input": input_data,
+            "policy": PolicyConfig(),
+            "policy_meta": {"version": "1.0"},
+            "tool_request": tool_request,
+        }
+
+        result = await service._execute_tools(state)
+
+        mock_registry.execute.assert_called_once_with("run_pytest", tool_request)
+        assert result["tool_result"] == mock_result
+
+    @pytest.mark.asyncio
+    async def test_execute_tools_preserves_state(self):
+        """_execute_tools should preserve existing state."""
+        db = MagicMock()
+
+        mock_result = ToolResult.success()
+        mock_registry = MagicMock()
+        mock_registry.execute = AsyncMock(return_value=mock_result)
+
+        service = OrchestratorService(db, registry=mock_registry)
+
+        run_id = uuid4()
+        input_data = OrchestrationInput(
+            nl_input="run tests",
+            environment_id=None,
+            tool_name="run_pytest",
+            tool_args={},
+            timeout_s=120,
+            dry_run=False,
+        )
+        tool_request = ToolRequest(
+            tool_name="run_pytest",
+            args={},
+            run_id=run_id,
+            timeout_s=120,
+        )
+        mock_policy = PolicyConfig()
+
+        state: OrchestrationState = {
+            "run_id": run_id,
+            "input": input_data,
+            "policy": mock_policy,
+            "policy_meta": {"version": "1.0"},
+            "tool_request": tool_request,
+        }
+
+        result = await service._execute_tools(state)
+
+        assert result["run_id"] == run_id
+        assert result["input"] == input_data
+        assert result["policy"] == mock_policy
+        assert result["tool_request"] == tool_request
+
+
+class TestCollectEvidence:
+    """Tests for _collect_evidence method."""
+
+    def test_collect_evidence_creates_evidence(self):
+        """_collect_evidence should use collector to create evidence."""
+        db = MagicMock()
+
+        # Mock collector factory
+        mock_evidence = MagicMock()
+        mock_evidence.model_dump.return_value = {"run_id": "test", "summary": {}}
+        mock_collector = MagicMock()
+        mock_collector.collect.return_value = mock_evidence
+        mock_collector.save.return_value = "/path/to/evidence.json"
+
+        mock_collector_factory = MagicMock(return_value=mock_collector)
+
+        service = OrchestratorService(db, collector_factory=mock_collector_factory)
+
+        run_id = uuid4()
+        input_data = OrchestrationInput(
+            nl_input="run tests",
+            environment_id=None,
+            tool_name="run_pytest",
+            tool_args={"test_path": "tests"},
+            timeout_s=120,
+            dry_run=False,
+        )
+        tool_request = ToolRequest(
+            tool_name="run_pytest",
+            args={"test_path": "tests"},
+            run_id=run_id,
+            timeout_s=120,
+        )
+        tool_result = ToolResult.success(stdout="OK")
+
+        state: OrchestrationState = {
+            "run_id": run_id,
+            "input": input_data,
+            "policy": PolicyConfig(),
+            "policy_meta": {"version": "1.0"},
+            "tool_request": tool_request,
+            "tool_result": tool_result,
+        }
+
+        result = service._collect_evidence(state)
+
+        # Collector factory was called with correct args
+        mock_collector_factory.assert_called_once()
+        # Tool result was added
+        mock_collector.add_tool_result.assert_called_once_with("run_pytest", tool_result)
+        # Evidence collected and saved
+        mock_collector.collect.assert_called_once()
+        mock_collector.save.assert_called_once()
+        # State updated
+        assert "evidence" in result
+
+    def test_collect_evidence_preserves_state(self):
+        """_collect_evidence should preserve existing state."""
+        db = MagicMock()
+
+        mock_evidence = MagicMock()
+        mock_evidence.model_dump.return_value = {}
+        mock_collector = MagicMock()
+        mock_collector.collect.return_value = mock_evidence
+        mock_collector.save.return_value = "/path/to/evidence.json"
+        mock_collector_factory = MagicMock(return_value=mock_collector)
+
+        service = OrchestratorService(db, collector_factory=mock_collector_factory)
+
+        run_id = uuid4()
+        input_data = OrchestrationInput(
+            nl_input="run tests",
+            environment_id=None,
+            tool_name="run_pytest",
+            tool_args={},
+            timeout_s=120,
+            dry_run=False,
+        )
+        tool_request = ToolRequest(
+            tool_name="run_pytest",
+            args={},
+            run_id=run_id,
+            timeout_s=120,
+        )
+        tool_result = ToolResult.success()
+        mock_policy = PolicyConfig()
+
+        state: OrchestrationState = {
+            "run_id": run_id,
+            "input": input_data,
+            "policy": mock_policy,
+            "policy_meta": {"version": "1.0"},
+            "tool_request": tool_request,
+            "tool_result": tool_result,
+        }
+
+        result = service._collect_evidence(state)
+
+        assert result["run_id"] == run_id
+        assert result["input"] == input_data
+        assert result["tool_result"] == tool_result
