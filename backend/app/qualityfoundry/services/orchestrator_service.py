@@ -111,8 +111,43 @@ class OrchestratorService:
         raise NotImplementedError("Task 7 will implement this")
 
     def _normalize_input(self, req: OrchestrationRequest) -> OrchestrationInput:
-        """Convert API DTO to internal normalized input."""
-        raise NotImplementedError("Task 3 will implement this")
+        """Convert API DTO to internal normalized input.
+
+        Priority:
+        1. If options provided, use them directly (deterministic mode)
+        2. Otherwise, use simple heuristic based on nl_input keywords
+        """
+        if req.options:
+            return OrchestrationInput(
+                nl_input=req.nl_input,
+                environment_id=req.environment_id,
+                tool_name=req.options.tool_name,
+                tool_args=req.options.args,
+                timeout_s=req.options.timeout_s,
+                dry_run=req.options.dry_run,
+            )
+
+        # Simple heuristic: detect playwright/browser/e2e keywords
+        nl_lower = req.nl_input.lower()
+        if "playwright" in nl_lower or "browser" in nl_lower or "e2e" in nl_lower:
+            return OrchestrationInput(
+                nl_input=req.nl_input,
+                environment_id=req.environment_id,
+                tool_name="run_playwright",
+                tool_args={},
+                timeout_s=300,
+                dry_run=False,
+            )
+
+        # Default: pytest with 'tests' path
+        return OrchestrationInput(
+            nl_input=req.nl_input,
+            environment_id=req.environment_id,
+            tool_name="run_pytest",
+            tool_args={"test_path": "tests"},
+            timeout_s=120,
+            dry_run=False,
+        )
 
     def _load_policy(self, state: OrchestrationState) -> OrchestrationState:
         """Node 1: Load policy configuration."""
