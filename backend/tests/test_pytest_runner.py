@@ -11,10 +11,49 @@ import pytest
 
 from qualityfoundry.tools.contracts import ArtifactType, ToolRequest, ToolStatus
 from qualityfoundry.tools.runners.pytest_runner import (
+    _collect_environment_diagnostics,
+    _format_diagnostics,
     _is_safe_test_path,
     _parse_junit_stats,
     run_pytest,
 )
+
+
+class TestEnvironmentDiagnostics:
+    """环境诊断功能测试 (收口 A)"""
+
+    def test_collect_diagnostics_returns_required_keys(self):
+        """诊断结果包含所有必要字段"""
+        diag = _collect_environment_diagnostics()
+
+        required_keys = [
+            "python_executable",
+            "python_version",
+            "pytest_in_path",
+            "python_in_path",
+            "virtual_env",
+            "path_first_3",
+            "cwd",
+        ]
+        for key in required_keys:
+            assert key in diag, f"Missing key: {key}"
+
+    def test_collect_diagnostics_python_info_not_none(self):
+        """Python 信息不为 None"""
+        diag = _collect_environment_diagnostics()
+
+        assert diag["python_executable"] is not None
+        assert diag["python_version"] is not None
+        assert "." in diag["python_version"]  # e.g., "3.14.2"
+
+    def test_format_diagnostics_readable(self):
+        """格式化输出可读"""
+        diag = _collect_environment_diagnostics()
+        formatted = _format_diagnostics(diag)
+
+        assert "Environment diagnostics:" in formatted
+        assert "python_executable:" in formatted
+        assert "pytest_in_path:" in formatted
 
 
 class TestSafeTestPath:

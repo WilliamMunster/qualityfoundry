@@ -21,6 +21,8 @@ import asyncio
 import logging
 import os
 import re
+import shutil
+import sys
 from pathlib import Path
 
 from qualityfoundry.tools.base import ToolExecutionContext, log_tool_result
@@ -44,6 +46,49 @@ ALLOWED_TEST_PATHS = frozenset({
 
 # 项目根目录（用于路径验证）
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
+
+
+def _collect_environment_diagnostics() -> dict[str, str | None]:
+    """Collect environment diagnostics for troubleshooting tool failures.
+
+    Returns:
+        Dict with diagnostic info: python_path, python_version, pytest_available,
+        venv_active, path_summary
+    """
+    diag: dict[str, str | None] = {}
+
+    # Python info
+    diag["python_executable"] = sys.executable
+    diag["python_version"] = sys.version.split()[0]
+
+    # Check pytest availability
+    pytest_path = shutil.which("pytest")
+    diag["pytest_in_path"] = pytest_path if pytest_path else "NOT FOUND"
+
+    # Check python -m pytest availability
+    python_m_pytest = shutil.which("python")
+    diag["python_in_path"] = python_m_pytest if python_m_pytest else "NOT FOUND"
+
+    # Virtual environment detection
+    venv = os.environ.get("VIRTUAL_ENV")
+    diag["virtual_env"] = venv if venv else "NOT SET"
+
+    # PATH summary (first 3 entries for brevity)
+    path_entries = os.environ.get("PATH", "").split(os.pathsep)
+    diag["path_first_3"] = os.pathsep.join(path_entries[:3]) if path_entries else "EMPTY"
+
+    # Current working directory
+    diag["cwd"] = os.getcwd()
+
+    return diag
+
+
+def _format_diagnostics(diag: dict[str, str | None]) -> str:
+    """Format diagnostics dict as readable string for error messages."""
+    lines = ["Environment diagnostics:"]
+    for key, value in diag.items():
+        lines.append(f"  {key}: {value}")
+    return "\n".join(lines)
 
 
 def _is_safe_test_path(test_path: str) -> bool:
@@ -159,7 +204,11 @@ async def run_pytest(request: ToolRequest) -> ToolResult:
                     return ctx.timeout(f"pytest timed out after {request.timeout_s}s")
 
             except FileNotFoundError:
-                return ctx.failed("pytest not found. Please install pytest.")
+                diag = _collect_environment_diagnostics()
+                diag_str = _format_diagnostics(diag)
+                return ctx.failed(
+                    f"pytest not found. Please install pytest.\n\n{diag_str}"
+                )
             except Exception as e:
                 return ctx.failed(f"Failed to execute pytest: {e}")
 
