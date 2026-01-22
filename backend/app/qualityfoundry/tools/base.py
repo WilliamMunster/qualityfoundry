@@ -329,24 +329,24 @@ async def execute_with_governance(
     *,
     retryable_statuses: frozenset[ToolStatus] | None = None,
 ) -> ToolResult:
-    """Execute tool with cost governance (timeout + retry enforcement).
+    """在成本治理下执行工具（超时 + 重试强制执行）。
 
-    This is the primary entry point for governed tool execution.
-    It enforces:
-    - timeout_s: Hard timeout per attempt
-    - max_retries: Maximum retry attempts on failure/timeout
+    这是被治理的工具执行的主要入口点。
+    它强制执行：
+    - timeout_s：每次尝试的硬超时
+    - max_retries：失败/超时时的最大重试次数
 
-    Args:
-        tool_func: Async tool function that takes ToolRequest and returns ToolResult
-        request: Tool request with governance parameters
-        retryable_statuses: Statuses that trigger retry (default: FAILED, TIMEOUT)
+    参数：
+        tool_func：接收 ToolRequest 并返回 ToolResult 的异步工具函数
+        request：带有治理参数的工具请求
+        retryable_statuses：触发重试的状态（默认：FAILED, TIMEOUT）
 
-    Returns:
-        ToolResult with governance metrics populated:
-        - metrics.attempts: Total attempts made (1 + retries_used)
-        - metrics.retries_used: Number of retries actually used
-        - metrics.timed_out: Whether final result was due to timeout
-        - metrics.duration_ms: Total elapsed time across all attempts
+    返回：
+        填充了治理指标的 ToolResult：
+        - metrics.attempts：总尝试次数（1 + retries_used）
+        - metrics.retries_used：实际使用的重试次数
+        - metrics.timed_out：最终结果是否因超时导致
+        - metrics.duration_ms：所有尝试累计消耗的总时间
     """
     if retryable_statuses is None:
         retryable_statuses = frozenset({ToolStatus.FAILED, ToolStatus.TIMEOUT})

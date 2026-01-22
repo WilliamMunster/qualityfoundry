@@ -1,12 +1,12 @@
-"""QualityFoundry - Orchestrator Service (L2 Orchestration Layer)
+"""QualityFoundry - 编排服务 (L2 编排层)
 
-Phase 1.2: Service abstraction with LangGraph-ready node boundaries.
+Phase 1.2: 具备 LangGraph 节点边界的服务抽象。
 
-Design decisions:
-- Dependency injection: DB required, registry/collector/policy optional (testable)
-- Return type: OrchestrationResult (domain object, no HTTP concepts)
-- Input: OrchestrationRequest (API DTO) + internal normalization
-- Node methods: _load_policy, _plan_tool_request, _execute_tools, _collect_evidence, _gate_and_hitl
+设计决策：
+- 依赖注入：数据库必选，注册表/收集器/策略可选（便于测试）
+- 返回类型：OrchestrationResult（领域对象，无 HTTP 概念）
+- 输入：OrchestrationRequest (API DTO) + 内部归一化
+- 节点方法：_load_policy, _plan_tool_request, _execute_tools, _collect_evidence, _gate_and_hitl
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from qualityfoundry.tools.registry import get_registry, ToolRegistry
 
 @dataclass(frozen=True)
 class OrchestrationInput:
-    """Internal normalized input (decoupled from API DTO)."""
+    """内部归一化输入（与 API DTO 解耦）。"""
     nl_input: str
     environment_id: UUID | None
     tool_name: str
@@ -44,7 +44,7 @@ class OrchestrationInput:
 
 @dataclass(frozen=True)
 class OrchestrationResult:
-    """Service return type (domain object, no HTTP concepts)."""
+    """服务返回类型（领域对象，无 HTTP 概念）。"""
     run_id: UUID
     decision: GateDecision
     reason: str
@@ -55,7 +55,7 @@ class OrchestrationResult:
 
 
 class OrchestrationState(TypedDict, total=False):
-    """Mutable state passed through node methods (LangGraph-ready)."""
+    """通过节点方法传递的可变状态（适配 LangGraph）。"""
     run_id: UUID
     input: OrchestrationInput
     policy: PolicyConfig
@@ -70,10 +70,10 @@ class OrchestrationState(TypedDict, total=False):
 
 
 class GovernanceBudget(TypedDict, total=False):
-    """Cost governance budget tracking (Phase 5.1).
+    """成本治理预算追踪 (Phase 5.1)。
 
-    Tracks cumulative resource usage across all tool executions in a run.
-    Used for short-circuit decisions when budget is exceeded.
+    追踪一次运行中所有工具执行累计的资源使用情况。
+    用于在超出预算时进行短路决策。
     """
     elapsed_ms_total: int
     attempts_total: int
@@ -83,10 +83,10 @@ class GovernanceBudget(TypedDict, total=False):
 
 
 class LangGraphState(TypedDict, total=False):
-    """State for LangGraph workflow.
+    """LangGraph 工作流状态。
 
-    This replaces OrchestrationState for LangGraph compatibility.
-    All fields are optional (total=False) to allow incremental building.
+    为了兼容性，这取代了 OrchestrationState。
+    所有字段都是可选的（total=False），以允许增量构建。
     """
     run_id: UUID
     input: OrchestrationInput
@@ -99,36 +99,36 @@ class LangGraphState(TypedDict, total=False):
     reason: str
     approval_id: UUID | None
     report_path: Path | None
-    # For future: message history accumulation
+    # 未来：累积消息历史
     messages: Annotated[list[str], add]
-    # Cost governance (Phase 5.1)
+    # 成本治理 (Phase 5.1)
     budget: GovernanceBudget
 
 
-# Type alias for collector factory (testability)
+# 收集器工厂类型别名（便于测试）
 CollectorFactory = Callable[[UUID, str, dict[str, Any]], TraceCollector]
 
 
 def _default_collector_factory(run_id: UUID, input_nl: str, environment: dict[str, Any]) -> TraceCollector:
-    """Default factory creates real TraceCollector."""
+    """默认工厂创建真实的 TraceCollector。"""
     return TraceCollector(run_id=str(run_id), input_nl=input_nl, environment=environment)
 
 
 class OrchestrationRequestProtocol(Protocol):
-    """Protocol for orchestration request (avoids circular import)."""
+    """编排请求协议（避免循环引用）。"""
     nl_input: str
     environment_id: UUID | None
-    options: Any  # OrchestrationOptions or None
+    options: Any  # OrchestrationOptions 或 None
 
 
 class OrchestratorService:
-    """Orchestration service with LangGraph-ready node boundaries.
+    """具备 LangGraph 节点边界的编排服务。
 
-    Dependency injection:
-    - db: Required (for ApprovalService)
-    - registry: Optional (default: global singleton)
-    - collector_factory: Optional (default: creates real TraceCollector)
-    - policy_loader: Optional (default: loads from file)
+    依赖注入：
+    - db：必选（用于 ApprovalService）
+    - registry：可选（默认：全局单例）
+    - collector_factory：可选（默认：创建真实的 TraceCollector）
+    - policy_loader：可选（默认：从文件加载）
     """
 
     def __init__(
@@ -149,54 +149,54 @@ class OrchestratorService:
 
     @property
     def registry(self) -> ToolRegistry:
-        """Lazy registry access (allows late binding for tests)."""
+        """延迟访问注册表（允许在测试中进行延迟绑定）。"""
         return self._registry or get_registry()
 
     async def run(self, req: OrchestrationRequestProtocol) -> OrchestrationResult:
-        """Execute orchestration pipeline using LangGraph.
+        """使用 LangGraph 执行编排流水线。
 
-        Pipeline: normalize → load_policy → plan → execute → collect → gate
+        流水线：归一化 → 加载策略 → 规划 → 执行 → 收集 → 门禁
 
-        This method now uses LangGraph internally for execution,
-        enabling future dynamic routing and conditional branching.
+        此方法现在内部使用 LangGraph 进行执行，
+        以支持未来的动态路由和条件分支。
 
-        Returns:
-            OrchestrationResult with decision, reason, evidence, and optional approval_id
+        返回：
+            包含决策、原因、证据及可选审批 ID 的 OrchestrationResult
         """
-        # Delegate to graph-based implementation
+        # 委托给基于图的实现
         return await self.run_with_graph(req)
 
     async def run_with_graph(self, req: OrchestrationRequestProtocol) -> OrchestrationResult:
-        """Execute orchestration using LangGraph state machine.
+        """使用 LangGraph 状态机执行编排。
 
-        This is the LangGraph-powered version of run().
-        Behavior should be identical to run() but uses StateGraph for execution.
+        这是 run() 的 LangGraph 驱动版本。
+        行为应与 run() 相同，但使用 StateGraph 进行执行。
 
-        Returns:
-            OrchestrationResult with decision, reason, evidence, and optional approval_id
+        返回：
+            包含决策、原因、证据及可选审批 ID 的 OrchestrationResult
         """
         from uuid import uuid4
 
-        # Generate run_id
+        # 生成 run_id
         run_id = uuid4()
 
-        # Normalize input
+        # 归一化输入
         normalized_input = self._normalize_input(req)
 
-        # Build initial state
+        # 构建初始状态
         initial_state: LangGraphState = {
             "run_id": run_id,
             "input": normalized_input,
             "messages": [],
         }
 
-        # Build and run graph
+        # 构建并运行图
         graph = build_orchestration_graph(self)
 
-        # LangGraph invoke - handles async nodes automatically
+        # LangGraph invoke - 自动处理异步节点
         final_state = await graph.ainvoke(initial_state)
 
-        # Build result from final state
+        # 从最终状态构建结果
         return OrchestrationResult(
             run_id=run_id,
             decision=final_state["decision"],
@@ -207,11 +207,11 @@ class OrchestratorService:
         )
 
     def _normalize_input(self, req: OrchestrationRequestProtocol) -> OrchestrationInput:
-        """Convert API DTO to internal normalized input.
+        """将 API DTO 转换为内部归一化输入。
 
-        Priority:
-        1. If options provided, use them directly (deterministic mode)
-        2. Otherwise, use simple heuristic based on nl_input keywords
+        优先级：
+        1. 如果提供了选项，则直接使用它们（确定性模式）
+        2. 否则，根据 nl_input 关键字使用简单的启发式规则
         """
         if req.options:
             return OrchestrationInput(
@@ -223,7 +223,7 @@ class OrchestratorService:
                 dry_run=req.options.dry_run,
             )
 
-        # Simple heuristic: detect playwright/browser/e2e keywords
+        # 简单启发式：检测 playwright/browser/e2e 关键字
         nl_lower = req.nl_input.lower()
         if "playwright" in nl_lower or "browser" in nl_lower or "e2e" in nl_lower:
             return OrchestrationInput(
@@ -235,7 +235,7 @@ class OrchestratorService:
                 dry_run=False,
             )
 
-        # Default: pytest with 'tests' path
+        # 默认：使用 'tests' 路径的 pytest
         return OrchestrationInput(
             nl_input=req.nl_input,
             environment_id=req.environment_id,
@@ -246,14 +246,14 @@ class OrchestratorService:
         )
 
     def _load_policy(self, state: OrchestrationState) -> OrchestrationState:
-        """Node 1: Load policy configuration.
+        """节点 1：加载策略配置。
 
-        Uses injected policy_loader or default get_policy().
-        Adds 'policy' and 'policy_meta' to state.
+        使用注入的 policy_loader 或默认的 get_policy()。
+        将 'policy' 和 'policy_meta' 添加到状态中。
         """
         policy = self._policy_loader()
 
-        # Return new state with policy added (preserve existing keys)
+        # 返回添加了策略的新状态（保留现有键）
         return {
             **state,
             "policy": policy,
@@ -265,10 +265,10 @@ class OrchestratorService:
         }
 
     def _plan_tool_request(self, state: OrchestrationState) -> OrchestrationState:
-        """Node 2: Build tool request from input.
+        """节点 2：根据输入构建工具请求。
 
-        Creates ToolRequest from OrchestrationInput.
-        Adds 'tool_request' to state.
+        从 OrchestrationInput 创建 ToolRequest。
+        将 'tool_request' 添加到状态中。
         """
         input_data = state["input"]
 
@@ -286,10 +286,10 @@ class OrchestratorService:
         }
 
     async def _execute_tools(self, state: OrchestrationState) -> OrchestrationState:
-        """Node 3: Execute tool and collect result.
+        """节点 3：执行工具并获取并汇总结果。
 
-        Uses registry to execute the tool request with governance.
-        Adds 'tool_result' and updates 'budget' in state.
+        使用注册表执行带有治理约束的工具请求。
+        在状态中添加 'tool_result' 并更新 'budget'。
         """
         from datetime import datetime, timezone
         from qualityfoundry.tools.contracts import ToolStatus, ToolMetrics
@@ -298,10 +298,10 @@ class OrchestratorService:
 
         tool_request = state["tool_request"]
 
-        # Get policy governance limits
+        # 获取策略治理限制
         policy = state.get("policy")
         if policy and policy.cost_governance:
-            # Apply policy limits to request
+            # 将策略限制应用于请求
             tool_request = ToolRequest(
                 tool_name=tool_request.tool_name,
                 args=tool_request.args,
@@ -316,21 +316,21 @@ class OrchestratorService:
             return self.registry.execute(req.tool_name, req)
 
         try:
-            # Execute with governance (timeout + retry enforcement)
+            # 在治理（超时 + 重试强制）约束下执行
             tool_result = await execute_with_governance(tool_func, tool_request)
         except ToolNotFoundError:
             now = datetime.now(timezone.utc)
             tool_result = ToolResult(
                 status=ToolStatus.FAILED,
                 stdout=None,
-                stderr=f"Tool not found: {tool_request.tool_name}",
-                error_message=f"Tool not found: {tool_request.tool_name}",
+                stderr=f"未找到工具: {tool_request.tool_name}",
+                error_message=f"未找到工具: {tool_request.tool_name}",
                 started_at=now,
                 ended_at=now,
                 metrics=ToolMetrics(attempts=1, retries_used=0),
             )
 
-        # Update budget with governance metrics
+        # 使用治理指标更新预算
         prev_budget = state.get("budget", {})
         new_budget: GovernanceBudget = {
             "elapsed_ms_total": prev_budget.get("elapsed_ms_total", 0) + tool_result.metrics.duration_ms,
@@ -347,11 +347,11 @@ class OrchestratorService:
         }
 
     def _collect_evidence(self, state: OrchestrationState) -> OrchestrationState:
-        """Node 4: Collect evidence and save to disk.
+        """节点 4：收集证据并保存到磁盘。
 
-        Uses collector_factory to create TraceCollector.
-        Adds 'evidence' and 'report_path' to state.
-        Includes governance budget in evidence (Phase 5.1).
+        使用 collector_factory 创建 TraceCollector。
+        将 'evidence' 和 'report_path' 添加到状态中。
+        在证据中包含治理预算信息 (Phase 5.1)。
         """
         run_id = state["run_id"]
         input_data = state["input"]
@@ -360,19 +360,19 @@ class OrchestratorService:
         budget = state.get("budget", {})
         policy = state.get("policy")
 
-        # Create collector with environment info
+        # 使用环境信息创建收集器
         environment = {
             "environment_id": str(input_data.environment_id) if input_data.environment_id else None,
         }
         collector = self._collector_factory(run_id, input_data.nl_input, environment)
 
-        # Add tool result
+        # 添加工具结果
         collector.add_tool_result(tool_request.tool_name, tool_result)
 
-        # Collect and save evidence
+        # 收集并保存证据
         evidence = collector.collect()
 
-        # Add governance info to evidence dict (Phase 5.1)
+        # 将治理信息添加到证据字典中 (Phase 5.1)
         evidence_dict = evidence.model_dump()
         evidence_dict["governance"] = {
             "budget": {
@@ -398,21 +398,21 @@ class OrchestratorService:
         }
 
     def _gate_and_hitl(self, state: OrchestrationState) -> OrchestrationState:
-        """Node 5: Evaluate gate and create approval if needed.
+        """节点 5：评估门禁并在需要时创建审批。
 
-        Uses gate_evaluator to evaluate evidence.
-        Adds 'decision', 'reason', and 'approval_id' to state.
+        使用 gate_evaluator 评估证据。
+        将 'decision'、'reason' 和 'approval_id' 添加到状态中。
         """
         evidence_dict = state["evidence"]
         policy = state.get("policy")
 
-        # Reconstruct Evidence object from dict for gate evaluation
+        # 从字典重建 Evidence 对象以进行门禁评估
         evidence = Evidence.model_validate(evidence_dict)
 
-        # Evaluate gate
+        # 评估门禁
         gate_result = self._gate_evaluator(evidence, policy)
 
-        # Create approval if NEED_HITL
+        # 如果需要人工审核 (NEED_HITL)，创建审批
         approval_id = None
         if gate_result.decision == GateDecision.NEED_HITL:
             try:
@@ -423,7 +423,7 @@ class OrchestratorService:
                 )
                 approval_id = approval.id
             except Exception:
-                # Approval creation failure doesn't block main flow
+                # 审批创建失败不应阻塞主流程
                 pass
 
         return {
@@ -434,17 +434,17 @@ class OrchestratorService:
         }
 
     def _enforce_budget(self, state: OrchestrationState) -> OrchestrationState:
-        """Node 3.5: Enforce budget constraints (short-circuit if exceeded).
+        """节点 3.5：强制预算约束（如果超出则短路）。
 
-        Checks if cumulative elapsed time exceeds policy timeout.
-        If exceeded, sets short_circuit=True and decision=FAIL.
+        检查累计耗时是否超过策略超时。
+        如果超出，则设置 short_circuit=True 并将决策设为 FAIL。
         """
         policy: PolicyConfig | None = state.get("policy")
         budget: GovernanceBudget = state.get("budget", {})
         elapsed_ms = budget.get("elapsed_ms_total", 0)
 
-        # Get budget limit from policy
-        budget_ms = (policy.cost_governance.timeout_s * 1000) if policy else 300000  # 5min default
+        # 从策略获取预算限制
+        budget_ms = (policy.cost_governance.timeout_s * 1000) if policy else 300000  # 默认 5 分钟
 
         if elapsed_ms > budget_ms:
             return {
@@ -455,50 +455,50 @@ class OrchestratorService:
                     "short_circuit_reason": "budget_elapsed_exceeded",
                 },
                 "decision": GateDecision.FAIL,
-                "reason": f"Budget exceeded: {elapsed_ms}ms > {budget_ms}ms (policy.cost_governance.timeout_s={budget_ms // 1000}s)",
+                "reason": f"超出预算: {elapsed_ms}ms > {budget_ms}ms (policy.cost_governance.timeout_s={budget_ms // 1000}s)",
             }
 
         return state
 
 
 def build_orchestration_graph(service: OrchestratorService) -> CompiledStateGraph:
-    """Build LangGraph state machine for orchestration.
+    """构建用于编排的 LangGraph 状态机。
 
-    Nodes:
-    1. load_policy: Load policy configuration
-    2. plan_tool_request: Build tool request from input
-    3. execute_tools: Execute tool and get result
-    3.5. enforce_budget: Check budget constraints (may short-circuit)
-    4. collect_evidence: Collect and save evidence
-    5. gate_and_hitl: Evaluate gate and create approval if needed
+    节点：
+    1. load_policy: 加载策略配置
+    2. plan_tool_request: 根据输入构建工具请求
+    3. execute_tools: 执行工具并获取结果
+    3.5. enforce_budget: 检查预算约束（可能导致短路）
+    4. collect_evidence: 收集并保存证据
+    5. gate_and_hitl: 评估门禁并在需要时创建审批
 
-    Conditional routing:
-    - After enforce_budget: if short_circuited -> collect_evidence -> END (skip gate)
-    - Otherwise: collect_evidence -> gate_and_hitl -> END
+    条件路由：
+    - enforce_budget 之后：如果已短路 (short_circuited) -> collect_evidence -> END (跳过门禁)
+    - 否则：collect_evidence -> gate_and_hitl -> END
 
-    Args:
-        service: OrchestratorService instance with injected dependencies
+    参数：
+        service: 注入了依赖项的 OrchestratorService 实例
 
-    Returns:
-        Compiled StateGraph ready for invocation
+    返回：
+        编译好的可执行 StateGraph
 
-    Raises:
-        ValueError: If service is None
+    异常：
+        ValueError: 如果 service 为 None
     """
     if service is None:
-        raise ValueError("service parameter is required")
+        raise ValueError("service 参数是必填的")
 
     def should_skip_gate(state: LangGraphState) -> str:
-        """Conditional edge: skip gate_and_hitl if short-circuited."""
+        """条件边：如果已短路，则跳过 gate_and_hitl。"""
         budget = state.get("budget", {})
         if budget.get("short_circuited"):
             return "end"
         return "gate_and_hitl"
 
-    # Create graph with our state type
+    # 使用我们的状态类型创建图
     graph = StateGraph(LangGraphState)
 
-    # Add nodes - wrap service methods
+    # 添加节点 - 包装服务方法
     graph.add_node("load_policy", service._load_policy)
     graph.add_node("plan_tool_request", service._plan_tool_request)
     graph.add_node("execute_tools", service._execute_tools)
@@ -506,13 +506,13 @@ def build_orchestration_graph(service: OrchestratorService) -> CompiledStateGrap
     graph.add_node("collect_evidence", service._collect_evidence)
     graph.add_node("gate_and_hitl", service._gate_and_hitl)
 
-    # Define edges with conditional routing for short-circuit
+    # 定义带有短路条件路由的边
     graph.set_entry_point("load_policy")
     graph.add_edge("load_policy", "plan_tool_request")
     graph.add_edge("plan_tool_request", "execute_tools")
     graph.add_edge("execute_tools", "enforce_budget")
     graph.add_edge("enforce_budget", "collect_evidence")
-    # Conditional edge after collect_evidence
+    # collect_evidence 之后的条件边
     graph.add_conditional_edges(
         "collect_evidence",
         should_skip_gate,
@@ -523,5 +523,5 @@ def build_orchestration_graph(service: OrchestratorService) -> CompiledStateGrap
     )
     graph.add_edge("gate_and_hitl", END)
 
-    # Compile and return
+    # 编译并返回
     return graph.compile()
