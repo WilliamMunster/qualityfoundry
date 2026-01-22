@@ -669,3 +669,36 @@ class TestLangGraphState:
         assert "evidence" in hints
         assert "decision" in hints
         assert "reason" in hints
+
+
+class TestGraphBuilder:
+    """Tests for LangGraph graph construction."""
+
+    def test_build_graph_returns_compiled_graph(self):
+        """build_orchestration_graph should return a compiled StateGraph."""
+        from langgraph.graph.state import CompiledStateGraph
+        from qualityfoundry.services.orchestrator_service import build_orchestration_graph, OrchestratorService
+        from unittest.mock import MagicMock
+
+        db = MagicMock()
+        service = OrchestratorService(db)
+
+        graph = build_orchestration_graph(service)
+
+        assert isinstance(graph, CompiledStateGraph)
+
+    def test_build_graph_has_expected_nodes(self):
+        """build_orchestration_graph should include all 5 node steps."""
+        from qualityfoundry.services.orchestrator_service import build_orchestration_graph, OrchestratorService
+        from unittest.mock import MagicMock
+
+        db = MagicMock()
+        service = OrchestratorService(db)
+
+        graph = build_orchestration_graph(service)
+
+        # Check nodes exist (LangGraph exposes nodes via .nodes)
+        node_names = set(graph.nodes.keys())
+        expected_nodes = {"load_policy", "plan_tool_request", "execute_tools", "collect_evidence", "gate_and_hitl"}
+
+        assert expected_nodes.issubset(node_names)
