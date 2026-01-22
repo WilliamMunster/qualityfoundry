@@ -111,8 +111,48 @@ class OrchestratorService:
         """Execute orchestration pipeline.
 
         Pipeline: normalize → load_policy → plan → execute → collect → gate
+
+        Returns:
+            OrchestrationResult with decision, reason, evidence, and optional approval_id
         """
-        raise NotImplementedError("Task 7 will implement this")
+        from uuid import uuid4
+
+        # Generate run_id
+        run_id = uuid4()
+
+        # Step 1: Normalize input
+        normalized_input = self._normalize_input(req)
+
+        # Initialize state
+        state: OrchestrationState = {
+            "run_id": run_id,
+            "input": normalized_input,
+        }
+
+        # Step 2: Load policy
+        state = self._load_policy(state)
+
+        # Step 3: Plan tool request
+        state = self._plan_tool_request(state)
+
+        # Step 4: Execute tools
+        state = await self._execute_tools(state)
+
+        # Step 5: Collect evidence
+        state = self._collect_evidence(state)
+
+        # Step 6: Gate and HITL
+        state = self._gate_and_hitl(state)
+
+        # Build result
+        return OrchestrationResult(
+            run_id=run_id,
+            decision=state["decision"],
+            reason=state["reason"],
+            evidence=state["evidence"],
+            approval_id=state.get("approval_id"),
+            report_path=state.get("report_path"),
+        )
 
     def _normalize_input(self, req: OrchestrationRequest) -> OrchestrationInput:
         """Convert API DTO to internal normalized input.

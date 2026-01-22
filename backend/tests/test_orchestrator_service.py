@@ -527,3 +527,114 @@ class TestGateAndHitl:
 
         assert result["decision"] == GateDecision.NEED_HITL
         assert result["approval_id"] == approval_id
+
+
+class TestRun:
+    """Tests for run method (complete pipeline)."""
+
+    @pytest.mark.asyncio
+    async def test_run_executes_full_pipeline(self):
+        """run should execute the complete orchestration pipeline."""
+        from qualityfoundry.governance import GateDecision
+        from qualityfoundry.governance.gate import GateResult
+        from qualityfoundry.services.orchestrator_service import OrchestrationResult
+
+        db = MagicMock()
+
+        # Mock all dependencies
+        mock_policy = PolicyConfig()
+        mock_policy_loader = MagicMock(return_value=mock_policy)
+
+        mock_tool_result = ToolResult.success(stdout="All tests passed")
+        mock_registry = MagicMock()
+        mock_registry.execute = AsyncMock(return_value=mock_tool_result)
+
+        mock_evidence = MagicMock()
+        mock_evidence.model_dump.return_value = {"run_id": "test", "input_nl": "run tests", "tool_calls": []}
+        mock_collector = MagicMock()
+        mock_collector.collect.return_value = mock_evidence
+        mock_collector.save.return_value = "/path/to/evidence.json"
+        mock_collector_factory = MagicMock(return_value=mock_collector)
+
+        mock_gate_result = GateResult(
+            decision=GateDecision.PASS,
+            reason="All tests passed",
+        )
+        mock_gate_evaluator = MagicMock(return_value=mock_gate_result)
+
+        service = OrchestratorService(
+            db,
+            registry=mock_registry,
+            policy_loader=mock_policy_loader,
+            collector_factory=mock_collector_factory,
+            gate_evaluator=mock_gate_evaluator,
+        )
+
+        req = OrchestrationRequest(
+            nl_input="run tests",
+            environment_id=None,
+            options=None,
+        )
+
+        result = await service.run(req)
+
+        # Verify result type and fields
+        assert isinstance(result, OrchestrationResult)
+        assert result.decision == GateDecision.PASS
+        assert result.reason == "All tests passed"
+
+        # Verify pipeline was executed
+        mock_policy_loader.assert_called_once()
+        mock_registry.execute.assert_called_once()
+        mock_collector.add_tool_result.assert_called_once()
+        mock_gate_evaluator.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_run_returns_result_with_approval_id(self):
+        """run should include approval_id when NEED_HITL."""
+        from qualityfoundry.governance import GateDecision
+        from qualityfoundry.governance.gate import GateResult
+        from qualityfoundry.services.orchestrator_service import OrchestrationResult
+
+        db = MagicMock()
+        approval_id = uuid4()
+
+        mock_policy = PolicyConfig()
+        mock_policy_loader = MagicMock(return_value=mock_policy)
+
+        mock_tool_result = ToolResult.success()
+        mock_registry = MagicMock()
+        mock_registry.execute = AsyncMock(return_value=mock_tool_result)
+
+        mock_evidence = MagicMock()
+        mock_evidence.model_dump.return_value = {"run_id": "test", "input_nl": "deploy prod", "tool_calls": []}
+        mock_collector = MagicMock()
+        mock_collector.collect.return_value = mock_evidence
+        mock_collector.save.return_value = "/path/to/evidence.json"
+        mock_collector_factory = MagicMock(return_value=mock_collector)
+
+        mock_gate_result = GateResult(
+            decision=GateDecision.NEED_HITL,
+            reason="High-risk keyword: production",
+            approval_id=approval_id,
+        )
+        mock_gate_evaluator = MagicMock(return_value=mock_gate_result)
+
+        service = OrchestratorService(
+            db,
+            registry=mock_registry,
+            policy_loader=mock_policy_loader,
+            collector_factory=mock_collector_factory,
+            gate_evaluator=mock_gate_evaluator,
+        )
+
+        req = OrchestrationRequest(
+            nl_input="deploy to production",
+            environment_id=None,
+            options=None,
+        )
+
+        result = await service.run(req)
+
+        assert result.decision == GateDecision.NEED_HITL
+        assert result.approval_id == approval_id
