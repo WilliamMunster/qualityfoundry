@@ -12,14 +12,18 @@ POST /api/v1/orchestrations/run
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID, uuid4
+
+from sqlalchemy import func
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from qualityfoundry.database.config import get_db
+from qualityfoundry.database.audit_log_models import AuditEventType, AuditLog
 from qualityfoundry.governance import (
     GateDecision,
     GateResult,
@@ -75,6 +79,25 @@ class OrchestrationResponse(BaseModel):
     reason: str = Field(..., description="决策原因")
     evidence: dict[str, Any] = Field(..., description="证据摘要")
     links: OrchestrationLinks = Field(..., description="相关链接")
+
+
+class RunSummary(BaseModel):
+    """运行摘要"""
+
+    run_id: UUID = Field(..., description="运行 ID")
+    started_at: datetime = Field(..., description="开始时间")
+    finished_at: Optional[datetime] = Field(default=None, description="结束时间")
+    decision: Optional[str] = Field(default=None, description="门禁决策")
+    decision_source: Optional[str] = Field(default=None, description="决策来源")
+    tool_count: int = Field(default=0, description="工具调用数量")
+
+
+class RunsListResponse(BaseModel):
+    """运行列表响应"""
+
+    runs: list[RunSummary] = Field(..., description="运行摘要列表")
+    count: int = Field(..., description="返回数量")
+    total: int = Field(..., description="总数量")
 
 
 # ============== Helper Functions ==============
@@ -161,6 +184,87 @@ def _create_approval_if_needed(
 
 
 # ============== API Endpoints ==============
+
+
+@router.get("/runs", response_model=RunsListResponse)
+def list_runs(
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """
+    列出最近的运行记录。
+
+    从 AuditLog 聚合 run_id，返回每个运行的摘要信息。
+    """
+    from sqlalchemy import desc, distinct
+
+    # 获取唯一 run_id 总数
+    total_query = db.query(func.count(distinct(AuditLog.run_id)))
+    total = total_query.scalar() or 0
+
+    # 获取最近的 run_id 列表（按最新事件时间降序）
+    subquery = (
+        db.query(
+            AuditLog.run_id,
+            func.min(AuditLog.ts).label("started_at"),
+            func.max(AuditLog.ts).label("finished_at"),
+        )
+        .group_by(AuditLog.run_id)
+        .order_by(desc(func.max(AuditLog.ts)))
+        .offset(offset)
+        .limit(limit)
+        .subquery()
+    )
+
+    # 获取每个 run 的详细信息
+    runs = []
+    run_ids = db.query(subquery.c.run_id, subquery.c.started_at, subquery.c.finished_at).all()
+
+    for row in run_ids:
+        run_id = row.run_id
+        started_at = row.started_at
+        finished_at = row.finished_at
+
+        # 获取决策事件
+        decision_event = (
+            db.query(AuditLog)
+            .filter(
+                AuditLog.run_id == run_id,
+                AuditLog.event_type == AuditEventType.DECISION_MADE,
+            )
+            .first()
+        )
+
+        # 统计工具调用数
+        tool_count = (
+            db.query(func.count(AuditLog.id))
+            .filter(
+                AuditLog.run_id == run_id,
+                AuditLog.event_type.in_([
+                    AuditEventType.TOOL_STARTED,
+                    AuditEventType.TOOL_FINISHED,
+                ]),
+            )
+            .scalar() or 0
+        ) // 2  # started + finished = 1 次调用
+
+        runs.append(
+            RunSummary(
+                run_id=run_id,
+                started_at=started_at,
+                finished_at=finished_at,
+                decision=decision_event.status if decision_event else None,
+                decision_source=decision_event.decision_source if decision_event else None,
+                tool_count=tool_count,
+            )
+        )
+
+    return RunsListResponse(
+        runs=runs,
+        count=len(runs),
+        total=total,
+    )
 
 
 @router.post("/run", response_model=OrchestrationResponse)

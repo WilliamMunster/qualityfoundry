@@ -196,3 +196,27 @@ class TestAuditAPI:
         assert data["events"] == []
         assert data["count"] == 0
         assert data["audit_enabled"] is True
+
+
+class TestRunsListAPI:
+    """Runs 列表 API 测试"""
+
+    def test_list_runs_empty(self, client):
+        """无运行记录时返回空列表"""
+        response = client.get("/api/v1/orchestrations/runs")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["runs"] == []
+        assert data["count"] == 0
+        assert data["total"] == 0
+
+    def test_list_runs_pagination(self, client):
+        """分页参数生效"""
+        response = client.get("/api/v1/orchestrations/runs?limit=10&offset=0")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "runs" in data
+        assert "count" in data
+        assert "total" in data
