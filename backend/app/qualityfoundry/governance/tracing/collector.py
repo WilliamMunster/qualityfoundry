@@ -109,7 +109,7 @@ class EvidenceSummary(BaseModel):
 
 
 class GovernanceEvidence(BaseModel):
-    """Cost governance metadata (Phase 5.1)"""
+    """成本治理元数据 (Phase 5.1)"""
     model_config = ConfigDict(extra="allow")
 
     budget: dict[str, Any] = Field(default_factory=dict)
@@ -149,7 +149,7 @@ class TraceCollector:
 
     将执行结果汇总为 evidence.json。
 
-    Usage:
+    用法:
         collector = TraceCollector(run_id, input_nl, environment)
         collector.add_tool_result("run_pytest", result)
         evidence = collector.collect()

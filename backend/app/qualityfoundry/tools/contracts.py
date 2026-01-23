@@ -114,7 +114,7 @@ class ToolMetrics(BaseModel):
     steps_passed: int = Field(default=0, description="成功步骤数")
     steps_failed: int = Field(default=0, description="失败步骤数")
     retries: int = Field(default=0, description="重试次数")
-    # Cost governance fields (Phase 5.1)
+    # 成本治理字段 (Phase 5.1)
     attempts: int = Field(default=1, ge=1, description="总尝试次数（1 + retries_used）")
     retries_used: int = Field(default=0, ge=0, description="实际使用的重试次数")
     timed_out: bool = Field(default=False, description="是否因超时终止")
@@ -238,7 +238,7 @@ class ToolResult(BaseModel):
     @classmethod
     def timeout(
         cls,
-        error_message: str = "Execution timed out",
+        error_message: str = "执行超时",
         artifacts: list[ArtifactRef] | None = None,
         started_at: datetime | None = None,
         ended_at: datetime | None = None,

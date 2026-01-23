@@ -93,7 +93,7 @@ class TestGateDecisionWithJUnit:
         result = evaluate_gate(evidence)
 
         assert result.decision == GateDecision.PASS
-        assert "10 tests passed" in result.reason
+        assert "测试已通过" in result.reason
         assert "junit_all_passed" in result.triggered_rules
 
     def test_some_tests_failed(self):
@@ -114,7 +114,7 @@ class TestGateDecisionWithJUnit:
         result = evaluate_gate(evidence)
 
         assert result.decision == GateDecision.FAIL
-        assert "2 test(s) failed" in result.reason
+        assert "个失败" in result.reason
         assert "junit_has_failures" in result.triggered_rules
 
     def test_tests_with_errors(self):
@@ -135,7 +135,7 @@ class TestGateDecisionWithJUnit:
         result = evaluate_gate(evidence)
 
         assert result.decision == GateDecision.FAIL
-        assert "1 test(s) failed" in result.reason
+        assert "个失败" in result.reason
 
     def test_evidence_summary_included(self):
         """结果包含 evidence_summary"""
@@ -168,7 +168,7 @@ class TestGateDecisionWithToolCalls:
         result = evaluate_gate(evidence)
 
         assert result.decision == GateDecision.PASS
-        assert "All tool executions succeeded" in result.reason
+        assert "工具执行成功" in result.reason
         assert "all_tools_succeeded" in result.triggered_rules
 
     def test_some_tools_failed(self):
@@ -198,7 +198,7 @@ class TestGateDecisionWithToolCalls:
         result = evaluate_gate(evidence)
 
         assert result.decision == GateDecision.FAIL
-        assert "No execution data" in result.reason
+        assert "无可用执行数据" in result.reason
         assert "no_execution_data" in result.triggered_rules
 
 
@@ -216,7 +216,7 @@ class TestGateDecisionWithHITL:
         result = evaluate_gate(evidence)
 
         assert result.decision == GateDecision.NEED_HITL
-        assert "High-risk keyword" in result.reason
+        assert "高危关键词" in result.reason
         assert any("high_risk_keyword" in r for r in result.triggered_rules)
 
     def test_hitl_priority_over_pass(self):

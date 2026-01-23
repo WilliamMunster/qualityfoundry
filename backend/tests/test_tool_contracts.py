@@ -142,7 +142,7 @@ class TestToolResult:
         result = ToolResult.timeout()
         assert result.status == ToolStatus.TIMEOUT
         assert result.ok is False
-        assert "timed out" in result.error_message.lower()
+        assert "超时" in result.error_message
 
     def test_with_artifacts(self):
         """带 artifacts"""

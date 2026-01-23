@@ -88,18 +88,18 @@ def evaluate_gate(
     if evidence.summary:
         evidence_summary = evidence.summary.model_dump()
 
-    # Rule 1: 高危关键词检测 → NEED_HITL（使用 policy 配置）
+    # 规则 1: 高危关键词检测 → NEED_HITL（使用 policy 配置）
     hitl_reason = _check_high_risk(evidence.input_nl, policy)
     if hitl_reason:
         triggered_rules.append(f"high_risk_keyword:{hitl_reason}")
         return GateResult(
             decision=GateDecision.NEED_HITL,
-            reason=f"High-risk keyword detected: {hitl_reason}",
+            reason=f"检测到高危关键词: {hitl_reason}",
             triggered_rules=triggered_rules,
             evidence_summary=evidence_summary,
         )
 
-    # Rule 2: 基于 JUnit summary 判断（使用 policy 阈值）
+    # 规则 2: 基于 JUnit summary 判断（使用 policy 阈值）
     if evidence.summary and evidence.summary.tests > 0:
         max_f = policy.junit_pass_rule.max_failures
         max_e = policy.junit_pass_rule.max_errors
@@ -107,7 +107,7 @@ def evaluate_gate(
             triggered_rules.append("junit_all_passed")
             return GateResult(
                 decision=GateDecision.PASS,
-                reason=f"All {evidence.summary.tests} tests passed",
+                reason=f"所有 {evidence.summary.tests} 个测试已通过",
                 triggered_rules=triggered_rules,
                 evidence_summary=evidence_summary,
             )
@@ -116,12 +116,12 @@ def evaluate_gate(
             failed_count = evidence.summary.failures + evidence.summary.errors
             return GateResult(
                 decision=GateDecision.FAIL,
-                reason=f"{failed_count} test(s) failed out of {evidence.summary.tests}",
+                reason=f"{evidence.summary.tests} 个测试中共有 {failed_count} 个失败",
                 triggered_rules=triggered_rules,
                 evidence_summary=evidence_summary,
             )
 
-    # Rule 3: Fallback 到 tool_calls 状态（使用 policy 配置）
+    # 规则 3: Fallback 到 tool_calls 状态（使用 policy 配置）
     if evidence.tool_calls:
         if policy.fallback_rule.require_all_tools_success:
             failed_tools = [tc for tc in evidence.tool_calls if tc.status != "success"]
@@ -129,7 +129,7 @@ def evaluate_gate(
                 triggered_rules.append("all_tools_succeeded")
                 return GateResult(
                     decision=GateDecision.PASS,
-                    reason="All tool executions succeeded",
+                    reason="所有工具执行成功",
                     triggered_rules=triggered_rules,
                     evidence_summary=evidence_summary,
                 )
@@ -138,7 +138,7 @@ def evaluate_gate(
                 failed_names = [tc.tool_name for tc in failed_tools]
                 return GateResult(
                     decision=GateDecision.FAIL,
-                    reason=f"Tool(s) failed: {', '.join(failed_names)}",
+                    reason=f"工具执行失败: {', '.join(failed_names)}",
                     triggered_rules=triggered_rules,
                     evidence_summary=evidence_summary,
                 )
@@ -147,16 +147,16 @@ def evaluate_gate(
             triggered_rules.append("fallback_no_strict_check")
             return GateResult(
                 decision=GateDecision.PASS,
-                reason="Fallback rule passed (no strict tool check)",
+                reason="后备规则通过 (无严格工具检查)",
                 triggered_rules=triggered_rules,
                 evidence_summary=evidence_summary,
             )
 
-    # Rule 4: 无执行数据 → FAIL
+    # 规则 4: 无执行数据 → FAIL
     triggered_rules.append("no_execution_data")
     return GateResult(
         decision=GateDecision.FAIL,
-        reason="No execution data available",
+        reason="无可用执行数据",
         triggered_rules=triggered_rules,
         evidence_summary=evidence_summary,
     )
