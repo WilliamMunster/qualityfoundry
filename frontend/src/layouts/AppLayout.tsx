@@ -5,22 +5,24 @@
  */
 import React, { useMemo, useState } from "react";
 import { Button, Layout, Menu, message, Typography, Breadcrumb, Avatar, Dropdown } from "antd";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  FileTextOutlined,
-  BranchesOutlined,
-  CheckSquareOutlined,
-  CloudServerOutlined,
-  PlayCircleOutlined,
-  UserOutlined,
-  LogoutOutlined,
-  DashboardOutlined,
-  SettingOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  HomeOutlined,
-  EyeOutlined,
-  RobotOutlined
-} from "@ant-design/icons";
+  LayoutDashboard,
+  Eye,
+  FileText,
+  GitBranch,
+  ShieldCheck,
+  Box,
+  PlayCircle,
+  Users,
+  Settings,
+  Bot,
+  PanelLeftClose,
+  PanelLeftOpen,
+  LogOut,
+  User,
+  Home
+} from "lucide-react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 
 const { Header, Sider, Content } = Layout;
@@ -28,15 +30,18 @@ const { Text } = Typography;
 
 // 路由名称映射
 const routeNameMap: Record<string, string> = {
+  runs: "执行中心",
+  new: "新建运行",
+  id: "运行详情",
+  policies: "策略库",
+  regression: "回归报告",
   "report-dashboard": "测试报表",
   observer: "上帝视角",
   requirements: "需求管理",
-  new: "新建",
-  edit: "编辑",
   scenarios: "场景管理",
   testcases: "用例管理",
   environments: "环境管理",
-  executions: "执行管理",
+  executions: "历史执行",
   users: "用户管理",
   "config-center": "配置中心",
   "ai-logs": "AI 调用日志",
@@ -56,54 +61,67 @@ const AppLayout: React.FC = () => {
 
   const menuItems = [
     {
+      key: "/runs",
+      icon: <PlayCircle size={18} />,
+      label: "执行中心",
+    },
+    {
+      key: "/policies",
+      icon: <ShieldCheck size={18} />,
+      label: "策略库",
+    },
+    {
+      key: "/regression",
+      icon: <LayoutDashboard size={18} />,
+      label: "回归报告",
+    },
+    {
+      type: 'divider' as const,
+    },
+    {
       key: "/report-dashboard",
-      icon: <DashboardOutlined />,
-      label: "测试报表",
+      icon: <LayoutDashboard size={18} />,
+      label: "数据驾驶舱",
     },
     {
       key: "/observer",
-      icon: <EyeOutlined />,
+      icon: <Eye size={18} />,
       label: "上帝视角",
     },
     {
       key: "/requirements",
-      icon: <FileTextOutlined />,
+      icon: <FileText size={18} />,
       label: "需求管理",
     },
     {
       key: "/scenarios",
-      icon: <BranchesOutlined />,
+      icon: <GitBranch size={18} />,
       label: "场景管理",
     },
     {
       key: "/testcases",
-      icon: <CheckSquareOutlined />,
+      icon: <ShieldCheck size={18} />,
       label: "用例管理",
     },
     {
       key: "/environments",
-      icon: <CloudServerOutlined />,
+      icon: <Box size={18} />,
       label: "环境管理",
     },
     {
-      key: "/executions",
-      icon: <PlayCircleOutlined />,
-      label: "执行管理",
-    },
-    {
       key: "/users",
-      icon: <UserOutlined />,
+      icon: <Users size={18} />,
       label: "用户管理",
     },
     {
       key: "/config-center",
-      icon: <SettingOutlined />,
+      icon: <Settings size={18} />,
       label: "配置中心",
     },
     {
       key: "/ai-logs",
-      icon: <RobotOutlined />,
-      label: "AI 调用日志",
+      icon: <Bot size={18} />,
+      label: "AI 日志",
     },
   ];
 
@@ -122,7 +140,7 @@ const AppLayout: React.FC = () => {
 
     const items: { title: React.ReactNode }[] = [
       {
-        title: <Link to="/"><HomeOutlined /></Link>,
+        title: <Link to="/"><Home size={14} /></Link>,
       }
     ];
 
@@ -132,7 +150,7 @@ const AppLayout: React.FC = () => {
       // 如果是ID（简单的判断：包含数字或长度很长），不显示或显示为"详情"
       let title = routeNameMap[snippet] || snippet;
       if (snippet.match(/^\d+$/) || snippet.length > 20) {
-        title = "详情";
+        title = "分析详情";
       }
 
       const isLast = index === pathSnippets.length - 1;
@@ -149,7 +167,7 @@ const AppLayout: React.FC = () => {
     items: [
       {
         key: 'logout',
-        icon: <LogoutOutlined />,
+        icon: <LogOut size={16} />,
         label: '退出登录',
         onClick: handleLogout
       }
@@ -220,9 +238,9 @@ const AppLayout: React.FC = () => {
 
         <Button
           type="text"
-          icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+          icon={collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
           onClick={() => setCollapsed(!collapsed)}
-          style={{ fontSize: '16px', width: 48, height: 48, marginRight: 16 }}
+          style={{ width: 48, height: 48, marginRight: 16 }}
         />
 
         <div style={{ flex: 1 }} />
@@ -230,12 +248,12 @@ const AppLayout: React.FC = () => {
         {/* 用户信息 */}
         <Dropdown menu={userMenu} placement="bottomRight" arrow>
           <div style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", padding: "4px 8px", borderRadius: 8, transition: "background 0.3s" }} className="user-dropdown">
-            <Avatar style={{ backgroundColor: '#4285F4' }} icon={<UserOutlined />} />
+            <Avatar style={{ backgroundColor: '#6366F1' }} icon={<User size={18} />} />
             <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
-              <Text strong style={{ color: "#202124", fontSize: 14 }}>
+              <Text strong style={{ color: "#1E293B", fontSize: 14 }}>
                 {username}
               </Text>
-              <Text style={{ color: "#5F6368", fontSize: 11 }}>
+              <Text style={{ color: "#64748B", fontSize: 11 }}>
                 管理员
               </Text>
             </div>
@@ -280,13 +298,23 @@ const AppLayout: React.FC = () => {
             style={{
               padding: 24,
               background: "#FFFFFF",
-              borderRadius: 16,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+              borderRadius: 20,
+              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
               minHeight: 280,
               overflow: "hidden"
             }}
           >
-            <Outlet />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
           </Content>
         </Layout>
       </Layout>

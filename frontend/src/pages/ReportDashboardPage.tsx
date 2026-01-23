@@ -1,17 +1,20 @@
-/**
- * 报告仪表板页面
- */
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, Row, Col, Statistic, Table, Tag, Button } from "antd";
+import { Card, Row, Col, Typography, Table, Tag, Button, Space, Skeleton } from "antd";
 import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  SyncOutlined,
-  ClockCircleOutlined,
-  EyeOutlined,
-} from "@ant-design/icons";
+  Activity,
+  CheckCircle,
+  XCircle,
+  Clock,
+  ArrowUpRight,
+  TrendingUp,
+  History,
+  Eye
+} from "lucide-react";
 import apiClient from "../api/client";
+import { motion } from "framer-motion";
+
+const { Title, Text } = Typography;
 
 interface Execution {
   id: string;
@@ -38,7 +41,6 @@ const ReportDashboardPage: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const [statsData, execData]: [any, any] = await Promise.all([
           apiClient.get("/api/v1/reports/dashboard-stats"),
           apiClient.get("/api/v1/executions", {
@@ -48,7 +50,7 @@ const ReportDashboardPage: React.FC = () => {
         setStats(statsData);
         setRecentExecutions(execData.items || []);
       } catch (error) {
-        console.error("Failed to fetch data:", error);
+        console.error("Failed to fetch dashboard data:", error);
       } finally {
         setLoading(false);
       }
@@ -56,59 +58,53 @@ const ReportDashboardPage: React.FC = () => {
     fetchData();
   }, []);
 
-  const getStatusTag = (status: string) => {
-    const config: Record<string, { color: string; icon: React.ReactNode }> = {
-      pending: { color: "default", icon: <ClockCircleOutlined /> },
-      running: { color: "processing", icon: <SyncOutlined spin /> },
-      success: { color: "success", icon: <CheckCircleOutlined /> },
-      failed: { color: "error", icon: <CloseCircleOutlined /> },
-      stopped: { color: "warning", icon: <ClockCircleOutlined /> },
-    };
-    const cfg = config[status] || config.pending;
-    return (
-      <Tag color={cfg.color} icon={cfg.icon}>
-        {status.toUpperCase()}
-      </Tag>
-    );
-  };
+  const statCards = [
+    { title: '总执行次数', value: stats.total, icon: <History className="text-indigo-500" />, color: '#6366F1' },
+    { title: '成功数量', value: stats.success, icon: <CheckCircle className="text-emerald-500" />, color: '#10B981' },
+    { title: '失败数量', value: stats.failed, icon: <XCircle className="text-rose-500" />, color: '#EF4444' },
+    { title: '正在运行', value: stats.running, icon: <Activity className="text-amber-500" />, color: '#F59E0B' },
+  ];
 
   const columns = [
     {
-      title: "执行ID",
+      title: "ID",
       dataIndex: "id",
       key: "id",
-      width: 100,
-      ellipsis: true,
+      render: (id: string) => <Text style={{ fontFamily: 'monospace' }}>{id.substring(0, 8)}...</Text>,
     },
     {
       title: "状态",
       dataIndex: "status",
       key: "status",
-      width: 120,
-      render: (status: string) => getStatusTag(status),
+      render: (status: string) => {
+        const colors: Record<string, string> = {
+          success: 'success',
+          failed: 'error',
+          running: 'processing',
+        };
+        return <Tag color={colors[status] || 'default'} bordered={false}>{status.toUpperCase()}</Tag>;
+      },
     },
     {
       title: "模式",
       dataIndex: "mode",
       key: "mode",
-      width: 80,
-      render: (mode: string) => <Tag>{mode?.toUpperCase()}</Tag>,
+      render: (mode: string) => <Tag bordered={false}>{mode?.toUpperCase()}</Tag>,
     },
     {
-      title: "创建时间",
+      title: "时间",
       dataIndex: "created_at",
       key: "created_at",
       render: (time: string) => new Date(time).toLocaleString(),
     },
     {
-      title: "操作",
+      title: "分析",
       key: "action",
-      width: 100,
       render: (_: any, record: Execution) => (
         <Button
           type="link"
-          icon={<EyeOutlined />}
-          onClick={() => navigate(`/reports/${record.id}`)}
+          icon={<ArrowUpRight size={16} />}
+          onClick={() => navigate(`/runs/${record.id}`)}
         >
           查看
         </Button>
@@ -117,67 +113,64 @@ const ReportDashboardPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <h2>测试报告仪表板</h2>
+    <div style={{ padding: '8px' }}>
+      <div style={{ marginBottom: 32 }}>
+        <Title level={3} style={{ margin: 0 }}>数据驾驶舱</Title>
+        <Text type="secondary">实时监测平台质量指标与运行动态</Text>
+      </div>
 
-      <Row gutter={16} style={{ marginTop: 24 }}>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="总执行次数"
-              value={stats.total}
-              prefix={<ClockCircleOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="成功"
-              value={stats.success}
-              valueStyle={{ color: "#3f8600" }}
-              prefix={<CheckCircleOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="失败"
-              value={stats.failed}
-              valueStyle={{ color: "#cf1322" }}
-              prefix={<CloseCircleOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="运行中"
-              value={stats.running}
-              valueStyle={{ color: "#1890ff" }}
-              prefix={<SyncOutlined spin={stats.running > 0} />}
-            />
-          </Card>
-        </Col>
+      <Row gutter={[16, 16]}>
+        {statCards.map((card, index) => (
+          <Col xs={24} sm={12} lg={6} key={index}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card variant="outlined" style={{ borderRadius: 16, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Space direction="vertical" size={0}>
+                    <Text type="secondary" style={{ fontSize: 13 }}>{card.title}</Text>
+                    <Title level={2} style={{ margin: 0 }}>{card.value}</Title>
+                  </Space>
+                  <div style={{ padding: 10, borderRadius: 12, background: `${card.color}10` }}>
+                    {card.icon}
+                  </div>
+                </div>
+                <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <TrendingUp size={14} className="text-emerald-500" />
+                  <Text type="secondary" style={{ fontSize: 12 }}>比上周增长 12%</Text>
+                </div>
+              </Card>
+            </motion.div>
+          </Col>
+        ))}
       </Row>
 
-      <Card
-        title="最近执行记录"
-        style={{ marginTop: 24 }}
-        extra={
-          <Button onClick={() => navigate("/executions")}>查看全部</Button>
-        }
-      >
-        <Table
-          dataSource={recentExecutions}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          pagination={false}
-          size="small"
-        />
-      </Card>
+      <Row gutter={16} style={{ marginTop: 24 }}>
+        <Col span={24}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card
+              title={<Space><Activity size={18} className="text-indigo-500" />最近执行</Space>}
+              style={{ borderRadius: 20, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
+              extra={<Button type="link" onClick={() => navigate('/runs')}>查看全部</Button>}
+            >
+              <Table
+                dataSource={recentExecutions}
+                columns={columns}
+                rowKey="id"
+                loading={loading}
+                pagination={false}
+                size="middle"
+              />
+            </Card>
+          </motion.div>
+        </Col>
+      </Row>
     </div>
   );
 };

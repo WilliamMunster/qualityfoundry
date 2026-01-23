@@ -21,6 +21,11 @@ import ReportDashboardPage from "./pages/ReportDashboardPage";
 import ObserverDashboard from "./pages/ObserverDashboard";
 import ConfigCenterPage from "./pages/ConfigCenterPage";
 import AIExecutionLogsPage from "./pages/AIExecutionLogsPage";
+import RunListPage from "./pages/RunListPage";
+import RunLaunchPage from "./pages/RunLaunchPage";
+import RunDetailPage from "./pages/RunDetailPage";
+import PoliciesPage from "./pages/PoliciesPage";
+import RegressionPage from "./pages/RegressionPage";
 import GlobalLoading from "./components/GlobalLoading";
 
 const App: React.FC = () => {
@@ -33,8 +38,17 @@ const App: React.FC = () => {
           <Route path="/" element={<AppLayout />}>
             <Route
               index
-              element={<Navigate to="/report-dashboard" replace />}
+              element={<Navigate to="/runs" replace />}
             />
+            {/* Run Center */}
+            <Route path="runs" element={<RunListPage />} />
+            <Route path="runs/new" element={<RunLaunchPage />} />
+            <Route path="runs/:id" element={<RunDetailPage />} />
+
+            {/* Knowledge Base */}
+            <Route path="policies" element={<PoliciesPage />} />
+            <Route path="regression" element={<RegressionPage />} />
+
             <Route path="requirements" element={<RequirementsPage />} />
             <Route path="requirements/new" element={<RequirementEditPage />} />
             <Route

@@ -1,27 +1,27 @@
 /**
  * QualityFoundry 主题配置
  * 
- * 基于 Google Antigravity 风格的明亮极简主题
+ * 高端 AI 工作台风格：深靛蓝基底 + 翡翠绿点缀
  */
 import type { ThemeConfig } from 'antd';
 
 export const lightTheme: ThemeConfig = {
     token: {
-        // 主色调 - Google Blue
-        colorPrimary: '#4285F4',
-        colorInfo: '#4285F4',
-        colorSuccess: '#34A853',
-        colorWarning: '#FBBC04',
-        colorError: '#EA4335',
+        // 主色调 - Deep Indigo
+        colorPrimary: '#6366F1',
+        colorInfo: '#6366F1',
+        colorSuccess: '#10B981', // Emerald Green
+        colorWarning: '#F59E0B',
+        colorError: '#EF4444',
 
-        // 字体
-        fontFamily: "'Google Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        // 字体 - 更现代的 Inter / Google Sans
+        fontFamily: "'Inter', 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         fontSize: 14,
 
-        // 圆角 - 胶囊风格
-        borderRadius: 8,
-        borderRadiusLG: 12,
-        borderRadiusSM: 6,
+        // 圆角 - 显著的大圆角 (Stage 2 要求 16px+)
+        borderRadius: 12,
+        borderRadiusLG: 16,
+        borderRadiusSM: 8,
 
         // 间距
         padding: 16,
@@ -30,51 +30,62 @@ export const lightTheme: ThemeConfig = {
 
         // 背景色
         colorBgContainer: '#FFFFFF',
-        colorBgLayout: '#F8F9FA',
+        colorBgLayout: '#F1F5F9', // 浅灰色底座
         colorBgElevated: '#FFFFFF',
 
         // 文字颜色
-        colorText: '#202124',
-        colorTextSecondary: '#5F6368',
-        colorTextTertiary: '#9AA0A6',
+        colorText: '#1E293B',
+        colorTextSecondary: '#475569',
+        colorTextTertiary: '#94A3B8',
 
         // 边框
-        colorBorder: '#DADCE0',
-        colorBorderSecondary: '#E8EAED',
+        colorBorder: '#E2E8F0',
+        colorBorderSecondary: '#F1F5F9',
 
-        // 阴影
-        boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
-        boxShadowSecondary: '0 3px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.12)',
+        // 阴影 - 更轻、更有深度的阴影
+        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+        boxShadowSecondary: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
     },
     components: {
         Button: {
-            borderRadius: 24, // 胶囊按钮
-            borderRadiusLG: 28,
-            borderRadiusSM: 20,
+            borderRadius: 12,
             controlHeight: 40,
             controlHeightLG: 48,
             controlHeightSM: 32,
+            fontWeight: 600,
         },
         Card: {
-            borderRadiusLG: 16,
+            borderRadiusLG: 20,
+            boxShadowTertiary: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
         },
         Menu: {
-            itemBorderRadius: 8,
-            itemMarginInline: 8,
+            itemBorderRadius: 10,
+            itemMarginInline: 12,
+            itemSelectedBg: '#EEF2FF',
+            itemSelectedColor: '#6366F1',
         },
         Table: {
-            headerBg: '#F8F9FA',
-            headerColor: '#202124',
+            headerBg: '#F8FAFC',
+            headerColor: '#475569',
+            headerBorderRadius: 12,
         },
         Modal: {
-            borderRadiusLG: 16,
+            borderRadiusLG: 24,
         },
         Input: {
-            borderRadius: 8,
+            borderRadius: 10,
+            controlHeight: 40,
         },
         Select: {
-            borderRadius: 8,
+            borderRadius: 10,
+            controlHeight: 40,
         },
+        Tabs: {
+            itemHoverColor: '#6366F1',
+            itemSelectedColor: '#6366F1',
+            inkBarColor: '#6366F1',
+            titleFontSize: 14,
+        }
     },
 };
 
