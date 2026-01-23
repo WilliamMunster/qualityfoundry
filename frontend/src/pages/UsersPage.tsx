@@ -7,12 +7,12 @@ import {
   Button,
   Space,
   Tag,
-  message,
   Modal,
   Form,
   Input,
   Select,
 } from "antd";
+import { message } from "../components/AntdGlobal";
 import { PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import apiClient from "../api/client";
@@ -65,7 +65,7 @@ const UsersPage: React.FC = () => {
           form.resetFields();
           loadUsers();
         } catch (error) {
-           // global error handler will show message
+          // global error handler will show message
         } finally {
           setSubmitting(false);
         }
@@ -83,7 +83,7 @@ const UsersPage: React.FC = () => {
           message.success("删除成功");
           setUsers((prev) => prev.filter((item) => item.id !== id));
         } catch (error: any) {
-           // global error handler will show message
+          // global error handler will show message
         }
       },
     });

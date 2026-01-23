@@ -4,7 +4,8 @@
  * 基于 Google Antigravity 设计语言
  */
 import React, { useState } from "react";
-import { Form, Input, Button, message, Typography } from "antd";
+import { Form, Input, Button, Typography } from "antd";
+import { message } from "../components/AntdGlobal";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../api/client";

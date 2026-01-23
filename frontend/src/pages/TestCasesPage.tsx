@@ -3,12 +3,13 @@
  */
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Table, Button, Space, Tag, message, Modal, Select, Form } from "antd";
+import { Table, Button, Space, Tag, Select, Form, Modal } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import apiClient from "../api/client";
 import { batchDeleteTestCases } from "../api/testcases";
 import { useAppStore } from "../store";
+import { message, modal } from "../components/AntdGlobal";
 
 interface TestStep {
   step: string;
@@ -142,7 +143,8 @@ const TestCasesPage: React.FC = () => {
       content: "确定要批准这个用例吗？",
       onOk: async () => {
         try {
-          await apiClient.post(`/api/v1/testcases/${id}/approve?reviewer=admin`);
+          // [FIX] 422 错误修复：reviewer 需要在请求体中
+          await apiClient.post(`/api/v1/testcases/${id}/approve`, { reviewer: 'admin' });
           message.success("审核通过");
           setTestcases((prev) =>
             prev.map((item) =>
@@ -150,7 +152,7 @@ const TestCasesPage: React.FC = () => {
             )
           );
         } catch (error) {
-          // global handler
+          // global handler 现在通过 AntdGlobal 实例起作用
         }
       },
     });
@@ -254,14 +256,26 @@ const TestCasesPage: React.FC = () => {
       setSelectedScenario(""); // 清空选择
       setPage(1); // 重置到第一页
       loadTestcases();
-    } catch (error) {
-      console.error(error);
-      // global handler
+    } catch (error: any) {
+      // 先关闭 loading，再显示错误消息，确保用户能看到
+      setGlobalLoading(false);
+      setGenerating(false);
+      // [FIX] 使用从 AntdGlobal 导出的全局 modal 实例显示详细错误
+      const detail = error?.response?.data?.detail;
+      if (detail) {
+        modal.error({
+          title: '生成失败',
+          content: detail,
+        });
+      }
+      return; // 提前返回，避免执行 finally 中的重复操作
     } finally {
       setGlobalLoading(false);
       setGenerating(false);
       setSelectedConfig(undefined);
     }
+
+
   };
 
   // 执行用例

@@ -3,7 +3,8 @@
  */
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Table, Button, Space, Input, message, Modal, Upload } from "antd";
+import { Table, Button, Space, Input, Modal, Upload } from "antd";
+import { message } from "../components/AntdGlobal";
 import {
   PlusOutlined,
   UploadOutlined,

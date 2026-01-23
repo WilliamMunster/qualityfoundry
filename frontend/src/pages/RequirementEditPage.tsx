@@ -3,7 +3,8 @@
  */
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, Form, Input, Button, Space, Select, Spin, message, Modal } from "antd";
+import { Card, Form, Input, Button, Space, Select, Spin, Modal } from "antd";
+import { message } from "../components/AntdGlobal";
 import { ArrowLeftOutlined, SaveOutlined } from "@ant-design/icons";
 import {
   getRequirement,
