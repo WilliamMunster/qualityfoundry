@@ -33,7 +33,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 
 ---
 
-## Current Status (main@d0b6706)
+## Current Status (main@2723e11)
 
 ### Completed Features (Verified)
 - ✅ **需求/场景/用例管理**：支持从 NL 需求到场景、用例的全链路生成与审核，支持自动补全 `seq_id`
@@ -46,6 +46,8 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - ✅ **执行管理**：DSL/MCP Client 执行模式，实时状态追踪
 - ✅ **测试报表**：仪表盘统计，执行历史记录
 - ✅ **批量操作**：支持多选删除，确认弹窗
+- ✅ **审计日志 (PR-C)**：完整的操作审计，记录工具执行与决策事件
+- ✅ **Premium UI 前端**：AI 工作区前端重构，支持编排可视化与运行管理
 
 ### Partial / In Progress
 - 🟡 **用户认证**：基于 token 的简单认证（非 JWT，待升级）
@@ -54,7 +56,6 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 
 ### Not Started
 - 🔴 **成本治理 (Phase 5.1)**：预算/超时熔断
-- 🔴 **审计日志**：完整的操作审计
 
 ---
 
@@ -159,6 +160,7 @@ qualityfoundry/
 | reports      | 测试报告 |
 | uploads      | 上传文件 |
 | ai_configs   | AI 配置  |
+| audit_logs   | 审计日志 |
 
 ---
 
@@ -204,6 +206,26 @@ MIT License
 ---
 
 ## 更新日志
+
+### V0.9.6 (2026-01-23)
+
+**Premium UI 与审计系统 (Frontend Revamp & Audit Foundation)**
+
+- ✅ **Premium AI 工作区**：全面重构前端 UI，实现高端 AI 工作区设计，包含编排可视化、执行时间线、节点进度等组件
+- ✅ **运行管理中心**：新增 `RunLaunchPage`（自然语言启动运行）、`RunListPage`（运行列表）、`RunDetailPage`（运行详情与时间线）
+- ✅ **审计日志系统 (PR-C)**：实现完整的审计日志功能，包含 `AuditLog` ORM 模型、`AuditService` 服务、数据库迁移
+- ✅ **审计事件类型**：支持 `tool_started`、`tool_finished`、`decision_made`、`policy_blocked`、`governance_short_circuit` 等事件
+- ✅ **可追溯性增强**：审计日志自动记录 `policy_hash`、`git_sha`、`args_hash` 等元数据
+
+**Antd 5.x 全局上下文修复 (UX & Reliability Foundation)**
+
+- ✅ **全局消息注入**：实现 `AntdGlobal.tsx` 工具组件，配合 `App.tsx` 中的 `<App>` 包装，彻底解决 Antd 5.x 静态方法 (`message`, `modal`, `notification`) 在 Hooks 外部调用时不显示提示的问题
+- ✅ **全站提示对齐**：批量替换全站 15+ 个页面的静态提示调用，确保操作反馈（成功/失败/加载中）在全浏览器环境下一致可见
+
+**API 422 结构化修复 (Robust Web API)**
+
+- ✅ **接口参数对齐 (422 修复)**：深度自查并修复了场景/用例审核接口、批量操作接口及执行启动接口中的数据结构不一致问题
+- ✅ **稳定性增强**：修复了用例执行时偶尔因缺失环境 ID 导致的请求非法问题
 
 ### V0.9.5 (2026-01-21)
 
