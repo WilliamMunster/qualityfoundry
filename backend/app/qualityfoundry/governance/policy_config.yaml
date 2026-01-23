@@ -52,3 +52,11 @@ fallback_rule:
 cost_governance:
   timeout_s: 300
   max_retries: 3
+
+# Tools policy: allowlist of permitted tools
+# Empty list = allow all registered tools (default open)
+tools:
+  allowlist:
+    - run_playwright
+    - run_pytest
+    - fetch_logs

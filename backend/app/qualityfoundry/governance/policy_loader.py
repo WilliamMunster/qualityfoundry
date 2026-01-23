@@ -48,6 +48,14 @@ class CostGovernance(BaseModel):
     max_retries: int = Field(default=3, ge=0, description="最大重试次数")
 
 
+class ToolsPolicy(BaseModel):
+    """工具策略配置"""
+    allowlist: list[str] = Field(
+        default_factory=list,
+        description="允许执行的工具列表（空列表表示允许所有）"
+    )
+
+
 class PolicyConfig(BaseModel):
     """策略配置主模型"""
     version: str = Field(default="1.0", description="配置版本")
@@ -70,6 +78,10 @@ class PolicyConfig(BaseModel):
     cost_governance: CostGovernance = Field(
         default_factory=CostGovernance,
         description="成本治理配置"
+    )
+    tools: ToolsPolicy = Field(
+        default_factory=ToolsPolicy,
+        description="工具策略配置"
     )
 
 
