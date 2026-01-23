@@ -10,7 +10,7 @@ import pytest
 
 from qualityfoundry.protocol.mcp.server import MCPServer, create_server
 from qualityfoundry.protocol.mcp.audit_context import get_audit_context, AuditContext
-from qualityfoundry.protocol.mcp.tools import SAFE_TOOLS, get_evidence, list_artifacts
+from qualityfoundry.protocol.mcp.tools import get_evidence, list_artifacts
 
 
 class TestMCPServerBasics:
