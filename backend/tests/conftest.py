@@ -12,6 +12,7 @@ from qualityfoundry.database import models  # noqa: F401 - 注册主模型
 from qualityfoundry.database import user_models  # noqa: F401 - 注册用户模型
 from qualityfoundry.database import ai_config_models  # noqa: F401 - 注册 AI 配置模型
 from qualityfoundry.database import system_config_models  # noqa: F401 - 注册系统配置模型
+from qualityfoundry.database import audit_log_models  # noqa: F401 - 注册审计日志模型
 from qualityfoundry.main import app
 
 # 使用文件数据库进行测试（内存数据库有连接隔离问题）

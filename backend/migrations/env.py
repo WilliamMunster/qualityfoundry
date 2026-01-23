@@ -16,6 +16,7 @@ sys.path.insert(0, str(backend_path / "app"))
 from qualityfoundry.database.models import Base  # noqa: E402
 from qualityfoundry.database import user_models  # noqa: E402, F401 - Register User model
 from qualityfoundry.database import ai_config_models  # noqa: E402, F401 - Register AIConfig model
+from qualityfoundry.database import audit_log_models  # noqa: E402, F401 - Register AuditLog model
 from qualityfoundry.database.config import DATABASE_URL  # noqa: E402
 
 # this is the Alembic Config object, which provides
