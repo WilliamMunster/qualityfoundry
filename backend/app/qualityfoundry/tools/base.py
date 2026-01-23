@@ -174,11 +174,11 @@ async def execute_with_timeout(
         result = await asyncio.wait_for(coro, timeout=timeout_s)
         return result, ToolStatus.SUCCESS, None
     except asyncio.TimeoutError:
-        return None, ToolStatus.TIMEOUT, f"Execution timed out after {timeout_s}s"
+        return None, ToolStatus.TIMEOUT, f"执行超出时间限制 ({timeout_s}s)"
     except asyncio.CancelledError:
-        return None, ToolStatus.CANCELLED, "Execution was cancelled"
+        return None, ToolStatus.CANCELLED, "执行被取消"
     except Exception as e:
-        logger.exception("Tool execution failed")
+        logger.exception("工具执行失败")
         return None, ToolStatus.FAILED, str(e)
 
 
@@ -307,7 +307,7 @@ class ToolExecutionContext:
         """创建超时结果"""
         return ToolResult(
             status=ToolStatus.TIMEOUT,
-            error_message=error_message or f"Timed out after {self.request.timeout_s}s",
+            error_message=error_message or f"在 {self.request.timeout_s}s 后超时",
             artifacts=self._artifacts,
             metrics=self._metrics,
             started_at=self.started_at,
@@ -361,8 +361,8 @@ async def execute_with_governance(
     while attempts <= max_retries:
         attempts += 1
         logger.info(
-            f"Governance: executing {request.tool_name} "
-            f"(attempt {attempts}/{max_retries + 1}, timeout={timeout_s}s)"
+            f"治理: 正在执行 {request.tool_name} "
+            f"(尝试 {attempts}/{max_retries + 1}, 超时={timeout_s}s)"
         )
 
         try:
@@ -389,39 +389,39 @@ async def execute_with_governance(
                 break
 
         except asyncio.TimeoutError:
-            # Create timeout result
+            # 创建超时结果
             total_elapsed_ms = int((time.perf_counter_ns() - total_start_ns) / 1_000_000)
             last_result = ToolResult(
                 status=ToolStatus.TIMEOUT,
-                error_message=f"Governance timeout after {timeout_s}s (attempt {attempts})",
+                error_message=f"治理超时：在 {timeout_s}s 后超过限制 (尝试 {attempts})",
                 metrics=ToolMetrics(
                     duration_ms=total_elapsed_ms,
                     timed_out=True,
                 ),
             )
             logger.warning(
-                f"Governance: {request.tool_name} timed out after {timeout_s}s"
+                f"治理: {request.tool_name} 在 {timeout_s}s 后超时"
             )
 
-            # Check if we should retry timeout
+            # 检查是否应针对超时进行重试
             if ToolStatus.TIMEOUT in retryable_statuses and attempts <= max_retries:
                 retries_used += 1
                 logger.warning(
-                    f"Governance: retrying after timeout ({retries_used}/{max_retries})"
+                    f"治理: 超时后正在重试 ({retries_used}/{max_retries})"
                 )
                 continue
             else:
                 break
 
         except Exception as e:
-            # Unexpected error
+            # 意外错误
             total_elapsed_ms = int((time.perf_counter_ns() - total_start_ns) / 1_000_000)
             last_result = ToolResult(
                 status=ToolStatus.FAILED,
-                error_message=f"Governance execution error: {e}",
+                error_message=f"治理执行错误: {e}",
                 metrics=ToolMetrics(duration_ms=total_elapsed_ms),
             )
-            logger.exception(f"Governance: {request.tool_name} unexpected error")
+            logger.exception(f"治理: {request.tool_name} 发生意外错误")
             break
 
     # Finalize metrics
@@ -443,9 +443,9 @@ async def execute_with_governance(
         last_result.metrics.timed_out = True
 
     logger.info(
-        f"Governance: {request.tool_name} completed - "
-        f"status={last_result.status.value}, attempts={attempts}, "
-        f"retries_used={retries_used}, duration_ms={total_elapsed_ms}"
+        f"治理: {request.tool_name} 已完成 - "
+        f"状态={last_result.status.value}, 尝试={attempts}, "
+        f"重试次数={retries_used}, 耗时={total_elapsed_ms}ms"
     )
 
     return last_result
