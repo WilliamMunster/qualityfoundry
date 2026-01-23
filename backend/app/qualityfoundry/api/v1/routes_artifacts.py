@@ -28,9 +28,10 @@ def _safe_resolve(run_id: UUID, rel_path: str) -> Path:
     安全地解析文件路径。
 
     防止路径遍历攻击：
-    1. 规范化基础目录和目标路径
-    2. 验证目标路径在基础目录内
-    3. 验证文件存在
+    1. 拒绝绝对路径和 ".." 组件
+    2. 规范化基础目录和目标路径
+    3. 验证目标路径在基础目录内
+    4. 验证文件存在
 
     Args:
         run_id: 运行 ID
@@ -42,6 +43,12 @@ def _safe_resolve(run_id: UUID, rel_path: str) -> Path:
     Raises:
         HTTPException: 路径无效或文件不存在
     """
+    # Early rejection: absolute paths and path traversal components
+    if rel_path.startswith("/") or rel_path.startswith("\\"):
+        raise HTTPException(status_code=400, detail="Absolute paths not allowed")
+    if ".." in rel_path.split("/") or ".." in rel_path.split("\\"):
+        raise HTTPException(status_code=400, detail="Path traversal not allowed")
+
     # 规范化基础目录
     base = (Path(ARTIFACTS_ROOT) / str(run_id)).resolve()
 

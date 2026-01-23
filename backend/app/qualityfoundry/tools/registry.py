@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
-from typing import TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
-from qualityfoundry.tools.contracts import ToolRequest, ToolResult
+if TYPE_CHECKING:
+    from qualityfoundry.governance.policy_loader import PolicyConfig
+
+from qualityfoundry.tools.contracts import ToolRequest, ToolResult, ToolStatus
 
 logger = logging.getLogger(__name__)
 
@@ -106,12 +109,19 @@ class ToolRegistry:
         """列出所有工具元数据"""
         return list(self._metadata.values())
 
-    async def execute(self, name: str, request: ToolRequest) -> ToolResult:
+    async def execute(
+        self,
+        name: str,
+        request: ToolRequest,
+        *,
+        policy: "PolicyConfig | None" = None,
+    ) -> ToolResult:
         """执行工具
 
         Args:
             name: 工具名称
             request: 工具请求
+            policy: 策略配置（可选，用于 allowlist 检查）
 
         Returns:
             ToolResult: 执行结果
@@ -119,6 +129,16 @@ class ToolRegistry:
         Raises:
             ToolNotFoundError: 工具未找到
         """
+        # Allowlist enforcement
+        if policy is not None and policy.tools.allowlist:
+            if name not in policy.tools.allowlist:
+                logger.warning(f"Tool '{name}' blocked by policy allowlist")
+                return ToolResult(
+                    status=ToolStatus.FAILED,
+                    error_message=f"Tool '{name}' not in policy allowlist",
+                    raw_output={"decision_source": "policy_block"},
+                )
+
         fn = self.get(name)
         logger.info(f"Executing tool: {name}, run_id={request.run_id}")
 
