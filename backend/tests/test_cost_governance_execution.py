@@ -96,7 +96,7 @@ class TestGovernanceTimeout:
         assert result.metrics.timed_out is True
         assert result.metrics.attempts == 1
         assert result.metrics.retries_used == 0
-        assert "timeout" in result.error_message.lower()
+        assert "超时" in result.error_message.lower()
 
     @pytest.mark.asyncio
     async def test_fast_tool_completes_within_timeout(self):

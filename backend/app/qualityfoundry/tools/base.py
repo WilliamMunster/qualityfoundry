@@ -187,7 +187,7 @@ class ToolExecutionContext:
 
     提供执行期间的通用功能和状态跟踪。
 
-    Usage:
+    用法:
         async with ToolExecutionContext(request) as ctx:
             # 执行工具逻辑
             ctx.add_artifact(artifact)
@@ -230,7 +230,7 @@ class ToolExecutionContext:
         self._started_at = datetime.now(timezone.utc)
         self._start_time_ns = time.perf_counter_ns()
         logger.info(
-            f"Tool execution started: {self.request.tool_name}, "
+            f"工具执行开始: {self.request.tool_name}, "
             f"run_id={self.request.run_id}"
         )
         return self
@@ -240,7 +240,7 @@ class ToolExecutionContext:
         elapsed_ns = time.perf_counter_ns() - self._start_time_ns
         self._metrics.duration_ms = int(elapsed_ns / 1_000_000)
         logger.info(
-            f"Tool execution ended: {self.request.tool_name}, "
+            f"工具执行结束: {self.request.tool_name}, "
             f"duration_ms={self._metrics.duration_ms}"
         )
         return False  # 不抑制异常
@@ -377,12 +377,12 @@ async def execute_with_governance(
             if result.status == ToolStatus.SUCCESS:
                 break
 
-            # Check if we should retry
+            # 检查是否应重试
             if result.status in retryable_statuses and attempts <= max_retries:
                 retries_used += 1
                 logger.warning(
-                    f"Governance: {request.tool_name} {result.status.value}, "
-                    f"retrying ({retries_used}/{max_retries})"
+                    f"治理: {request.tool_name} {result.status.value}, "
+                    f"正在重试 ({retries_used}/{max_retries})"
                 )
                 continue
             else:
@@ -428,10 +428,10 @@ async def execute_with_governance(
     total_elapsed_ms = int((time.perf_counter_ns() - total_start_ns) / 1_000_000)
 
     if last_result is None:
-        # Should not happen, but defensive
+        # 不应发生，但作为防御性处理
         last_result = ToolResult(
             status=ToolStatus.FAILED,
-            error_message="No result from tool execution",
+            error_message="工具执行无结果",
             metrics=ToolMetrics(duration_ms=total_elapsed_ms),
         )
 

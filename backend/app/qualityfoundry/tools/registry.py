@@ -23,10 +23,11 @@ ToolFunction: TypeAlias = Callable[[ToolRequest], Awaitable[ToolResult]]
 
 
 class ToolNotFoundError(Exception):
-    """工具未找到"""
+    """工具未找到异常"""
 
     def __init__(self, tool_name: str):
         self.tool_name = tool_name
+        # 保持英文异常信息以兼容现有倾向于英文正则匹配的测试
         super().__init__(f"Tool not found: {tool_name}")
 
 
@@ -141,7 +142,7 @@ class ToolRegistry:
     ):
         """装饰器方式注册工具
 
-        Usage:
+        用法:
             @registry.decorator("my_tool", description="My tool")
             async def my_tool(request: ToolRequest) -> ToolResult:
                 ...
