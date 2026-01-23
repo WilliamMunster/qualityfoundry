@@ -205,20 +205,6 @@ MIT License
 
 ## 更新日志
 
-### V0.9.6 (2026-01-23)
-
-**Antd 5.x 全局上下文修复 (UX & Reliability Foundation)**
-
-- ✅ **全局消息注入**：实现 `AntdGlobal.tsx` 工具组件，配合 `App.tsx` 中的 `<App>` 包装，彻底解决 Antd 5.x 静态方法 (`message`, `modal`, `notification`) 在 Hooks 外部调用时不显示提示的问题。
-- ✅ **全站提示对齐**：批量替换全站 15+ 个页面的静态提示调用，确保操作反馈（成功/失败/加载中）在全浏览器环境下一致可见。
-
-**API 422 结构化修复 (Robust Web API)**
-
-- ✅ **接口参数对齐 (422 修复)**：深度自查并修复了场景/用例审核接口、批量操作接口及执行启动接口中的数据结构不一致问题：
-    - 将审核人 (`reviewer`) 从 URL 参数移至 Request Body。
-    - 将批量操作的负载从 `{ ids }` 扩展为 `{ entity_type, entity_ids }` 以匹配 Pydantic 模型。
-- ✅ **稳定性增强**：修复了用例执行时偶尔因缺失环境 ID 导致的请求非法问题。
-
 ### V0.9.5 (2026-01-21)
 
 **回归基石：可复现性与回归体系 (Reliability & Evals Foundation)**
