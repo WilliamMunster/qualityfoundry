@@ -386,7 +386,8 @@ def get_run_detail(
     # 4. 从 AuditLog 聚合基础信息
     events = db.query(AuditLog).filter(AuditLog.run_id == run_id).order_by(AuditLog.ts.asc()).all()
     
-    started_at = events[0].ts if events else None
+    first_event = events[0] if events else None
+    started_at = first_event.ts if first_event else None
     finished_at = events[-1].ts if events else None
     
     # 查找决策事件
@@ -413,17 +414,17 @@ def get_run_detail(
             policy = get_policy()
             policy_meta = PolicyMeta(
                 version=getattr(policy, 'version', None),
-                hash=first_event.policy_hash,
+                hash=first_event.policy_hash if first_event else None,
             )
         except Exception:
-            policy_meta = PolicyMeta(hash=first_event.policy_hash)
+            policy_meta = PolicyMeta(hash=first_event.policy_hash if first_event else None)
         
         # Repro
         if evidence.repro:
             repro_meta = ReproMetaDTO(
                 git_sha=evidence.repro.git_sha,
-                branch=evidence.repro.branch,
-                dirty=evidence.repro.dirty,
+                branch=evidence.repro.git_branch,
+                dirty=evidence.repro.git_dirty or False,
                 deps_fingerprint=evidence.repro.deps_fingerprint,
             )
         
