@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 
 from qualityfoundry.services.artifacts.store import ArtifactStore
 from qualityfoundry.api.deps.auth_deps import get_current_user, RequireOrchestrationRead
