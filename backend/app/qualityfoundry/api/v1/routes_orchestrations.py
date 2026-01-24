@@ -18,7 +18,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import func
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from qualityfoundry.api.deps.auth_deps import get_current_user, RequireOrchestrationRun, RequireOrchestrationRead
 from qualityfoundry.database.user_models import User, UserRole
 from pydantic import BaseModel, Field
@@ -105,6 +105,74 @@ class RunsListResponse(BaseModel):
     runs: list[RunSummary] = Field(..., description="运行摘要列表")
     count: int = Field(..., description="返回数量")
     total: int = Field(..., description="总数量")
+
+
+# ============== P1: RunDetail DTO ==============
+
+
+class OwnerInfo(BaseModel):
+    """所有者信息"""
+    user_id: Optional[UUID] = Field(default=None, description="用户 ID")
+    username: Optional[str] = Field(default=None, description="用户名")
+
+
+class PolicyMeta(BaseModel):
+    """策略元数据"""
+    version: Optional[str] = Field(default=None, description="策略版本")
+    hash: Optional[str] = Field(default=None, description="策略哈希")
+
+
+class ReproMetaDTO(BaseModel):
+    """可复现性元数据"""
+    git_sha: Optional[str] = Field(default=None, description="Git SHA")
+    branch: Optional[str] = Field(default=None, description="分支")
+    dirty: bool = Field(default=False, description="是否有未提交变更")
+    deps_fingerprint: Optional[str] = Field(default=None, description="依赖指纹")
+
+
+class GovernanceDTO(BaseModel):
+    """治理元数据"""
+    budget: dict[str, Any] = Field(default_factory=dict, description="预算信息")
+    short_circuited: bool = Field(default=False, description="是否提前熔断")
+    short_circuit_reason: Optional[str] = Field(default=None, description="熔断原因")
+    decision_source: Optional[str] = Field(default=None, description="决策来源")
+
+
+class ArtifactInfo(BaseModel):
+    """产物信息"""
+    type: str = Field(..., description="产物类型")
+    path: str = Field(..., description="相对路径")
+    size: Optional[int] = Field(default=None, description="文件大小")
+    mime: Optional[str] = Field(default=None, description="MIME 类型")
+
+
+class AuditSummary(BaseModel):
+    """审计摘要（仅 ADMIN 可见）"""
+    event_count: int = Field(default=0, description="事件数量")
+    first_at: Optional[datetime] = Field(default=None, description="首个事件时间")
+    last_at: Optional[datetime] = Field(default=None, description="最后事件时间")
+
+
+class SummaryInfo(BaseModel):
+    """运行摘要信息"""
+    started_at: Optional[datetime] = Field(default=None, description="开始时间")
+    finished_at: Optional[datetime] = Field(default=None, description="结束时间")
+    ok: Optional[bool] = Field(default=None, description="是否成功")
+    decision: Optional[str] = Field(default=None, description="门禁决策")
+    decision_source: Optional[str] = Field(default=None, description="决策来源")
+    tool_count: int = Field(default=0, description="工具调用数量")
+
+
+class RunDetail(BaseModel):
+    """运行详情 DTO (P1)"""
+    run_id: UUID = Field(..., description="运行 ID")
+    owner: Optional[OwnerInfo] = Field(default=None, description="所有者信息")
+    summary: SummaryInfo = Field(..., description="运行摘要")
+    policy: Optional[PolicyMeta] = Field(default=None, description="策略元数据")
+    repro: Optional[ReproMetaDTO] = Field(default=None, description="可复现性元数据")
+    governance: Optional[GovernanceDTO] = Field(default=None, description="治理元数据")
+    artifacts: list[ArtifactInfo] = Field(default_factory=list, description="产物列表")
+    audit_summary: Optional[AuditSummary] = Field(default=None, description="审计摘要（仅 ADMIN）")
 
 
 # ============== Helper Functions ==============
@@ -279,6 +347,134 @@ def list_runs(
         runs=runs,
         count=len(runs),
         total=total,
+    )
+
+
+@router.get("/runs/{run_id}", response_model=RunDetail)
+def get_run_detail(
+    run_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(RequireOrchestrationRead),
+):
+    """
+    获取运行详情（P1 RunDetail DTO）。
+    
+    从 AuditLog 和 evidence.json 构建完整详情。
+    非 ADMIN 用户只能访问自己创建的运行记录。
+    """
+    from qualityfoundry.governance.tracing.collector import load_evidence
+    from qualityfoundry.governance.policy_loader import get_policy
+    
+    # 1. 检查 run 是否存在（从 AuditLog 查）
+    first_event = db.query(AuditLog).filter(AuditLog.run_id == run_id).first()
+    if not first_event:
+        raise HTTPException(status_code=404, detail="运行记录不存在")
+    
+    # 2. 权限检查：owner filter
+    owner_user_id = first_event.created_by_user_id
+    if current_user.role != UserRole.ADMIN:
+        if owner_user_id is None or owner_user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="无权访问此运行记录")
+    
+    # 3. 获取 owner 信息
+    owner_info = None
+    if owner_user_id:
+        owner_user = db.query(User).filter(User.id == owner_user_id).first()
+        if owner_user:
+            owner_info = OwnerInfo(user_id=owner_user.id, username=owner_user.username)
+    
+    # 4. 从 AuditLog 聚合基础信息
+    events = db.query(AuditLog).filter(AuditLog.run_id == run_id).order_by(AuditLog.ts.asc()).all()
+    
+    started_at = events[0].ts if events else None
+    finished_at = events[-1].ts if events else None
+    
+    # 查找决策事件
+    decision_event = next(
+        (e for e in events if e.event_type == AuditEventType.DECISION_MADE),
+        None
+    )
+    
+    # 统计工具调用数
+    tool_count = sum(1 for e in events if e.event_type == AuditEventType.TOOL_STARTED)
+    
+    # 5. 从 evidence.json 读取 policy/repro/governance
+    evidence = load_evidence(run_id)
+    
+    policy_meta = None
+    repro_meta = None
+    governance_dto = None
+    artifacts = []
+    ok = None
+    
+    if evidence:
+        # Policy（从当前策略获取，evidence 中可能没有）
+        try:
+            policy = get_policy()
+            policy_meta = PolicyMeta(
+                version=getattr(policy, 'version', None),
+                hash=first_event.policy_hash,
+            )
+        except Exception:
+            policy_meta = PolicyMeta(hash=first_event.policy_hash)
+        
+        # Repro
+        if evidence.repro:
+            repro_meta = ReproMetaDTO(
+                git_sha=evidence.repro.git_sha,
+                branch=evidence.repro.branch,
+                dirty=evidence.repro.dirty,
+                deps_fingerprint=evidence.repro.deps_fingerprint,
+            )
+        
+        # Governance
+        if evidence.governance:
+            governance_dto = GovernanceDTO(
+                budget=evidence.governance.budget,
+                short_circuited=evidence.governance.short_circuited,
+                short_circuit_reason=evidence.governance.short_circuit_reason,
+                decision_source=evidence.governance.decision_source,
+            )
+        
+        # Artifacts
+        for art in evidence.artifacts:
+            artifacts.append(ArtifactInfo(
+                type=art.get("type", "unknown"),
+                path=art.get("path", ""),
+                size=art.get("size"),
+                mime=art.get("mime"),
+            ))
+        
+        # Ok status from summary
+        if evidence.summary:
+            ok = evidence.summary.failures == 0 and evidence.summary.errors == 0
+    
+    # 6. 审计摘要（仅 ADMIN）
+    audit_summary = None
+    if current_user.role == UserRole.ADMIN:
+        audit_summary = AuditSummary(
+            event_count=len(events),
+            first_at=started_at,
+            last_at=finished_at,
+        )
+    
+    # 7. 构建返回
+    return RunDetail(
+        run_id=run_id,
+        owner=owner_info,
+        summary=SummaryInfo(
+            started_at=started_at,
+            finished_at=finished_at,
+            ok=ok,
+            decision=decision_event.status if decision_event else None,
+            decision_source=decision_event.decision_source if decision_event else None,
+            tool_count=tool_count,
+        ),
+        policy=policy_meta,
+        repro=repro_meta,
+        governance=governance_dto,
+        artifacts=artifacts,
+        audit_summary=audit_summary,
     )
 
 
