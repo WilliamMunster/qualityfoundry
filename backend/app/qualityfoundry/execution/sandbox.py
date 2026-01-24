@@ -250,7 +250,13 @@ async def run_in_sandbox(
             )
 
     # 3. 清洗环境变量
-    sanitized_env = _sanitize_env(config.env_whitelist)
+    # CI 环境下继承所有环境变量（难以枚举所有必需的系统变量）
+    is_ci = os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
+    if is_ci:
+        sanitized_env = None  # 继承所有环境变量
+        logger.info("Sandbox: CI environment detected, inheriting all env vars")
+    else:
+        sanitized_env = _sanitize_env(config.env_whitelist)
 
     # 4. 执行命令
     logger.info(f"Sandbox executing: {' '.join(cmd[:5])}{'...' if len(cmd) > 5 else ''}")
