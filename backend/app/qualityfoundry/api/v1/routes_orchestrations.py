@@ -19,6 +19,8 @@ from uuid import UUID, uuid4
 from sqlalchemy import func
 
 from fastapi import APIRouter, Depends
+from qualityfoundry.api.deps.auth_deps import get_current_user, RequireOrchestrationRun, RequireOrchestrationRead
+from qualityfoundry.database.user_models import User
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -38,7 +40,11 @@ from qualityfoundry.tools.registry import get_registry, ToolNotFoundError
 # 导入 runners 模块以自动注册工具
 import qualityfoundry.tools.runners  # noqa: F401
 
-router = APIRouter(prefix="/orchestrations", tags=["orchestrations"])
+router = APIRouter(
+    prefix="/orchestrations",
+    tags=["orchestrations"],
+    dependencies=[Depends(get_current_user)],  # 整个 router 需要认证
+)
 
 
 # ============== Request/Response Models ==============
@@ -192,6 +198,7 @@ def list_runs(
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
+    current_user: User = Depends(RequireOrchestrationRead),  # 权限检查
 ):
     """
     列出最近的运行记录。
@@ -272,6 +279,7 @@ def list_runs(
 async def run_orchestration(
     req: OrchestrationRequest,
     db: Session = Depends(get_db),
+    current_user: User = Depends(RequireOrchestrationRun),  # 权限检查
 ):
     """
     执行编排流程。

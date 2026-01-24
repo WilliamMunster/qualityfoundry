@@ -18,6 +18,7 @@ from qualityfoundry.models.user_schemas import (
     TokenResponse,
 )
 from qualityfoundry.services.auth_service import AuthService
+from qualityfoundry.api.deps.auth_deps import RequireUserManage
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -29,8 +30,8 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     
-    # 生成访问令牌
-    access_token = AuthService.create_access_token(str(user.id))
+    # 生成访问令牌并存储到数据库
+    access_token = AuthService.create_access_token(db, user.id)
     
     return TokenResponse(
         access_token=access_token,
@@ -39,7 +40,11 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=UserResponse, status_code=201)
-def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
+def create_user(
+    user_data: UserCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(RequireUserManage),  # 需要 USER_MANAGE 权限
+):
     """创建用户"""
     # 检查用户名是否已存在
     existing_user = db.query(User).filter(User.username == user_data.username).first()
@@ -94,7 +99,8 @@ def get_user(user_id: UUID, db: Session = Depends(get_db)):
 def update_user(
     user_id: UUID,
     user_data: UserUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(RequireUserManage),  # 需要 USER_MANAGE 权限
 ):
     """更新用户"""
     user = db.query(User).filter(User.id == user_id).first()
@@ -118,7 +124,11 @@ def update_user(
 
 
 @router.delete("/{user_id}")
-def delete_user(user_id: UUID, db: Session = Depends(get_db)):
+def delete_user(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    _: User = Depends(RequireUserManage),  # 需要 USER_MANAGE 权限
+):
     """删除用户"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:

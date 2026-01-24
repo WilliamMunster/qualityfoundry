@@ -15,12 +15,17 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from qualityfoundry.tools.config import ARTIFACTS_ROOT
+from qualityfoundry.api.deps.auth_deps import get_current_user, RequireArtifactRead
 
-router = APIRouter(prefix="/artifacts", tags=["artifacts"])
+router = APIRouter(
+    prefix="/artifacts",
+    tags=["artifacts"],
+    dependencies=[Depends(get_current_user), Depends(RequireArtifactRead)],  # 需要认证 + 证据读权限
+)
 
 
 def _safe_resolve(run_id: UUID, rel_path: str) -> Path:

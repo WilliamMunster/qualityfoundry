@@ -17,8 +17,13 @@ from qualityfoundry.services.audit_service import (
     is_audit_enabled,
     query_audit_events,
 )
+from qualityfoundry.api.deps.auth_deps import get_current_user, RequireAuditRead
 
-router = APIRouter(prefix="/audit", tags=["audit"])
+router = APIRouter(
+    prefix="/audit",
+    tags=["audit"],
+    dependencies=[Depends(get_current_user), Depends(RequireAuditRead)],  # 需要认证 + 审计读权限
+)
 
 
 class AuditEventResponse(BaseModel):

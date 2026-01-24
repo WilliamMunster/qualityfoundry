@@ -4,11 +4,15 @@
 """
 import hashlib
 import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from qualityfoundry.core.config import settings
 from qualityfoundry.database.user_models import User, UserRole
+from qualityfoundry.database.token_models import UserToken
 
 
 class AuthService:
@@ -25,10 +29,88 @@ class AuthService:
         return AuthService.hash_password(plain_password) == hashed_password
     
     @staticmethod
-    def create_access_token(user_id: str) -> str:
-        """创建访问令牌"""
-        # 简化版本：实际应使用 JWT
-        return secrets.token_urlsafe(32)
+    def _hash_token(token: str) -> str:
+        """Token 哈希（带 pepper 防止离线碰撞）"""
+        salted = token + settings.TOKEN_PEPPER
+        return hashlib.sha256(salted.encode()).hexdigest()
+    
+    @staticmethod
+    def create_access_token(db: Session, user_id: UUID) -> str:
+        """创建访问令牌并存储到数据库
+        
+        Args:
+            db: 数据库会话
+            user_id: 用户 ID
+            
+        Returns:
+            原始 token（返回给客户端）
+        """
+        token = secrets.token_urlsafe(32)
+        token_hash = AuthService._hash_token(token)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.TOKEN_EXPIRE_HOURS)
+        
+        db_token = UserToken(
+            token_hash=token_hash,
+            user_id=user_id,
+            expires_at=expires_at,
+        )
+        db.add(db_token)
+        db.commit()
+        
+        return token
+    
+    @staticmethod
+    def verify_token(db: Session, token: str) -> Optional[User]:
+        """验证 token 并返回用户
+        
+        Args:
+            db: 数据库会话
+            token: 原始 token
+            
+        Returns:
+            有效则返回 User，无效返回 None
+        """
+        token_hash = AuthService._hash_token(token)
+        
+        db_token = db.query(UserToken).filter(
+            UserToken.token_hash == token_hash,
+            UserToken.expires_at > datetime.now(timezone.utc),
+            UserToken.revoked_at.is_(None),
+        ).first()
+        
+        if not db_token:
+            return None
+        
+        user = db.query(User).filter(User.id == db_token.user_id).first()
+        if not user or not user.is_active:
+            return None
+        
+        return user
+    
+    @staticmethod
+    def revoke_token(db: Session, token: str) -> bool:
+        """撤销 token（用于登出）
+        
+        Args:
+            db: 数据库会话
+            token: 原始 token
+            
+        Returns:
+            是否成功撤销
+        """
+        token_hash = AuthService._hash_token(token)
+        
+        db_token = db.query(UserToken).filter(
+            UserToken.token_hash == token_hash,
+            UserToken.revoked_at.is_(None),
+        ).first()
+        
+        if not db_token:
+            return False
+        
+        db_token.revoked_at = datetime.now(timezone.utc)
+        db.commit()
+        return True
     
     @staticmethod
     def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
