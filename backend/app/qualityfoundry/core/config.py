@@ -33,6 +33,15 @@ class Settings(BaseSettings):
     # 环境变量：QF_ARTIFACTS_DIR
     artifacts_dir: str = "artifacts"
 
+    # ---------- 认证 ----------
+    # Token 混淆盐（建议生产环境通过环境变量设置）
+    # 环境变量：QF_TOKEN_PEPPER
+    TOKEN_PEPPER: str = "qf_default_pepper_change_in_prod"
+    
+    # Token 过期时间（小时）
+    # 环境变量：QF_TOKEN_EXPIRE_HOURS
+    TOKEN_EXPIRE_HOURS: int = 24
+
 
 # 全局单例：直接 import settings 使用
 settings = Settings()

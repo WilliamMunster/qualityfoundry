@@ -42,6 +42,16 @@ class Permission(str, Enum):
     USER_MANAGE = "user:manage"
     CONFIG_MANAGE = "config:manage"
     SYSTEM_ADMIN = "system:admin"
+    
+    # 编排权限（新增）
+    ORCHESTRATION_RUN = "orchestration:run"
+    ORCHESTRATION_READ = "orchestration:read"
+    
+    # 证据权限（新增）
+    ARTIFACT_READ = "artifact:read"
+    
+    # 审计权限（新增）
+    AUDIT_READ = "audit:read"
 
 
 # 角色权限映射
@@ -51,6 +61,9 @@ ROLE_PERMISSIONS: dict[UserRole, set[Permission]] = {
         Permission.SCENARIO_READ,
         Permission.TESTCASE_READ,
         Permission.APPROVAL_READ,
+        # 新增：只读访问
+        Permission.ORCHESTRATION_READ,
+        Permission.ARTIFACT_READ,
     },
     UserRole.USER: {
         # 继承 VIEWER 所有权限
@@ -58,6 +71,8 @@ ROLE_PERMISSIONS: dict[UserRole, set[Permission]] = {
         Permission.SCENARIO_READ,
         Permission.TESTCASE_READ,
         Permission.APPROVAL_READ,
+        Permission.ORCHESTRATION_READ,
+        Permission.ARTIFACT_READ,
         # 增加创建和更新权限
         Permission.REQUIREMENT_CREATE,
         Permission.REQUIREMENT_UPDATE,
@@ -65,6 +80,8 @@ ROLE_PERMISSIONS: dict[UserRole, set[Permission]] = {
         Permission.SCENARIO_UPDATE,
         Permission.TESTCASE_CREATE,
         Permission.TESTCASE_UPDATE,
+        # 新增：可执行编排
+        Permission.ORCHESTRATION_RUN,
     },
     UserRole.ADMIN: {
         # 所有权限
@@ -86,6 +103,11 @@ ROLE_PERMISSIONS: dict[UserRole, set[Permission]] = {
         Permission.USER_MANAGE,
         Permission.CONFIG_MANAGE,
         Permission.SYSTEM_ADMIN,
+        # 新增权限
+        Permission.ORCHESTRATION_RUN,
+        Permission.ORCHESTRATION_READ,
+        Permission.ARTIFACT_READ,
+        Permission.AUDIT_READ,
     },
 }
 
