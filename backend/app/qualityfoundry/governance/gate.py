@@ -138,9 +138,9 @@ def evaluate_gate(
                 failed_reasons = []
                 for tc in failed_tools:
                     msg = f"{tc.tool_name}"
-                    if tc.stderr:
+                    if tc.error_message:
                         # 只取前 100 个字符避免过长
-                        err_snippet = tc.stderr[:100].replace("\n", " ")
+                        err_snippet = tc.error_message[:100].replace("\n", " ")
                         msg += f" ({err_snippet})"
                     failed_reasons.append(msg)
                 
