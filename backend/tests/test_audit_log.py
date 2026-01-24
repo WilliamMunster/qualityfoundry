@@ -187,15 +187,36 @@ class TestAuditAPI:
 
     def test_get_audit_events_empty(self, client):
         """查询无事件的运行"""
-        run_id = uuid4()
-        response = client.get(f"/api/v1/audit/{run_id}")
+        from qualityfoundry.main import app
+        from qualityfoundry.api.deps.auth_deps import get_current_user
+        from qualityfoundry.database.user_models import User, UserRole
+        
+        # 显式设置 ADMIN 用户（审计 API 需要 ADMIN 权限）
+        mock_admin = User(
+            id=uuid4(),
+            username="test_admin_audit",
+            password_hash="mock_hash",
+            email="admin_audit@test.com",
+            full_name="Test Admin",
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+        app.dependency_overrides[get_current_user] = lambda: mock_admin
+        
+        try:
+            run_id = uuid4()
+            response = client.get(f"/api/v1/audit/{run_id}")
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["run_id"] == str(run_id)
-        assert data["events"] == []
-        assert data["count"] == 0
-        assert data["audit_enabled"] is True
+            assert response.status_code == 200
+            data = response.json()
+            assert data["run_id"] == str(run_id)
+            assert data["events"] == []
+            assert data["count"] == 0
+            assert data["audit_enabled"] is True
+        finally:
+            # 恢复原始 mock
+            from tests.conftest import override_get_current_user
+            app.dependency_overrides[get_current_user] = override_get_current_user
 
 
 class TestRunsListAPI:
@@ -203,20 +224,61 @@ class TestRunsListAPI:
 
     def test_list_runs_empty(self, client):
         """无运行记录时返回空列表"""
-        response = client.get("/api/v1/orchestrations/runs")
+        from qualityfoundry.main import app
+        from qualityfoundry.api.deps.auth_deps import get_current_user
+        from qualityfoundry.database.user_models import User, UserRole
+        
+        # 显式设置 ADMIN 用户
+        mock_admin = User(
+            id=uuid4(),
+            username="test_admin_runs",
+            password_hash="mock_hash",
+            email="admin_runs@test.com",
+            full_name="Test Admin",
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+        app.dependency_overrides[get_current_user] = lambda: mock_admin
+        
+        try:
+            response = client.get("/api/v1/orchestrations/runs")
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["runs"] == []
-        assert data["count"] == 0
-        assert data["total"] == 0
+            assert response.status_code == 200
+            data = response.json()
+            assert data["runs"] == []
+            assert data["count"] == 0
+            assert data["total"] == 0
+        finally:
+            from tests.conftest import override_get_current_user
+            app.dependency_overrides[get_current_user] = override_get_current_user
 
     def test_list_runs_pagination(self, client):
         """分页参数生效"""
-        response = client.get("/api/v1/orchestrations/runs?limit=10&offset=0")
+        from qualityfoundry.main import app
+        from qualityfoundry.api.deps.auth_deps import get_current_user
+        from qualityfoundry.database.user_models import User, UserRole
+        
+        # 显式设置 ADMIN 用户
+        mock_admin = User(
+            id=uuid4(),
+            username="test_admin_page",
+            password_hash="mock_hash",
+            email="admin_page@test.com",
+            full_name="Test Admin",
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+        app.dependency_overrides[get_current_user] = lambda: mock_admin
+        
+        try:
+            response = client.get("/api/v1/orchestrations/runs?limit=10&offset=0")
 
-        assert response.status_code == 200
-        data = response.json()
-        assert "runs" in data
-        assert "count" in data
-        assert "total" in data
+            assert response.status_code == 200
+            data = response.json()
+            assert "runs" in data
+            assert "count" in data
+            assert "total" in data
+        finally:
+            from tests.conftest import override_get_current_user
+            app.dependency_overrides[get_current_user] = override_get_current_user
+
