@@ -114,7 +114,7 @@ async def _log_sandbox_audit(
     import hashlib
 
     try:
-        from qualityfoundry.database.config import get_db
+        from qualityfoundry.database.config import SessionLocal
         from qualityfoundry.database.audit_log_models import AuditEventType
         from qualityfoundry.services.audit_service import write_audit_event
 
@@ -139,9 +139,8 @@ async def _log_sandbox_audit(
             "sandbox_blocked": result.sandbox_blocked,
         }
 
-        # 同步写入审计日志
-        db = next(get_db())
-        try:
+        # 使用 SessionLocal 直接创建会话（不依赖 FastAPI 依赖注入）
+        with SessionLocal() as db:
             write_audit_event(
                 db,
                 run_id=run_id,
@@ -153,8 +152,6 @@ async def _log_sandbox_audit(
                 duration_ms=result.elapsed_ms,
                 details=details,
             )
-        finally:
-            db.close()
 
     except Exception:
         # 审计失败不应阻止工具执行
