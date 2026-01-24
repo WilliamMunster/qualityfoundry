@@ -238,8 +238,10 @@ async def run_pytest(
             junit_path_str = str(junit_path).replace("\\", "/")
             
             # 构建 pytest 命令
+            # 使用 sys.executable 确保使用当前运行环境的 Python
+            import sys
             cmd = [
-                "python", "-m", "pytest",
+                sys.executable, "-m", "pytest",
                 "-q",
                 f"--junitxml={junit_path_str}",
                 test_path,
