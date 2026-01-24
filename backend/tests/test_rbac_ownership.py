@@ -2,12 +2,10 @@
 
 测试用户只能访问自己创建的运行记录，ADMIN 可访问全部。
 """
-import pytest
 from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from qualityfoundry.main import app
-from qualityfoundry.database.config import get_db
 from qualityfoundry.database.user_models import User, UserRole
 from qualityfoundry.api.deps.auth_deps import get_current_user
 
