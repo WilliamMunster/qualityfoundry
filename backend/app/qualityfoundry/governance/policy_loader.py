@@ -71,10 +71,18 @@ class SandboxPolicy(BaseModel):
     )
     env_whitelist: list[str] = Field(
         default_factory=lambda: [
-            "PATH", "HOME", "USER", "SHELL", "TMPDIR",
+            # Core system (Unix/Mac)
+            "PATH", "HOME", "USER", "SHELL", "TMPDIR", "TMP", "TEMP",
+            # Windows system (required for subprocess on Windows CI)
+            "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "USERPROFILE",
+            "HOMEDRIVE", "HOMEPATH", "APPDATA", "LOCALAPPDATA", "PROGRAMFILES",
+            "PROGRAMFILES(X86)", "COMMONPROGRAMFILES", "SYSTEMDRIVE",
+            # Python
             "PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONUNBUFFERED", "VIRTUAL_ENV",
+            # Locale
             "LANG", "LC_*",
-            "CI", "GITHUB_*", "RUNNER_*", "QF_*",
+            # CI/CD
+            "CI", "GITHUB_*", "RUNNER_*", "ACTIONS_*", "QF_*",
         ],
         description="环境变量白名单（支持 glob）"
     )

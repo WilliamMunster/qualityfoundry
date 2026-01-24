@@ -72,18 +72,41 @@ sandbox:
     - "test/"
     - "artifacts/"
   env_whitelist:
+    # Core system (Unix/Mac)
     - "PATH"
     - "HOME"
     - "USER"
     - "SHELL"
     - "TMPDIR"
+    - "TEMP"
+    - "TMP"
+    # Windows system (required for pytest/subprocess on Windows CI)
+    - "SYSTEMROOT"
+    - "WINDIR"
+    - "COMSPEC"
+    - "PATHEXT"
+    - "USERPROFILE"
+    - "HOMEDRIVE"
+    - "HOMEPATH"
+    - "APPDATA"
+    - "LOCALAPPDATA"
+    - "PROGRAMFILES"
+    - "PROGRAMFILES(X86)"
+    - "COMMONPROGRAMFILES"
+    - "SYSTEMDRIVE"
+    # Python
     - "PYTHONPATH"
     - "PYTHONDONTWRITEBYTECODE"
     - "PYTHONUNBUFFERED"
     - "VIRTUAL_ENV"
+    # Locale
     - "LANG"
     - "LC_*"
+    # CI/CD
     - "CI"
     - "GITHUB_*"
     - "RUNNER_*"
+    - "ACTIONS_*"
+    # QualityFoundry
     - "QF_*"
+
