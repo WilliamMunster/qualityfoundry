@@ -60,3 +60,30 @@ tools:
     - run_playwright
     - run_pytest
     - fetch_logs
+
+# Sandbox configuration (L3 执行层隔离)
+# Controls subprocess execution boundaries for security
+sandbox:
+  enabled: true
+  timeout_s: 300
+  memory_limit_mb: 512
+  allowed_paths:
+    - "tests/"
+    - "test/"
+    - "artifacts/"
+  env_whitelist:
+    - "PATH"
+    - "HOME"
+    - "USER"
+    - "SHELL"
+    - "TMPDIR"
+    - "PYTHONPATH"
+    - "PYTHONDONTWRITEBYTECODE"
+    - "PYTHONUNBUFFERED"
+    - "VIRTUAL_ENV"
+    - "LANG"
+    - "LC_*"
+    - "CI"
+    - "GITHUB_*"
+    - "RUNNER_*"
+    - "QF_*"

@@ -56,6 +56,31 @@ class ToolsPolicy(BaseModel):
     )
 
 
+class SandboxPolicy(BaseModel):
+    """沙箱策略配置 (L3 执行层隔离)
+
+    控制 subprocess 执行的安全边界。
+    默认值与 execution/sandbox.py 中的 SandboxConfig 对齐。
+    """
+    enabled: bool = Field(default=True, description="是否启用沙箱")
+    timeout_s: int = Field(default=300, ge=1, description="硬超时（秒）")
+    memory_limit_mb: int = Field(default=512, ge=64, description="内存软限制（MB）")
+    allowed_paths: list[str] = Field(
+        default_factory=lambda: ["tests/", "test/", "artifacts/"],
+        description="路径白名单"
+    )
+    env_whitelist: list[str] = Field(
+        default_factory=lambda: [
+            "PATH", "HOME", "USER", "SHELL", "TMPDIR",
+            "PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONUNBUFFERED", "VIRTUAL_ENV",
+            "LANG", "LC_*",
+            "CI", "GITHUB_*", "RUNNER_*", "QF_*",
+        ],
+        description="环境变量白名单（支持 glob）"
+    )
+
+
+
 class PolicyConfig(BaseModel):
     """策略配置主模型"""
     version: str = Field(default="1.0", description="配置版本")
@@ -82,6 +107,10 @@ class PolicyConfig(BaseModel):
     tools: ToolsPolicy = Field(
         default_factory=ToolsPolicy,
         description="工具策略配置"
+    )
+    sandbox: SandboxPolicy = Field(
+        default_factory=SandboxPolicy,
+        description="沙箱策略配置"
     )
 
 

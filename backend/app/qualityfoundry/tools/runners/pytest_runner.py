@@ -23,6 +23,7 @@ import re
 import shutil
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qualityfoundry.tools.base import ToolExecutionContext, log_tool_result
 from qualityfoundry.tools.config import truncate_output
@@ -32,6 +33,9 @@ from qualityfoundry.tools.contracts import (
     ToolRequest,
     ToolResult,
 )
+
+if TYPE_CHECKING:
+    from qualityfoundry.execution.sandbox import SandboxConfig, SandboxResult
 
 logger = logging.getLogger(__name__)
 
@@ -82,12 +86,79 @@ def _collect_environment_diagnostics() -> dict[str, str | None]:
     return diag
 
 
+
 def _format_diagnostics(diag: dict[str, str | None]) -> str:
     """Format diagnostics dict as readable string for error messages."""
     lines = ["Environment diagnostics:"]
     for key, value in diag.items():
         lines.append(f"  {key}: {value}")
     return "\n".join(lines)
+
+
+async def _log_sandbox_audit(
+    run_id,
+    tool_name: str,
+    config: "SandboxConfig",
+    result: "SandboxResult",
+) -> None:
+    """记录沙箱执行审计事件
+
+    只记录 hash/摘要，不记录敏感路径明文，遵循最小信息暴露原则。
+
+    Args:
+        run_id: 运行 ID
+        tool_name: 工具名称
+        config: 沙箱配置
+        result: 沙箱执行结果
+    """
+    import hashlib
+
+    try:
+        from qualityfoundry.database.config import get_db
+        from qualityfoundry.database.audit_log_models import AuditEventType
+        from qualityfoundry.services.audit_service import write_audit_event
+
+        # 计算配置摘要（hash），不暴露明文路径
+        allowed_paths_hash = hashlib.sha256(
+            ",".join(sorted(config.allowed_paths)).encode()
+        ).hexdigest()[:16]
+        env_whitelist_hash = hashlib.sha256(
+            ",".join(sorted(config.env_whitelist)).encode()
+        ).hexdigest()[:16]
+
+        # 审计记录只包含安全的元数据
+        details = {
+            "enabled": True,
+            "timeout_s": config.timeout_s,
+            "memory_limit_mb": config.memory_limit_mb,
+            "allowed_paths_hash": allowed_paths_hash,
+            "env_whitelist_hash": env_whitelist_hash,
+            "killed_by_timeout": result.killed_by_timeout,
+            "resource_warning_present": result.resource_warning is not None,
+            "elapsed_ms": result.elapsed_ms,
+            "sandbox_blocked": result.sandbox_blocked,
+        }
+
+        # 同步写入审计日志
+        db = next(get_db())
+        try:
+            write_audit_event(
+                db,
+                run_id=run_id,
+                event_type=AuditEventType.SANDBOX_EXEC,
+                tool_name=tool_name,
+                status="blocked" if result.sandbox_blocked else (
+                    "timeout" if result.killed_by_timeout else "completed"
+                ),
+                duration_ms=result.elapsed_ms,
+                details=details,
+            )
+        finally:
+            db.close()
+
+    except Exception:
+        # 审计失败不应阻止工具执行
+        logger.warning("Failed to log sandbox audit event", exc_info=True)
 
 
 def _is_safe_test_path(test_path: str) -> bool:
@@ -125,7 +196,12 @@ def _is_safe_test_path(test_path: str) -> bool:
     return False
 
 
-async def run_pytest(request: ToolRequest) -> ToolResult:
+
+async def run_pytest(
+    request: ToolRequest,
+    *,
+    sandbox_config: "SandboxConfig | None" = None,
+) -> ToolResult:
     """Pytest 工具：执行测试并生成 JUnit XML
 
     Args:
@@ -134,6 +210,7 @@ async def run_pytest(request: ToolRequest) -> ToolResult:
             - markers: str (可选) - pytest markers，如 "not slow"
             - extra_args: list[str] (可选) - 额外的 pytest 参数
             - working_dir: str (可选) - 工作目录
+        sandbox_config: 沙箱配置（由 ToolRegistry 基于 policy 注入）
 
     Returns:
         ToolResult: 统一的执行结果，artifacts 包含 junit.xml
@@ -181,33 +258,64 @@ async def run_pytest(request: ToolRequest) -> ToolResult:
 
             logger.info(f"Running pytest: {' '.join(cmd)}")
 
-            # 执行 pytest (通过沙箱)
+            # 执行 pytest
             cwd = Path(working_dir) if working_dir else None
 
-            # 使用沙箱执行
-            from qualityfoundry.execution.sandbox import run_in_sandbox, SandboxConfig
+            # 按 sandbox_config 是否存在决定执行路径
+            # sandbox_config 由 ToolRegistry 基于 policy 注入
+            # None = policy 禁用或不经过 registry，走 legacy subprocess
+            if sandbox_config is not None:
+                # Sandbox 路径：policy 启用沙箱
+                from qualityfoundry.execution.sandbox import run_in_sandbox
 
-            # 从 request 获取沙箱配置，如果没有则使用默认值
-            sandbox_config = getattr(request, "sandbox_config", None) or SandboxConfig(
-                timeout_s=request.timeout_s - 5,  # 留 5s 安全边界
-                allowed_paths=["tests/", "test/", "artifacts/"],
-            )
+                logger.info(f"Sandbox enabled: timeout={sandbox_config.timeout_s}s")
+                sandbox_result = await run_in_sandbox(cmd, config=sandbox_config, cwd=cwd)
 
-            sandbox_result = await run_in_sandbox(cmd, config=sandbox_config, cwd=cwd)
-
-            # 检查沙箱是否阻止了命令
-            if sandbox_result.sandbox_blocked:
-                return ctx.failed(
-                    f"Sandbox blocked: {sandbox_result.block_reason}"
+                # B3: 审计沙箱执行（只记录 hash/摘要，不记录敏感路径明文）
+                await _log_sandbox_audit(
+                    run_id=request.run_id,
+                    tool_name="run_pytest",
+                    config=sandbox_config,
+                    result=sandbox_result,
                 )
 
-            # 检查超时
-            if sandbox_result.killed_by_timeout:
-                return ctx.timeout(f"pytest timed out after {sandbox_config.timeout_s}s")
+                # 检查沙箱是否阻止了命令
+                if sandbox_result.sandbox_blocked:
+                    return ctx.failed(
+                        f"Sandbox blocked: {sandbox_result.block_reason}"
+                    )
 
-            stdout = sandbox_result.stdout
-            stderr = sandbox_result.stderr
-            exit_code = sandbox_result.exit_code
+                # 检查超时
+                if sandbox_result.killed_by_timeout:
+                    return ctx.timeout(f"pytest timed out after {sandbox_config.timeout_s}s")
+
+                stdout = sandbox_result.stdout
+                stderr = sandbox_result.stderr
+                exit_code = sandbox_result.exit_code
+
+            else:
+                # Legacy 路径：policy 禁用沙箱或直接调用（不经过 registry）
+                import asyncio
+
+                logger.info("Sandbox disabled by policy, using legacy subprocess")
+                try:
+                    process = await asyncio.create_subprocess_exec(
+                        *cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                        cwd=cwd,
+                    )
+                    stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                        process.communicate(),
+                        timeout=request.timeout_s,
+                    )
+                    stdout = stdout_bytes.decode("utf-8", errors="replace")
+                    stderr = stderr_bytes.decode("utf-8", errors="replace")
+                    exit_code = process.returncode or 0
+                except asyncio.TimeoutError:
+                    process.kill()
+                    await process.wait()
+                    return ctx.timeout(f"pytest timed out after {request.timeout_s}s")
 
             # 收集 JUnit XML artifact
             if junit_path.exists():

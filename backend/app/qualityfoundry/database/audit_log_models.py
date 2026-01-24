@@ -22,6 +22,7 @@ class AuditEventType(str, enum.Enum):
     DECISION_MADE = "decision_made"
     POLICY_BLOCKED = "policy_blocked"
     GOVERNANCE_SHORT_CIRCUIT = "governance_short_circuit"
+    SANDBOX_EXEC = "sandbox_exec"  # L3 沙箱执行事件
 
 
 class AuditLog(Base):

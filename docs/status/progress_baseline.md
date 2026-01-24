@@ -33,7 +33,7 @@ This document serves as the **single source of truth** for project progress. All
 |-------|------|--------|--------------|
 | **L1** | Policy (规则与门禁) | ✅ Complete | `ls governance/policy_loader.py gate.py` |
 | **L2** | Orchestration (编排层) | ✅ Phase 2.2 Complete (LangGraph) | `from langgraph.graph import StateGraph` in orchestrator_service.py |
-| **L3** | Execution (执行层) | 🟡 Partial | Tool contract + runners ✅; Sandbox/permissions 🔴 |
+| **L3** | Execution (执行层) | ✅ Sandbox MVP Complete | Tool contract ✅ + Policy-driven sandbox (pytest subprocess) ✅ |
 | **L4** | Protocol (MCP) | 🟡 MCP Server (read-only) + Client | `protocol/mcp/server.py` exists, 14 tests passed |
 | **L5** | Governance & Evals | ✅ Phase 5.2 Complete | `ls governance/evals/ golden/` |
 
@@ -68,6 +68,7 @@ This document serves as the **single source of truth** for project progress. All
 | **MCP Server** | L4 ✅ | `protocol/mcp/server.py`, 14 tests passed | ✅ Complete (read-only) |
 | **LangGraph Integration** | ✅ Phase 2.2 | `from langgraph.graph import StateGraph` | ✅ Complete |
 | **Cost Governance** | Phase 5.1 ✅ | `_enforce_budget()` + GovernanceBudget | ✅ Complete (budget + short-circuit) |
+| **L3 Sandbox MVP** | PR-B ✅ | `SandboxPolicy` + `SANDBOXABLE_TOOLS` + 12 integration tests | ✅ Complete (subprocess/pytest only) |
 
 ---
 
