@@ -294,7 +294,6 @@ class OrchestratorService:
         from datetime import datetime, timezone
         from qualityfoundry.tools.contracts import ToolStatus, ToolMetrics
         from qualityfoundry.tools.registry import ToolNotFoundError
-        from qualityfoundry.tools.base import execute_with_governance
 
         tool_request = state["tool_request"]
 
