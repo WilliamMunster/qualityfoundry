@@ -54,3 +54,17 @@ def healthz():
 @app.get("/health", include_in_schema=False)
 def health():
     return {"ok": True}
+
+
+@app.on_event("startup")
+def on_startup():
+    """应用启动时执行 seed 逻辑。"""
+    from qualityfoundry.database.config import SessionLocal
+    from qualityfoundry.services.startup_seeds import run_startup_seeds
+    
+    db = SessionLocal()
+    try:
+        run_startup_seeds(db)
+    finally:
+        db.close()
+
