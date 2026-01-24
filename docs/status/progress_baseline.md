@@ -1,8 +1,8 @@
 # QualityFoundry Progress Baseline
 
-> **Release Anchor**: `main@803c057` (2026-01-24)
+> **Release Anchor**: `main@9a3003d` (2026-01-24)
 > **Last Verified**: 2026-01-24
-> **Git Tag**: `v0.12-cost-governance`
+> **Git Tag**: `v0.13-run-unification`
 > **Verification Method**: Code grep + pytest (286 passed, 7 skipped)
 
 This document serves as the **single source of truth** for project progress. All claims are verifiable via the commands provided.
@@ -95,8 +95,8 @@ This document serves as the **single source of truth** for project progress. All
 | **Internal package version** | `pyproject.toml: version` | Use for pip/dependency management |
 
 **Current anchors:**
-- Git tag: `v0.12-cost-governance`
-- Main HEAD: `983acf2`
+- Git tag: `v0.13-run-unification`
+- Main HEAD: `9a3003d`
 - pyproject.toml: `0.1.0` (not updated)
 
 ---
