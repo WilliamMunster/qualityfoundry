@@ -41,6 +41,15 @@ class Settings(BaseSettings):
     # Token 过期时间（小时）
     # 环境变量：QF_TOKEN_EXPIRE_HOURS
     TOKEN_EXPIRE_HOURS: int = 24
+    
+    # ---------- Token 清理 ----------
+    # 启动时是否清理过期 token（生产环境建议开启）
+    # 环境变量：QF_TOKEN_CLEANUP_ENABLED
+    TOKEN_CLEANUP_ENABLED: bool = False
+    
+    # 已撤销 token 保留天数
+    # 环境变量：QF_TOKEN_CLEANUP_RETENTION_DAYS
+    TOKEN_CLEANUP_RETENTION_DAYS: int = 7
 
 
 # 全局单例：直接 import settings 使用

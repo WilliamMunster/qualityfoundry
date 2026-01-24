@@ -20,7 +20,7 @@ from sqlalchemy import func
 
 from fastapi import APIRouter, Depends
 from qualityfoundry.api.deps.auth_deps import get_current_user, RequireOrchestrationRun, RequireOrchestrationRead
-from qualityfoundry.database.user_models import User
+from qualityfoundry.database.user_models import User, UserRole
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -204,16 +204,23 @@ def list_runs(
     列出最近的运行记录。
 
     从 AuditLog 聚合 run_id，返回每个运行的摘要信息。
+    非 ADMIN 用户只能看到自己创建的运行记录。
     """
     from sqlalchemy import desc, distinct
 
+    # 构建基础查询（所有权过滤）
+    base_query = db.query(AuditLog)
+    if current_user.role != UserRole.ADMIN:
+        # 非 ADMIN 只能看自己的 run
+        base_query = base_query.filter(AuditLog.created_by_user_id == current_user.id)
+
     # 获取唯一 run_id 总数
-    total_query = db.query(func.count(distinct(AuditLog.run_id)))
+    total_query = base_query.with_entities(func.count(distinct(AuditLog.run_id)))
     total = total_query.scalar() or 0
 
     # 获取最近的 run_id 列表（按最新事件时间降序）
     subquery = (
-        db.query(
+        base_query.with_entities(
             AuditLog.run_id,
             func.min(AuditLog.ts).label("started_at"),
             func.max(AuditLog.ts).label("finished_at"),
@@ -303,6 +310,7 @@ async def run_orchestration(
         db,
         run_id=run_id,
         event_type=AuditEventType.TOOL_STARTED,
+        user_id=current_user.id,  # 记录操作用户
         tool_name=tool_request.tool_name,
         args=tool_request.args,
         actor="orchestrator",
@@ -316,6 +324,7 @@ async def run_orchestration(
         db,
         run_id=run_id,
         event_type=AuditEventType.TOOL_FINISHED,
+        user_id=current_user.id,  # 记录操作用户
         tool_name=tool_request.tool_name,
         status=tool_result.status.value,
         duration_ms=tool_result.duration_ms,
@@ -344,6 +353,7 @@ async def run_orchestration(
         db,
         run_id=run_id,
         event_type=AuditEventType.DECISION_MADE,
+        user_id=current_user.id,  # 记录操作用户
         status=gate_result.decision.value,
         decision_source="gate_evaluator",
         actor="orchestrator",

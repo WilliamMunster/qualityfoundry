@@ -24,6 +24,7 @@ from qualityfoundry.api.v1.routes_orchestrations import router as orchestrations
 from qualityfoundry.api.v1.routes_artifacts import router as artifacts_router
 from qualityfoundry.api.v1.routes_audit import router as audit_router
 from qualityfoundry.api.v1.routes_policies import router as policies_router
+from qualityfoundry.api.v1.routes_auth import router as auth_router
 
 # v1 统一入口：所有 v1 API 都从 /api/v1 开始
 router = APIRouter(prefix="/api/v1")
@@ -52,4 +53,5 @@ router.include_router(orchestrations_router)
 router.include_router(artifacts_router)
 router.include_router(audit_router)
 router.include_router(policies_router)
+router.include_router(auth_router)
 
