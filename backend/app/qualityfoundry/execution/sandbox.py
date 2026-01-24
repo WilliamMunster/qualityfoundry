@@ -43,7 +43,20 @@ class SandboxConfig(BaseModel):
         description="路径白名单（支持 glob）",
     )
     env_whitelist: list[str] = Field(
-        default_factory=lambda: ["PATH", "HOME", "PYTHONPATH", "LANG", "LC_*", "QF_*"],
+        default_factory=lambda: [
+            # Core system
+            "PATH", "HOME", "USER", "SHELL", "TERM", "TMPDIR", "TMP", "TEMP",
+            # Python
+            "PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONUNBUFFERED", "VIRTUAL_ENV",
+            # Locale
+            "LANG", "LC_*", "LANGUAGE",
+            # CI/CD environments
+            "CI", "GITHUB_*", "RUNNER_*", "ACTIONS_*",
+            # Playwright / Browser
+            "PLAYWRIGHT_*", "DISPLAY", "XDG_*", "DBUS_*",
+            # QualityFoundry
+            "QF_*",
+        ],
         description="环境变量白名单（支持 glob）",
     )
     blocked_commands: list[str] = Field(
