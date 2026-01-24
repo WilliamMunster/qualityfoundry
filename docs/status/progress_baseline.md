@@ -13,6 +13,18 @@ This document serves as the **single source of truth** for project progress. All
 >
 > **Policy API**: `GET /api/v1/policies/current` always returns current policy metadata (version, hash, summary).
 
+### Run 体系唯一入口（P2 统一后）
+
+> **Run Center 数据源**：
+> - 列表：`GET /api/v1/orchestrations/runs`
+> - 详情：`GET /api/v1/orchestrations/runs/{id}`
+>
+> **Legacy 端点**（deprecated，Sunset: 2026-02-23）：
+> - `GET /api/v1/runs*`：只读、deprecated、不可写
+> - 前端代码禁止引用 `qf.ts`（使用 `api/orchestrations.ts`）
+>
+> **契约测试**：`test_api_contract_run_detail.py` + `test_legacy_runs_readonly.py`
+
 ---
 
 ## L1-L5 Architecture Status

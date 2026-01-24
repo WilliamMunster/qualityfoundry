@@ -34,4 +34,21 @@ cd ../frontend
 npx tsc --noEmit 2>/dev/null || echo "⚠️  TypeScript check skipped (no frontend changes)"
 echo ""
 
+# 4. 检查前端是否引用了 legacy API
+echo "4. Checking for legacy API references..."
+cd ../frontend/src
+
+# 检查是否有文件（除了 qf.ts 本身）import 了 ../qf
+LEGACY_REFS=$(grep -r --include="*.ts" --include="*.tsx" -l 'from ["'"'"'].*qf["'"'"']\|from ["'"'"']\.\./qf["'"'"']' . 2>/dev/null | grep -v "qf.ts" || true)
+
+if [ -n "$LEGACY_REFS" ]; then
+  echo "❌ 发现 legacy API 引用！以下文件需要迁移到 orchestrationsApi："
+  echo "$LEGACY_REFS"
+  exit 1
+fi
+echo "✅ No legacy API references found"
+echo ""
+
+cd ../..
 echo "=== 验证完成，可以推送 ==="
+
