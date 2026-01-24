@@ -312,9 +312,9 @@ class OrchestratorService:
                 metadata=tool_request.metadata,
             )
 
-        def tool_func(req: ToolRequest) -> ToolResult:
+        async def tool_func(req: ToolRequest) -> ToolResult:
             # 传入 policy 以启用 sandbox / allowlist 强制执行
-            return self.registry.execute(req.tool_name, req, policy=policy)
+            return await self.registry.execute(req.tool_name, req, policy=policy)
 
         try:
             # 在治理（超时 + 重试强制）约束下执行
