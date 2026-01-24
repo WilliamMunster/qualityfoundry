@@ -8,13 +8,11 @@
 - 环境变量清洗
 """
 
-import asyncio
 import os
 import pytest
 
 from qualityfoundry.execution.sandbox import (
     SandboxConfig,
-    SandboxResult,
     run_in_sandbox,
     _validate_path,
     _validate_command,
