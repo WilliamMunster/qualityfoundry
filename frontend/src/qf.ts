@@ -1,3 +1,14 @@
+/**
+ * @deprecated 此文件已废弃，请使用 api/orchestrations.ts 代替
+ * 
+ * Legacy Runs API（基于文件系统的 run_<TS>）
+ * 仅用于向后兼容，不应在新代码中使用。
+ * 
+ * 推荐使用:
+ * - orchestrationsApi.listRuns() 获取运行列表
+ * - orchestrationsApi.getRunDetail() 获取运行详情
+ */
+
 export type RunSummary = {
   run_id: string;
   kind: string;
