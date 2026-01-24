@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from qualityfoundry.database.config import get_db
 from qualityfoundry.database.audit_log_models import AuditEventType, AuditLog
+from qualityfoundry.services.audit_service import write_audit_event
 from qualityfoundry.governance import (
     GateDecision,
     GateResult,
@@ -289,8 +290,29 @@ async def run_orchestration(
     # 2. Build tool request
     tool_request = _build_tool_request(run_id, req.nl_input, req.options)
 
+    # Record tool start
+    write_audit_event(
+        db,
+        run_id=run_id,
+        event_type=AuditEventType.TOOL_STARTED,
+        tool_name=tool_request.tool_name,
+        args=tool_request.args,
+        actor="orchestrator",
+    )
+
     # 3. Execute tool
     tool_result = await _execute_tool(tool_request)
+
+    # Record tool finish
+    write_audit_event(
+        db,
+        run_id=run_id,
+        event_type=AuditEventType.TOOL_FINISHED,
+        tool_name=tool_request.tool_name,
+        status=tool_result.status.value,
+        duration_ms=tool_result.duration_ms,
+        actor="orchestrator",
+    )
 
     # 4. Collect evidence
     collector = TraceCollector(
@@ -308,6 +330,17 @@ async def run_orchestration(
 
     # 5. Gate decision
     gate_result = evaluate_gate_with_hitl(evidence)
+
+    # Record decision
+    write_audit_event(
+        db,
+        run_id=run_id,
+        event_type=AuditEventType.DECISION_MADE,
+        status=gate_result.decision.value,
+        decision_source="gate_evaluator",
+        actor="orchestrator",
+        details={"reason": gate_result.reason},
+    )
 
     # 6. Create approval if NEED_HITL
     approval_id = None

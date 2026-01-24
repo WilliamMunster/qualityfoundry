@@ -10,9 +10,9 @@ import {
   Space,
   Tag,
   Spin,
-  message,
   Modal,
 } from "antd";
+import { message } from "../components/AntdGlobal";
 import {
   ArrowLeftOutlined,
   EditOutlined,

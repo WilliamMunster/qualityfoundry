@@ -3,11 +3,12 @@
  */
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ConfigProvider } from "antd";
+import { ConfigProvider, App as AntdApp } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import { lightTheme } from "./theme";
 import "./index.css";
 import AppLayout from "./layouts/AppLayout";
+import { AntdGlobal } from "./components/AntdGlobal";
 import LoginPage from "./pages/LoginPage";
 import RequirementsPage from "./pages/RequirementsPage";
 import RequirementDetailPage from "./pages/RequirementDetailPage";
@@ -31,46 +32,49 @@ import GlobalLoading from "./components/GlobalLoading";
 const App: React.FC = () => {
   return (
     <ConfigProvider locale={zhCN} theme={lightTheme}>
-      <GlobalLoading />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<AppLayout />}>
-            <Route
-              index
-              element={<Navigate to="/runs" replace />}
-            />
-            {/* Run Center */}
-            <Route path="runs" element={<RunListPage />} />
-            <Route path="runs/new" element={<RunLaunchPage />} />
-            <Route path="runs/:id" element={<RunDetailPage />} />
+      <AntdApp>
+        <AntdGlobal />
+        <GlobalLoading />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<AppLayout />}>
+              <Route
+                index
+                element={<Navigate to="/runs" replace />}
+              />
+              {/* Run Center */}
+              <Route path="runs" element={<RunListPage />} />
+              <Route path="runs/new" element={<RunLaunchPage />} />
+              <Route path="runs/:id" element={<RunDetailPage />} />
 
-            {/* Knowledge Base */}
-            <Route path="policies" element={<PoliciesPage />} />
-            <Route path="regression" element={<RegressionPage />} />
+              {/* Knowledge Base */}
+              <Route path="policies" element={<PoliciesPage />} />
+              <Route path="regression" element={<RegressionPage />} />
 
-            <Route path="requirements" element={<RequirementsPage />} />
-            <Route path="requirements/new" element={<RequirementEditPage />} />
-            <Route
-              path="requirements/:id"
-              element={<RequirementDetailPage />}
-            />
-            <Route
-              path="requirements/:id/edit"
-              element={<RequirementEditPage />}
-            />
-            <Route path="scenarios" element={<ScenariosPage />} />
-            <Route path="testcases" element={<TestCasesPage />} />
-            <Route path="environments" element={<EnvironmentsPage />} />
-            <Route path="executions" element={<ExecutionsPage />} />
-            <Route path="users" element={<UsersPage />} />
-            <Route path="report-dashboard" element={<ReportDashboardPage />} />
-            <Route path="observer" element={<ObserverDashboard />} />
-            <Route path="config-center" element={<ConfigCenterPage />} />
-            <Route path="ai-logs" element={<AIExecutionLogsPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+              <Route path="requirements" element={<RequirementsPage />} />
+              <Route path="requirements/new" element={<RequirementEditPage />} />
+              <Route
+                path="requirements/:id"
+                element={<RequirementDetailPage />}
+              />
+              <Route
+                path="requirements/:id/edit"
+                element={<RequirementEditPage />}
+              />
+              <Route path="scenarios" element={<ScenariosPage />} />
+              <Route path="testcases" element={<TestCasesPage />} />
+              <Route path="environments" element={<EnvironmentsPage />} />
+              <Route path="executions" element={<ExecutionsPage />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="report-dashboard" element={<ReportDashboardPage />} />
+              <Route path="observer" element={<ObserverDashboard />} />
+              <Route path="config-center" element={<ConfigCenterPage />} />
+              <Route path="ai-logs" element={<AIExecutionLogsPage />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AntdApp>
     </ConfigProvider>
   );
 };

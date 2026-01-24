@@ -2,7 +2,8 @@
  * 上帝视角 (Observer) 监控看板
  */
 import React, { useEffect, useState } from "react";
-import { Card, Row, Col, Select, Button, Space, Typography, Tag, Divider, Empty, Spin, message } from "antd";
+import { Card, Row, Col, Select, Button, Space, Typography, Tag, Divider, Empty, Spin } from "antd";
+import { message } from "../components/AntdGlobal";
 import {
     EyeOutlined,
     CheckCircleOutlined,

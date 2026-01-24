@@ -2,7 +2,8 @@
  * 执行管理页面
  */
 import React, { useEffect, useState } from "react";
-import { Table, Button, Space, Tag, Select, Modal, message } from "antd";
+import { Table, Button, Space, Tag, Select, Modal } from "antd";
+import { message } from "../components/AntdGlobal";
 import { PlayCircleOutlined, StopOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import apiClient from "../api/client";

@@ -9,8 +9,8 @@ import {
     Modal,
     Descriptions,
     Badge,
-    message,
 } from "antd";
+import { message } from "../components/AntdGlobal";
 import {
     RobotOutlined,
     EyeOutlined,

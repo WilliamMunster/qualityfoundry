@@ -10,10 +10,10 @@ import {
   Space,
   Select,
   DatePicker,
-  message,
   Table,
   Tag,
 } from "antd";
+import { message } from "../components/AntdGlobal";
 import {
   DownloadOutlined,
   FileExcelOutlined,

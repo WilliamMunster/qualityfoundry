@@ -7,12 +7,12 @@ import {
   Button,
   Space,
   Tag,
-  message,
   Modal,
   Form,
   Input,
   Switch,
 } from "antd";
+import { message } from "../components/AntdGlobal";
 import {
   PlusOutlined,
   CheckCircleOutlined,

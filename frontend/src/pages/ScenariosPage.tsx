@@ -8,7 +8,6 @@ import {
   Button,
   Space,
   Tag,
-  message,
   Modal,
   Select,
   Form,
@@ -20,6 +19,7 @@ import apiClient from "../api/client";
 import { getRequirements, type Requirement } from "../api/requirements";
 import { batchDeleteScenarios } from "../api/scenarios";
 import { useAppStore } from "../store";
+import { message, modal } from "../components/AntdGlobal";
 
 interface Scenario {
   id: string;
@@ -121,7 +121,8 @@ const ScenariosPage: React.FC = () => {
       content: "确定要批准这个场景吗？",
       onOk: async () => {
         try {
-          await apiClient.post(`/api/v1/scenarios/${id}/approve?reviewer=admin`);
+          // [FIX] 422 错误修复：reviewer 需要在请求体中
+          await apiClient.post(`/api/v1/scenarios/${id}/approve`, { reviewer: 'admin' });
           message.success("审核通过");
           setScenarios((prev) =>
             prev.map((item) =>
@@ -129,7 +130,7 @@ const ScenariosPage: React.FC = () => {
             )
           );
         } catch (error) {
-          // global error handler
+          // global error handler 现在通过 AntdGlobal 实例起作用
         }
       },
     });
@@ -244,10 +245,21 @@ const ScenariosPage: React.FC = () => {
       setSelectedRequirement(""); // 清空选择
       setPage(1); // 重置到第一页
       loadScenarios();
-    } catch (error) {
-      console.error(error);
-      // global error handler
+    } catch (error: any) {
+      // 先关闭 loading，再显示错误消息，确保用户能看到
+      setGlobalLoading(false);
+      setGenerating(false);
+      // 使用 modal 实例（通过 useModal hook 获取）来显示错误
+      const detail = error?.response?.data?.detail;
+      if (detail) {
+        modal.error({
+          title: '生成失败',
+          content: detail,
+        });
+      }
     } finally {
+
+
       setGlobalLoading(false); // 关闭 global loading
       setGenerating(false);
       setSelectedConfig(undefined);

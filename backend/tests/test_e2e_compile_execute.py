@@ -72,7 +72,7 @@ class TestEndToEndCompileExecute:
         )
         
         # 执行
-        ok, evidence = run_actions(req, artifact_dir=tmp_path)
+        ok, evidence, _ = run_actions(req, artifact_dir=tmp_path)
         
         # 验证执行结果
         assert ok is True
@@ -107,7 +107,7 @@ class TestEndToEndCompileExecute:
         )
         
         # 执行
-        ok, evidence = run_actions(req, artifact_dir=tmp_path)
+        ok, evidence, _ = run_actions(req, artifact_dir=tmp_path)
         
         # 验证
         assert ok is True

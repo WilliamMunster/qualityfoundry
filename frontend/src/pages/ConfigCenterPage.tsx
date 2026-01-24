@@ -6,7 +6,6 @@ import {
   Input,
   Switch,
   Button,
-  message,
   Space,
   Table,
   Modal,
@@ -34,6 +33,7 @@ import {
   FileTextOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
+import { message } from "../components/AntdGlobal";
 import apiClient from "../api/client";
 
 const { TabPane } = Tabs;
