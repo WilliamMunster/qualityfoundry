@@ -4,7 +4,7 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
-> **Release Anchor**: Use git tags/commit SHA (e.g., `v0.10-mvp-orchestration`, `main@d0b6706`)
+> **Current Release**: `v0.12-cost-governance` @ `73ee9cc`
 >
 > **Progress Baseline**: See [docs/status/progress_baseline.md](docs/status/progress_baseline.md) for verified status
 
@@ -22,18 +22,18 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 | **L1** | Policy (规则与门禁) | ✅ Complete |
 | **L2** | Orchestration (编排层) | ✅ Phase 2.2 Complete (LangGraph state machine) |
 | **L3** | Execution (执行层) | 🟡 Tool runners complete; Sandbox TBD |
-| **L4** | Protocol (MCP) | 🟡 Client-only (no server yet) |
+| **L4** | Protocol (MCP) | 🟡 MCP Server (read-only) + Client |
 | **L5** | Governance & Evals | ✅ Phase 5.2 Complete |
 
 - **L1 规则与门禁层 (Policy)**：定义 `policy_config.yaml`、风险分级与发布门禁。
 - **L2 编排层 (Orchestration)**：LangGraph 状态机执行，5 个节点支持动态路由扩展及 HITL 机制。
 - **L3 执行层 (Execution)**：集成 Playwright、Pytest 等工具，沙箱隔离待实现。
-- **L4 接口层 (Protocol)**：MCP Client 调用外部服务（独立 MCP Server 待实现）。
+- **L4 接口层 (Protocol)**：MCP Client 调用外部服务，MCP Server（只读工具）已实现。
 - **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、变更对比报告（在线漂移监控待实现）。
 
 ---
 
-## Current Status (main@2723e11)
+## Current Status (main@73ee9cc)
 
 ### Completed Features (Verified)
 - ✅ **需求/场景/用例管理**：支持从 NL 需求到场景、用例的全链路生成与审核，支持自动补全 `seq_id`
