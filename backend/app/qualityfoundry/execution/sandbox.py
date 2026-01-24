@@ -43,8 +43,12 @@ class SandboxConfig(BaseModel):
     )
     env_whitelist: list[str] = Field(
         default_factory=lambda: [
-            # Core system
+            # Core system (Unix/Mac)
             "PATH", "HOME", "USER", "SHELL", "TERM", "TMPDIR", "TMP", "TEMP",
+            # Windows system (required for pytest/subprocess on Windows)
+            "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "USERPROFILE",
+            "HOMEDRIVE", "HOMEPATH", "APPDATA", "LOCALAPPDATA", "PROGRAMFILES",
+            "PROGRAMFILES(X86)", "COMMONPROGRAMFILES", "SYSTEMDRIVE",
             # Python
             "PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONUNBUFFERED", "VIRTUAL_ENV",
             # Locale
