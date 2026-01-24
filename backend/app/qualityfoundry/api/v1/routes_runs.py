@@ -20,8 +20,10 @@ from qualityfoundry.database.user_models import User
 
 
 # Deprecation headers（标准化）
+# Sunset: 2026-02-23 (30 天后)
 DEPRECATION_HEADERS = {
     "Deprecation": "true",
+    "Sunset": "Mon, 23 Feb 2026 00:00:00 GMT",
     "X-Deprecated": "Use /api/v1/orchestrations/runs instead",
     "Link": '</api/v1/orchestrations/runs>; rel="successor-version"',
 }
