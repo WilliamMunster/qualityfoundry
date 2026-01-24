@@ -13,7 +13,6 @@ from __future__ import annotations
 import pytest
 from pathlib import Path
 from uuid import uuid4
-from unittest.mock import patch, AsyncMock
 
 from qualityfoundry.governance.policy_loader import (
     PolicyConfig,
@@ -23,10 +22,9 @@ from qualityfoundry.governance.policy_loader import (
 from qualityfoundry.tools.registry import (
     ToolRegistry,
     SANDBOXABLE_TOOLS,
-    get_registry,
     reset_registry,
 )
-from qualityfoundry.tools.contracts import ToolRequest, ToolResult, ToolStatus
+from qualityfoundry.tools.contracts import ToolRequest, ToolResult
 from qualityfoundry.execution.sandbox import SandboxConfig
 
 
