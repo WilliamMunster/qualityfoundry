@@ -312,13 +312,15 @@ class OrchestratorService:
             )
 
         try:
-            # 直接调用 registry.execute，绕过 governance wrapper
-            # 临时修改以隔离 Windows CI 上的 async 问题
+            # Debug: trace Windows CI async issue
             import asyncio
+            import sys
+            print(f"[DEBUG] Before registry.execute: tool={tool_request.tool_name}", file=sys.stderr, flush=True)
             tool_result = await asyncio.wait_for(
                 self.registry.execute(tool_request.tool_name, tool_request, policy=policy),
                 timeout=tool_request.timeout_s,
             )
+            print(f"[DEBUG] After registry.execute: status={tool_result.status}", file=sys.stderr, flush=True)
         except asyncio.TimeoutError:
             from datetime import datetime, timezone
             now = datetime.now(timezone.utc)
