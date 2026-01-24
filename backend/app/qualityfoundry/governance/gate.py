@@ -135,10 +135,18 @@ def evaluate_gate(
                 )
             else:
                 triggered_rules.append("tool_execution_failed")
-                failed_names = [tc.tool_name for tc in failed_tools]
+                failed_reasons = []
+                for tc in failed_tools:
+                    msg = f"{tc.tool_name}"
+                    if tc.stderr:
+                        # 只取前 100 个字符避免过长
+                        err_snippet = tc.stderr[:100].replace("\n", " ")
+                        msg += f" ({err_snippet})"
+                    failed_reasons.append(msg)
+                
                 return GateResult(
                     decision=GateDecision.FAIL,
-                    reason=f"工具执行失败: {', '.join(failed_names)}",
+                    reason=f"工具执行失败: {'; '.join(failed_reasons)}",
                     triggered_rules=triggered_rules,
                     evidence_summary=evidence_summary,
                 )
