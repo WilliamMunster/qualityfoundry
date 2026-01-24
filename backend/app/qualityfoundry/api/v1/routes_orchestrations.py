@@ -222,8 +222,10 @@ async def _execute_tool(request: ToolRequest) -> ToolResult:
     """执行工具并返回结果"""
     from datetime import datetime, timezone
     from qualityfoundry.governance.policy_loader import get_policy
+    from qualityfoundry.tools.runners import register_all_tools
     
     # 确保工具已注册（registry 可能在测试期间被 reset）
+    register_all_tools()
 
     registry = get_registry()
     policy = get_policy()
