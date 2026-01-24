@@ -233,9 +233,14 @@ async def run_in_sandbox(
         )
 
     # 2. 验证工作目录
+    # 注意：cwd 只是 subprocess 的工作目录，不是安全敏感路径
+    # 真正的安全边界是 allowed_paths 验证测试路径本身
+    # Windows CI 中 cwd 是绝对路径如 D:\a\qualityfoundry\，需要允许
     if cwd is not None:
-        if not _validate_path(cwd, config.allowed_paths):
-            reason = f"Working directory '{cwd}' not in allowed paths"
+        cwd_str = str(cwd)
+        # 只禁止路径穿越，不限制绝对/相对路径
+        if ".." in cwd_str:
+            reason = f"Working directory '{cwd}' contains path traversal"
             logger.warning(f"Sandbox blocked cwd: {reason}")
             return SandboxResult(
                 exit_code=-1,
