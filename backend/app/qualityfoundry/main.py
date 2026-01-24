@@ -58,21 +58,43 @@ def health():
 
 @app.on_event("startup")
 def on_startup():
-    """应用启动时执行 seed 逻辑。
+    """应用启动时执行初始化逻辑。
+    
+    包含：
+    - 数据 seed（默认环境等）
+    - Token 清理（需开启 QF_TOKEN_CLEANUP_ENABLED=true）
     
     注意：如果数据库不可用（如 CI 环境），不阻塞服务启动。
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
         from qualityfoundry.database.config import SessionLocal
         from qualityfoundry.services.startup_seeds import run_startup_seeds
+        from qualityfoundry.services.auth_service import AuthService
+        from qualityfoundry.core.config import settings
         
         db = SessionLocal()
         try:
+            # 1. 数据 seed
             run_startup_seeds(db)
+            
+            # 2. Token 清理（需开启 feature flag）
+            if settings.TOKEN_CLEANUP_ENABLED:
+                deleted = AuthService.cleanup_expired_tokens(
+                    db, 
+                    retention_days=settings.TOKEN_CLEANUP_RETENTION_DAYS
+                )
+                if deleted > 0:
+                    logger.info(
+                        f"Token 清理完成: 删除 {deleted} 个过期/撤销 token "
+                        f"(retention={settings.TOKEN_CLEANUP_RETENTION_DAYS}d)"
+                    )
         finally:
             db.close()
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning(f"Startup seeds skipped: {e}")
+        logging.getLogger(__name__).warning(f"Startup tasks skipped: {e}")
 
 

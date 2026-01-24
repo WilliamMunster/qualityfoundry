@@ -50,6 +50,7 @@ def write_audit_event(
     *,
     run_id: UUID,
     event_type: AuditEventType,
+    user_id: UUID | None = None,  # 操作用户 ID（用于所有权过滤）
     tool_name: str | None = None,
     args: dict[str, Any] | None = None,
     status: str | None = None,
@@ -65,6 +66,7 @@ def write_audit_event(
         db: 数据库会话
         run_id: 运行 ID
         event_type: 事件类型
+        user_id: 操作用户 ID（可选，用于所有权过滤）
         tool_name: 工具名称（可选）
         args: 工具参数（可选，用于计算哈希）
         status: 状态（可选）
@@ -83,6 +85,7 @@ def write_audit_event(
     try:
         log_entry = AuditLog(
             run_id=run_id,
+            created_by_user_id=user_id,  # 记录操作用户
             ts=datetime.now(timezone.utc),
             event_type=event_type,
             actor=actor,

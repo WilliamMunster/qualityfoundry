@@ -145,3 +145,37 @@ class AuthService:
         db.commit()
         db.refresh(admin)
         return admin
+
+    @staticmethod
+    def cleanup_expired_tokens(db: Session, retention_days: int = 7) -> int:
+        """清理过期和已撤销的 token
+        
+        清理规则：
+        - 条件1：已过期的 token（expires_at < now）
+        - 条件2：已撤销且超过保留期的 token（revoked_at IS NOT NULL AND revoked_at < cutoff）
+        
+        Args:
+            db: 数据库会话
+            retention_days: 已撤销 token 保留天数（默认 7 天）
+            
+        Returns:
+            删除的 token 数量
+        """
+        from sqlalchemy import and_, or_
+        
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(days=retention_days)
+        
+        deleted = db.query(UserToken).filter(
+            or_(
+                UserToken.expires_at < now,
+                and_(
+                    UserToken.revoked_at.isnot(None),
+                    UserToken.revoked_at < cutoff
+                )
+            )
+        ).delete(synchronize_session=False)
+        
+        db.commit()
+        return deleted
+

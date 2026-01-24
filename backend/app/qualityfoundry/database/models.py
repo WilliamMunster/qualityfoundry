@@ -162,6 +162,7 @@ class Execution(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     testcase_id = Column(UUID(as_uuid=True), ForeignKey("testcases.id"), nullable=False)
     environment_id = Column(UUID(as_uuid=True), ForeignKey("environments.id"), nullable=False)
+    created_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)  # 所有权锚点
     mode = Column(Enum(ExecutionMode), nullable=False, default=ExecutionMode.DSL)
     status = Column(Enum(ExecutionStatus), nullable=False, default=ExecutionStatus.PENDING)
     result = Column(JSON, nullable=True)  # Execution result data
