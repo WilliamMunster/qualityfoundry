@@ -1,9 +1,9 @@
 # QualityFoundry Progress Baseline
 
-> **Release Anchor**: `main@983acf2` (2026-01-22)
-> **Last Verified**: 2026-01-22
+> **Release Anchor**: `main@73ee9cc` (2026-01-24)
+> **Last Verified**: 2026-01-24
 > **Git Tag**: `v0.12-cost-governance`
-> **Verification Method**: Code grep + file existence checks
+> **Verification Method**: Code grep + pytest (286 passed, 7 skipped)
 
 This document serves as the **single source of truth** for project progress. All claims are verifiable via the commands provided.
 
@@ -16,7 +16,7 @@ This document serves as the **single source of truth** for project progress. All
 | **L1** | Policy (规则与门禁) | ✅ Complete | `ls governance/policy_loader.py gate.py` |
 | **L2** | Orchestration (编排层) | ✅ Phase 2.2 Complete (LangGraph) | `from langgraph.graph import StateGraph` in orchestrator_service.py |
 | **L3** | Execution (执行层) | 🟡 Partial | Tool contract + runners ✅; Sandbox/permissions 🔴 |
-| **L4** | Protocol (MCP) | 🟡 Client-only | No independent MCP Server (`mcp_server/` not exists) |
+| **L4** | Protocol (MCP) | 🟡 MCP Server (read-only) + Client | `protocol/mcp/server.py` exists, 14 tests passed |
 | **L5** | Governance & Evals | ✅ Phase 5.2 Complete | `ls governance/evals/ golden/` |
 
 ---
@@ -40,16 +40,16 @@ This document serves as the **single source of truth** for project progress. All
 |---------|---------|--------|------------------|
 | **Authentication** | "JWT" | `secrets.token_urlsafe()` simple token | 🟡 Basic token (not JWT) |
 | **Role-based access** | "RBAC" | `UserRole` enum exists, no middleware enforcement | 🟡 Model exists, not enforced |
-| **MCP Integration** | "L4 Complete" | Only `MCPClient` calling external servers | 🟡 MCP Client only |
+| **MCP Integration** | "L4 Complete" | `MCPClient` + `protocol/mcp/server.py` (read-only) | 🟡 MCP Server read-only + Client |
 
 ### 🔴 Not Started / Not Exists
 
 | Feature | Claimed | Code Verification | Corrected Status |
 |---------|---------|-------------------|------------------|
-| **Audit Log** | ✅ | `grep -r "audit_log" backend/` = 0 results | 🔴 Not exists |
-| **MCP Server** | L4 ✅ | No `mcp_server/`, no FastMCP entry | 🔴 Not started |
+| **Audit Log** | ✅ | `services/audit_service.py`, `database/audit_log_models.py`, 6+ tests | ✅ Complete |
+| **MCP Server** | L4 ✅ | `protocol/mcp/server.py`, 14 tests passed | ✅ Complete (read-only) |
 | **LangGraph Integration** | ✅ Phase 2.2 | `from langgraph.graph import StateGraph` | ✅ Complete |
-| **Cost Governance** | Phase 5.1 ✅ | Budget/timeout circuit breaker logic | ✅ Minimal (timeout) |
+| **Cost Governance** | Phase 5.1 ✅ | `_enforce_budget()` + GovernanceBudget | ✅ Complete (budget + short-circuit) |
 
 ---
 
