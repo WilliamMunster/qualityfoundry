@@ -143,9 +143,12 @@ def _validate_path(path: str | Path, allowed_paths: list[str]) -> bool:
     if not parts:
         return False
 
-    first_part = parts[0].rstrip("/")
+    # 跨平台兼容：使用 Path 来获取第一部分，不依赖特定分隔符
+    first_part = parts[0].rstrip("/\\")
     for allowed in allowed_paths:
-        allowed_first = allowed.rstrip("/").split("/")[0]
+        # 使用 Path 来正确解析 allowed_paths（跨平台）
+        allowed_norm = Path(allowed.rstrip("/\\"))
+        allowed_first = allowed_norm.parts[0] if allowed_norm.parts else allowed.rstrip("/\\")
         if first_part == allowed_first:
             return True
 
