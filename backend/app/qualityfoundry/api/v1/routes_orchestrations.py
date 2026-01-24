@@ -34,8 +34,8 @@ from qualityfoundry.governance import (
     evaluate_gate_with_hitl,
 )
 from qualityfoundry.services.approval_service import ApprovalService
-from qualityfoundry.tools import ToolRequest, ToolResult, ToolStatus
-from qualityfoundry.tools.registry import get_registry, ToolNotFoundError
+from qualityfoundry.tools import ToolRequest, ToolResult
+from qualityfoundry.tools.registry import get_registry
 
 # 导入 runners 模块以自动注册工具
 import qualityfoundry.tools.runners  # noqa: F401
@@ -220,24 +220,13 @@ def _build_tool_request(
 
 async def _execute_tool(request: ToolRequest) -> ToolResult:
     """执行工具并返回结果"""
-    from datetime import datetime, timezone
+    from qualityfoundry.governance.policy_loader import get_policy
 
     registry = get_registry()
+    policy = get_policy()
 
-    try:
-        tool_func = registry.get(request.tool_name)
-    except ToolNotFoundError:
-        # 工具不存在，返回失败结果
-        now = datetime.now(timezone.utc)
-        return ToolResult(
-            status=ToolStatus.FAILED,
-            stdout=None,
-            stderr=f"Tool not found: {request.tool_name}",
-            started_at=now,
-            ended_at=now,
-        )
-
-    return await tool_func(request)
+    # 使用 registry.execute 以启用 policy (sandbox/allowlist)
+    return await registry.execute(request.tool_name, request, policy=policy)
 
 
 def _create_approval_if_needed(
