@@ -313,7 +313,8 @@ class OrchestratorService:
             )
 
         def tool_func(req: ToolRequest) -> ToolResult:
-            return self.registry.execute(req.tool_name, req)
+            # 传入 policy 以启用 sandbox / allowlist 强制执行
+            return self.registry.execute(req.tool_name, req, policy=policy)
 
         try:
             # 在治理（超时 + 重试强制）约束下执行
