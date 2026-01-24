@@ -182,39 +182,33 @@ async def run_pytest(request: ToolRequest) -> ToolResult:
 
             logger.info(f"Running pytest: {' '.join(cmd)}")
 
-            # 执行 pytest
+            # 执行 pytest (通过沙箱)
             cwd = Path(working_dir) if working_dir else None
 
-            try:
-                process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=cwd,
-                )
+            # 使用沙箱执行
+            from qualityfoundry.execution.sandbox import run_in_sandbox, SandboxConfig
 
-                try:
-                    stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                        process.communicate(),
-                        timeout=request.timeout_s - 5,  # 留 5s 安全边界
-                    )
-                except asyncio.TimeoutError:
-                    process.kill()
-                    await process.wait()
-                    return ctx.timeout(f"pytest timed out after {request.timeout_s}s")
+            # 从 request 获取沙箱配置，如果没有则使用默认值
+            sandbox_config = getattr(request, "sandbox_config", None) or SandboxConfig(
+                timeout_s=request.timeout_s - 5,  # 留 5s 安全边界
+                allowed_paths=["tests/", "test/", "artifacts/"],
+            )
 
-            except FileNotFoundError:
-                diag = _collect_environment_diagnostics()
-                diag_str = _format_diagnostics(diag)
+            sandbox_result = await run_in_sandbox(cmd, config=sandbox_config, cwd=cwd)
+
+            # 检查沙箱是否阻止了命令
+            if sandbox_result.sandbox_blocked:
                 return ctx.failed(
-                    f"pytest not found. Please install pytest.\n\n{diag_str}"
+                    f"Sandbox blocked: {sandbox_result.block_reason}"
                 )
-            except Exception as e:
-                return ctx.failed(f"Failed to execute pytest: {e}")
 
-            stdout = stdout_bytes.decode("utf-8", errors="replace")
-            stderr = stderr_bytes.decode("utf-8", errors="replace")
-            exit_code = process.returncode
+            # 检查超时
+            if sandbox_result.killed_by_timeout:
+                return ctx.timeout(f"pytest timed out after {sandbox_config.timeout_s}s")
+
+            stdout = sandbox_result.stdout
+            stderr = sandbox_result.stderr
+            exit_code = sandbox_result.exit_code
 
             # 收集 JUnit XML artifact
             if junit_path.exists():
