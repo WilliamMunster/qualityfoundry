@@ -1,9 +1,9 @@
 # QualityFoundry Progress Baseline
 
-> **Release Anchor**: `main@803c057` (2026-01-24)
+> **Release Anchor**: `main@1168acf` (2026-01-24)
 > **Last Verified**: 2026-01-24
-> **Git Tag**: `v0.12-cost-governance`
-> **Verification Method**: Code grep + pytest (286 passed, 7 skipped)
+> **Git Tag**: `v0.13-run-unification`
+> **Verification Method**: Code grep + pytest (333 passed, 13 skipped)
 
 This document serves as the **single source of truth** for project progress. All claims are verifiable via the commands provided.
 
