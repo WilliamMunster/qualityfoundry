@@ -1,11 +1,17 @@
 # QualityFoundry Progress Baseline
 
-> **Release Anchor**: `main@73ee9cc` (2026-01-24)
+> **Release Anchor**: `main@803c057` (2026-01-24)
 > **Last Verified**: 2026-01-24
 > **Git Tag**: `v0.12-cost-governance`
 > **Verification Method**: Code grep + pytest (286 passed, 7 skipped)
 
 This document serves as the **single source of truth** for project progress. All claims are verifiable via the commands provided.
+
+### Bootstrap Guarantees
+
+> **Auto-seed**: Backend startup will auto-seed a default environment (`Local`) **only if** the `environments` table is empty.
+>
+> **Policy API**: `GET /api/v1/policies/current` always returns current policy metadata (version, hash, summary).
 
 ---
 
