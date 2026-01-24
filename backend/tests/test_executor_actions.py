@@ -36,7 +36,7 @@ class TestExecutorActions:
             headless=True
         )
         
-        ok, evidence = run_actions(req, artifact_dir=tmp_path)
+        ok, evidence, _ = run_actions(req, artifact_dir=tmp_path)
         
         assert ok is True
         assert len(evidence) == 2
@@ -58,7 +58,7 @@ class TestExecutorActions:
             headless=True
         )
         
-        ok, evidence = run_actions(req, artifact_dir=tmp_path)
+        ok, evidence, _ = run_actions(req, artifact_dir=tmp_path)
         assert ok is True
 
     def test_fill_with_css_selector(self, tmp_path: Path):
@@ -75,7 +75,7 @@ class TestExecutorActions:
             headless=True
         )
         
-        ok, evidence = run_actions(req, artifact_dir=tmp_path)
+        ok, evidence, _ = run_actions(req, artifact_dir=tmp_path)
         assert ok is True
 
 
