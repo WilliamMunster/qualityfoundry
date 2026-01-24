@@ -4,7 +4,7 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
-> **Current Release**: `v0.13-run-unification` @ `1168acf`
+> **Current Release**: `v0.14-sandbox-policy` @ `3dc7e0c`
 >
 > **Progress Baseline**: See [docs/status/progress_baseline.md](docs/status/progress_baseline.md) for verified status
 
@@ -21,7 +21,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 |-------|------|----------------|
 | **L1** | Policy (规则与门禁) | ✅ Complete |
 | **L2** | Orchestration (编排层) | ✅ Phase 2.2 Complete (LangGraph state machine) |
-| **L3** | Execution (执行层) | ✅ Sandbox base complete (subprocess isolation) |
+| **L3** | Execution (执行层) | ✅ Sandbox MVP complete (policy-driven, CI verified) |
 | **L4** | Protocol (MCP) | 🟡 MCP Server (read-only) + Client |
 | **L5** | Governance & Evals | ✅ Phase 5.2 Complete |
 
@@ -33,7 +33,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 
 ---
 
-## Current Status (main@73ee9cc)
+## Current Status (main@3dc7e0c)
 
 ### Completed Features (Verified)
 - ✅ **需求/场景/用例管理**：支持从 NL 需求到场景、用例的全链路生成与审核，支持自动补全 `seq_id`
@@ -48,6 +48,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - ✅ **批量操作**：支持多选删除，确认弹窗
 - ✅ **审计日志 (PR-C)**：完整的操作审计，记录工具执行与决策事件
 - ✅ **Premium UI 前端**：AI 工作区前端重构，支持编排可视化与运行管理
+- ✅ **L3 沙箱执行 (PR-B)**：进程隔离沙箱，policy 驱动的超时/路径/命令/环境变量控制
 
 ### Partial / In Progress
 - 🟡 **用户认证**：基于 token 的简单认证（非 JWT，待升级）
