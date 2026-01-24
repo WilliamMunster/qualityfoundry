@@ -221,11 +221,18 @@ def _build_tool_request(
 async def _execute_tool(request: ToolRequest) -> ToolResult:
     """执行工具并返回结果"""
     from datetime import datetime, timezone
+    from qualityfoundry.governance.policy_loader import get_policy
+    from qualityfoundry.tools.runners import register_all_tools
+    
+    # 确保工具已注册（registry 可能在测试期间被 reset）
+    register_all_tools()
 
     registry = get_registry()
+    policy = get_policy()
 
     try:
-        tool_func = registry.get(request.tool_name)
+        # 使用 registry.execute 以启用 policy (sandbox/allowlist)
+        return await registry.execute(request.tool_name, request, policy=policy)
     except ToolNotFoundError:
         # 工具不存在，返回失败结果
         now = datetime.now(timezone.utc)
@@ -236,8 +243,6 @@ async def _execute_tool(request: ToolRequest) -> ToolResult:
             started_at=now,
             ended_at=now,
         )
-
-    return await tool_func(request)
 
 
 def _create_approval_if_needed(

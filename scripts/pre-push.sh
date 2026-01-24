@@ -14,11 +14,11 @@ echo ""
 
 cd "$(dirname "$0")/.."
 
-# 1. Ruff Lint
-echo "1. Running ruff check..."
+# 1. Ruff Lint（全量检查，与 CI 一致）
+echo "1. Running ruff check (full)..."
 cd backend
 source .venv/bin/activate 2>/dev/null || true
-ruff check app/ --fix
+ruff check app/ tests/ --fix
 echo "✅ Lint passed"
 echo ""
 

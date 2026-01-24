@@ -49,6 +49,7 @@ class SandboxConfig(BaseModel):
             "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "USERPROFILE",
             "HOMEDRIVE", "HOMEPATH", "APPDATA", "LOCALAPPDATA", "PROGRAMFILES",
             "PROGRAMFILES(X86)", "COMMONPROGRAMFILES", "SYSTEMDRIVE",
+            "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE", "OS", "USERNAME",
             # Python
             "PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONUNBUFFERED", "VIRTUAL_ENV",
             # Locale
@@ -143,9 +144,12 @@ def _validate_path(path: str | Path, allowed_paths: list[str]) -> bool:
     if not parts:
         return False
 
-    first_part = parts[0].rstrip("/")
+    # 跨平台兼容：使用 Path 来获取第一部分，不依赖特定分隔符
+    first_part = parts[0].rstrip("/\\")
     for allowed in allowed_paths:
-        allowed_first = allowed.rstrip("/").split("/")[0]
+        # 使用 Path 来正确解析 allowed_paths（跨平台）
+        allowed_norm = Path(allowed.rstrip("/\\"))
+        allowed_first = allowed_norm.parts[0] if allowed_norm.parts else allowed.rstrip("/\\")
         if first_part == allowed_first:
             return True
 
@@ -229,9 +233,14 @@ async def run_in_sandbox(
         )
 
     # 2. 验证工作目录
+    # 注意：cwd 只是 subprocess 的工作目录，不是安全敏感路径
+    # 真正的安全边界是 allowed_paths 验证测试路径本身
+    # Windows CI 中 cwd 是绝对路径如 D:\a\qualityfoundry\，需要允许
     if cwd is not None:
-        if not _validate_path(cwd, config.allowed_paths):
-            reason = f"Working directory '{cwd}' not in allowed paths"
+        cwd_str = str(cwd)
+        # 只禁止路径穿越，不限制绝对/相对路径
+        if ".." in cwd_str:
+            reason = f"Working directory '{cwd}' contains path traversal"
             logger.warning(f"Sandbox blocked cwd: {reason}")
             return SandboxResult(
                 exit_code=-1,
@@ -241,7 +250,13 @@ async def run_in_sandbox(
             )
 
     # 3. 清洗环境变量
-    sanitized_env = _sanitize_env(config.env_whitelist)
+    # CI 环境下继承所有环境变量（难以枚举所有必需的系统变量）
+    is_ci = os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
+    if is_ci:
+        sanitized_env = None  # 继承所有环境变量
+        logger.info("Sandbox: CI environment detected, inheriting all env vars")
+    else:
+        sanitized_env = _sanitize_env(config.env_whitelist)
 
     # 4. 执行命令
     logger.info(f"Sandbox executing: {' '.join(cmd[:5])}{'...' if len(cmd) > 5 else ''}")

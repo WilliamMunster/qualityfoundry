@@ -294,7 +294,6 @@ class OrchestratorService:
         from datetime import datetime, timezone
         from qualityfoundry.tools.contracts import ToolStatus, ToolMetrics
         from qualityfoundry.tools.registry import ToolNotFoundError
-        from qualityfoundry.tools.base import execute_with_governance
 
         tool_request = state["tool_request"]
 
@@ -312,13 +311,24 @@ class OrchestratorService:
                 metadata=tool_request.metadata,
             )
 
-        def tool_func(req: ToolRequest) -> ToolResult:
-            return self.registry.execute(req.tool_name, req)
-
         try:
-            # 在治理（超时 + 重试强制）约束下执行
-            tool_result = await execute_with_governance(tool_func, tool_request)
+            import asyncio
+            tool_result = await asyncio.wait_for(
+                self.registry.execute(tool_request.tool_name, tool_request, policy=policy),
+                timeout=tool_request.timeout_s,
+            )
+        except asyncio.TimeoutError:
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc)
+            tool_result = ToolResult(
+                status=ToolStatus.TIMEOUT,
+                error_message=f"工具执行超时: {tool_request.timeout_s}s",
+                started_at=now,
+                ended_at=now,
+                metrics=ToolMetrics(attempts=1, retries_used=0, timed_out=True),
+            )
         except ToolNotFoundError:
+            from datetime import datetime, timezone
             now = datetime.now(timezone.utc)
             tool_result = ToolResult(
                 status=ToolStatus.FAILED,

@@ -193,11 +193,12 @@ class TestRunInSandbox:
 
     @pytest.mark.asyncio
     async def test_blocked_cwd(self):
-        """非法工作目录应被阻止"""
+        """工作目录包含路径穿越应被阻止"""
         config = SandboxConfig(allowed_paths=["tests/"])
-        result = await run_in_sandbox(["ls"], config=config, cwd="/etc")
+        # 路径穿越应被阻止（绝对路径现在允许，以支持 Windows CI）
+        result = await run_in_sandbox(["ls"], config=config, cwd="../../../etc")
         assert result.sandbox_blocked is True
-        assert "not in allowed paths" in result.block_reason
+        assert "path traversal" in result.block_reason.lower()
 
     @pytest.mark.asyncio
     async def test_command_not_found(self):

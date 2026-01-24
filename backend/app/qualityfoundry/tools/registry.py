@@ -24,6 +24,14 @@ logger = logging.getLogger(__name__)
 # 工具函数类型：接收 ToolRequest，返回 ToolResult
 ToolFunction: TypeAlias = Callable[[ToolRequest], Awaitable[ToolResult]]
 
+# 支持沙箱隔离的工具列表（subprocess 执行器）
+# 这些工具在 policy.sandbox.enabled 时会接收 sandbox_config 参数
+SANDBOXABLE_TOOLS: frozenset[str] = frozenset({
+    "run_pytest",
+    # 注意：run_playwright 使用浏览器进程，不适用 subprocess 沙箱
+    # 未来如需隔离 Playwright，需另行实现 browser sandbox
+})
+
 
 class ToolNotFoundError(Exception):
     """工具未找到异常"""
@@ -121,7 +129,7 @@ class ToolRegistry:
         Args:
             name: 工具名称
             request: 工具请求
-            policy: 策略配置（可选，用于 allowlist 检查）
+            policy: 策略配置（可选，用于 allowlist 和 sandbox 检查）
 
         Returns:
             ToolResult: 执行结果
@@ -139,11 +147,32 @@ class ToolRegistry:
                     raw_output={"decision_source": "policy_block"},
                 )
 
+        # Sandbox enforcement: build config for sandboxable tools
+        sandbox_config = None
+        if policy is not None and name in SANDBOXABLE_TOOLS:
+            if policy.sandbox.enabled:
+                from qualityfoundry.execution.sandbox import SandboxConfig
+                sandbox_config = SandboxConfig(
+                    timeout_s=policy.sandbox.timeout_s,
+                    memory_limit_mb=policy.sandbox.memory_limit_mb,
+                    allowed_paths=policy.sandbox.allowed_paths,
+                    env_whitelist=policy.sandbox.env_whitelist,
+                )
+                logger.info(
+                    f"Sandbox enabled for {name}: timeout={policy.sandbox.timeout_s}s"
+                )
+            else:
+                logger.info(f"Sandbox disabled by policy for {name}")
+
         fn = self.get(name)
         logger.info(f"Executing tool: {name}, run_id={request.run_id}")
 
         try:
-            result = await fn(request)
+            # Pass sandbox_config as keyword argument if tool accepts it
+            if sandbox_config is not None:
+                result = await fn(request, sandbox_config=sandbox_config)
+            else:
+                result = await fn(request)
             logger.info(f"Tool {name} completed: status={result.status.value}")
             return result
         except Exception as e:
