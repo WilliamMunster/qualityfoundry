@@ -2,11 +2,9 @@
 
 测试登出、过期 token 和清理功能。
 """
-import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from qualityfoundry.database.config import get_db
 from qualityfoundry.database.token_models import UserToken
 from qualityfoundry.database.user_models import User, UserRole
 from qualityfoundry.services.auth_service import AuthService
