@@ -1,24 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { listRuns, RunSummary } from "../qf";
+import orchestrationsApi, { RunSummary } from "../api/orchestrations";
 
+/**
+ * Runs 列表页面
+ * 
+ * 使用 Orchestrations API (UUID runs) 作为数据源
+ * Legacy runs (run_<TS>) 已废弃
+ */
 export default function RunsPage() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [q, setQ] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
 
-    listRuns(200, 0)
+    orchestrationsApi.listRuns({ limit: 200, offset: 0 })
       .then((data) => {
         if (!alive) return;
-        setRuns(data);
-        setErr(null); // 关键：成功后清除错误
+        setRuns(data.runs);
+        setErr(null);
       })
       .catch((e) => {
         if (!alive) return;
         setErr(`Error: ${String(e)}`);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
       });
 
     return () => {
@@ -35,7 +45,7 @@ export default function RunsPage() {
 
   return (
     <div style={{ padding: 16 }}>
-      <h2 style={{ marginTop: 0 }}>Runs</h2>
+      <h2 style={{ marginTop: 0 }}>Orchestration Runs</h2>
 
       <div style={{ margin: "12px 0" }}>
         <input
@@ -47,13 +57,14 @@ export default function RunsPage() {
       </div>
 
       {err && <div style={{ color: "crimson", marginBottom: 12 }}>{err}</div>}
+      {loading && <div style={{ color: "#888" }}>Loading...</div>}
 
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ borderBottom: "1px solid #333" }}>
             <th align="left">run_id</th>
-            <th align="left">kind</th>
-            <th align="left">ok</th>
+            <th align="left">decision</th>
+            <th align="left">tools</th>
             <th align="left">started_at</th>
           </tr>
         </thead>
@@ -61,10 +72,16 @@ export default function RunsPage() {
           {filtered.map((r) => (
             <tr key={r.run_id} style={{ borderTop: "1px solid #333" }}>
               <td style={{ padding: "8px 0" }}>
-                <Link to={`/runs/${encodeURIComponent(r.run_id)}`}>{r.run_id}</Link>
+                <Link to={`/runs/${encodeURIComponent(r.run_id)}`}>{r.run_id.slice(0, 8)}...</Link>
               </td>
-              <td>{r.kind}</td>
-              <td>{r.ok === null ? "-" : r.ok ? "true" : "false"}</td>
+              <td>
+                <span style={{
+                  color: r.decision === "PASS" ? "green" : r.decision === "FAIL" ? "red" : "#888"
+                }}>
+                  {r.decision ?? "-"}
+                </span>
+              </td>
+              <td>{r.tool_count}</td>
               <td>{r.started_at ?? "-"}</td>
             </tr>
           ))}
@@ -73,3 +90,4 @@ export default function RunsPage() {
     </div>
   );
 }
+
