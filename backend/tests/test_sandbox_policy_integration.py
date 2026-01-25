@@ -106,7 +106,7 @@ class TestSandboxEnforcement:
         registry = ToolRegistry()
         received_config = None
 
-        async def mock_run_pytest(request, *, sandbox_config=None):
+        async def mock_run_pytest(request, *, sandbox_config=None, sandbox_mode="subprocess", container_config=None):
             nonlocal received_config
             received_config = sandbox_config
             return ToolResult.success()
@@ -136,7 +136,7 @@ class TestSandboxEnforcement:
         registry = ToolRegistry()
         received_config = "not_called"
 
-        async def mock_run_pytest(request, *, sandbox_config=None):
+        async def mock_run_pytest(request, *, sandbox_config=None, sandbox_mode="subprocess", container_config=None):
             nonlocal received_config
             received_config = sandbox_config
             return ToolResult.success()
@@ -185,7 +185,7 @@ class TestSandboxEnforcement:
         registry = ToolRegistry()
         received_config = "not_called"
 
-        async def mock_run_pytest(request, *, sandbox_config=None):
+        async def mock_run_pytest(request, *, sandbox_config=None, sandbox_mode="subprocess", container_config=None):
             nonlocal received_config
             received_config = sandbox_config
             return ToolResult.success()
@@ -213,7 +213,7 @@ class TestSandboxPolicyValues:
         registry = ToolRegistry()
         received_config = None
 
-        async def mock_run_pytest(request, *, sandbox_config=None):
+        async def mock_run_pytest(request, *, sandbox_config=None, sandbox_mode="subprocess", container_config=None):
             nonlocal received_config
             received_config = sandbox_config
             return ToolResult.success()
@@ -242,7 +242,7 @@ class TestSandboxPolicyValues:
         registry = ToolRegistry()
         received_config = None
 
-        async def mock_run_pytest(request, *, sandbox_config=None):
+        async def mock_run_pytest(request, *, sandbox_config=None, sandbox_mode="subprocess", container_config=None):
             nonlocal received_config
             received_config = sandbox_config
             return ToolResult.success()

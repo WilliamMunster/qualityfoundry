@@ -149,6 +149,8 @@ class ToolRegistry:
 
         # Sandbox enforcement: build config for sandboxable tools
         sandbox_config = None
+        sandbox_mode = "subprocess"  # default
+        container_config = None
         if policy is not None and name in SANDBOXABLE_TOOLS:
             if policy.sandbox.enabled:
                 from qualityfoundry.execution.sandbox import SandboxConfig
@@ -158,9 +160,23 @@ class ToolRegistry:
                     allowed_paths=policy.sandbox.allowed_paths,
                     env_whitelist=policy.sandbox.env_whitelist,
                 )
+                sandbox_mode = policy.sandbox.mode
                 logger.info(
-                    f"Sandbox enabled for {name}: timeout={policy.sandbox.timeout_s}s"
+                    f"Sandbox enabled for {name}: mode={sandbox_mode}, timeout={policy.sandbox.timeout_s}s"
                 )
+                
+                # If container mode, also prepare container config
+                if sandbox_mode == "container":
+                    from qualityfoundry.execution.container_sandbox import ContainerSandboxConfig
+                    container_config = ContainerSandboxConfig(
+                        image=policy.sandbox.container.image,
+                        timeout_s=policy.sandbox.timeout_s,
+                        memory_mb=policy.sandbox.container.memory_mb,
+                        cpus=policy.sandbox.container.cpus,
+                        pids_limit=policy.sandbox.container.pids_limit,
+                        network_disabled=policy.sandbox.container.network_disabled,
+                        readonly_workspace=policy.sandbox.container.readonly_workspace,
+                    )
             else:
                 logger.info(f"Sandbox disabled by policy for {name}")
 
@@ -170,7 +186,12 @@ class ToolRegistry:
         try:
             # Pass sandbox_config as keyword argument if tool accepts it
             if sandbox_config is not None:
-                result = await fn(request, sandbox_config=sandbox_config)
+                result = await fn(
+                    request,
+                    sandbox_config=sandbox_config,
+                    sandbox_mode=sandbox_mode,
+                    container_config=container_config,
+                )
             else:
                 result = await fn(request)
             logger.info(f"Tool {name} completed: status={result.status.value}")
