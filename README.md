@@ -4,7 +4,7 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
-> **Current Release**: `v0.14-sandbox-policy` @ `3dc7e0c`
+> **Current Release**: `v0.14-mcp-write-p1` @ `3466f4b`
 >
 > **Progress Baseline**: See [docs/status/progress_baseline.md](docs/status/progress_baseline.md) for verified status
 
@@ -22,18 +22,18 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 | **L1** | Policy (规则与门禁) | ✅ Complete |
 | **L2** | Orchestration (编排层) | ✅ Phase 2.2 Complete (LangGraph state machine) |
 | **L3** | Execution (执行层) | ✅ Sandbox MVP complete (policy-driven, CI verified) |
-| **L4** | Protocol (MCP) | 🟡 MCP Server (read-only) + Client |
+| **L4** | Protocol (MCP) | ✅ MCP Server (read + write: run_pytest) with security chain |
 | **L5** | Governance & Evals | ✅ Phase 5.2 Complete |
 
 - **L1 规则与门禁层 (Policy)**：定义 `policy_config.yaml`、风险分级与发布门禁。
 - **L2 编排层 (Orchestration)**：LangGraph 状态机执行，5 个节点支持动态路由扩展及 HITL 机制。
 - **L3 执行层 (Execution)**：集成 Playwright、Pytest 等工具，进程隔离沙箱已实现。
-- **L4 接口层 (Protocol)**：MCP Client 调用外部服务，MCP Server（只读工具）已实现。
+- **L4 接口层 (Protocol)**：MCP Client 调用外部服务，MCP Server 支持只读工具 + 受控写工具（run_pytest），具备完整安全链（认证→权限→策略→沙箱）。
 - **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、变更对比报告（在线漂移监控待实现）。
 
 ---
 
-## Current Status (main@3dc7e0c)
+## Current Status (main@3466f4b)
 
 ### Completed Features (Verified)
 - ✅ **需求/场景/用例管理**：支持从 NL 需求到场景、用例的全链路生成与审核，支持自动补全 `seq_id`
@@ -49,14 +49,15 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - ✅ **审计日志 (PR-C)**：完整的操作审计，记录工具执行与决策事件
 - ✅ **Premium UI 前端**：AI 工作区前端重构，支持编排可视化与运行管理
 - ✅ **L3 沙箱执行 (PR-B)**：进程隔离沙箱，policy 驱动的超时/路径/命令/环境变量控制
+- ✅ **L4 MCP Write Security (Phase 1)**：`run_pytest` 写能力 + 安全链（auth→perm→policy→sandbox），25 项安全测试
 
 ### Partial / In Progress
 - 🟡 **用户认证**：基于 token 的简单认证（非 JWT，待升级）
-- 🟡 **角色权限**：UserRole 模型存在，中间件强制执行待实现
-- 🟡 **MCP 集成**：仅 Client 模式，独立 Server 待实现
+- 🟡 **角色权限**：UserRole 模型存在，RBAC 通过 MCP 安全链强制执行
 
 ### Not Started
-- 🔴 **成本治理 (Phase 5.1)**：预算/超时熔断
+- 🔴 **MCP Write Phase 2**：`run_playwright`、`run_shell` 等高危工具（需容器沙箱）
+- 🔴 **L5 Dashboard**：趋势聚合与可视化
 
 ---
 
@@ -96,6 +97,20 @@ uvicorn qualityfoundry.main:app --reload --host 0.0.0.0 --port 8000
 cd frontend
 npm install
 npm run dev
+```
+
+### 使用启动脚本（推荐）
+
+```bash
+# 一键启动全部（后台运行）
+./scripts/start-all.sh
+
+# 停止全部
+./scripts/start-all.sh --stop
+
+# 单独启动
+./scripts/start-backend.sh --background
+./scripts/start-frontend.sh --background
 ```
 
 访问 http://localhost:5173，使用 `admin/admin` 登录。
@@ -207,6 +222,23 @@ MIT License
 ---
 
 ## 更新日志
+
+### V0.14.1 (2026-01-25)
+
+**L4 MCP Write Security Phase 1**
+
+- ✅ **MCP 写能力**：`run_pytest` 作为首个受控写工具暴露给 MCP 客户端
+- ✅ **安全链实现**：认证（token）→ 权限（RBAC）→ 策略（allowlist）→ 沙箱（enabled）四重校验
+- ✅ **错误码体系**：`-32001 AUTH_REQUIRED`、`-32003 PERMISSION_DENIED`、`-32004 POLICY_BLOCKED`、`-32006 SANDBOX_VIOLATION`
+- ✅ **审计事件**：`MCP_TOOL_CALL` 审计类型，记录 tool_name、args_hash、caller_user_id
+- ✅ **安全测试**：25 项测试覆盖所有安全边界
+- ✅ **设计文档**：`docs/designs/mcp-write-security.md` v0.1 frozen
+
+**开发体验优化**
+
+- ✅ **启动脚本**：`scripts/start-all.sh`、`start-frontend.sh`、`start-backend.sh` 避免 macOS TTY 挂起问题
+- ✅ **E2E 测试**：`frontend/e2e/test_run_center.py` Run Center 主路径验收测试
+- ✅ **验收文档**：`docs/walkthroughs/run-center-acceptance.md` API 契约与检查清单
 
 ### V0.9.6 (2026-01-23)
 
