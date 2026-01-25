@@ -2,8 +2,8 @@
 
 > **Release Anchor**: `main@HEAD` (2026-01-25)
 > **Last Verified**: 2026-01-25
-> **Git Tag**: `v0.14-mcp-write-p1` (pending)
-> **Verification Method**: Code grep + pytest (MCP security: 25/25)
+> **Git Tag**: `v0.15-container-sandbox`
+> **Verification Method**: Code grep + pytest (container sandbox: 23 tests)
 
 This document serves as the **single source of truth** for project progress. All claims are verifiable via the commands provided.
 
@@ -16,12 +16,13 @@ This document serves as the **single source of truth** for project progress. All
 | **L1** | PolicyConfig + Gate Rules | ✅ | — | `policy_loader.py`, `gate.py` |
 | **L1** | Tools Allowlist | ✅ | — | `PolicyConfig.tools.allowlist` |
 | **L1** | Cost Governance | ✅ | — | `CostGovernance` + `_enforce_budget()` |
-| **L1** | SandboxPolicy | ✅ | — | `SandboxPolicy` in policy_loader.py |
+| **L1** | SandboxPolicy | ✅ | — | `SandboxPolicy` + `sandbox.mode` + `ContainerPolicy` |
 | **L2** | LangGraph State Machine | ✅ | — | `build_orchestration_graph()` |
 | **L2** | Node Contracts (5 nodes) | ✅ | — | `orchestrator_service.py` |
 | **L2** | Retry/Short-circuit | ✅ | — | `GovernanceBudget` + conditional edges |
 | **L3** | Tool Contracts + Registry | ✅ | — | `tools/contracts.py`, `tools/registry.py` |
-| **L3** | Sandbox (subprocess) | ✅ MVP | 🔴 强隔离 (容器级) | `execution/sandbox.py` (319 lines) |
+| **L3** | Sandbox (subprocess) | ✅ | — | `execution/sandbox.py` (319 lines) |
+| **L3** | Container Sandbox (run_pytest) | ✅ | 🟡 仅 run_pytest | `execution/container_sandbox.py` (265 lines) |
 | **L3** | Policy-driven Sandbox | ✅ | — | 12 integration tests passed |
 | **L4** | MCP Client | ✅ | — | `protocol/mcp/client.py` |
 | **L4** | MCP Server (write: run_pytest) | ✅ | 🟡 Phase 2: playwright/shell | `server.py` + `errors.py` + 25 tests |
@@ -85,7 +86,7 @@ NL → Plan → (HITL) → Execute → Evidence → Judgment
 
 | Item | Description | Effort |
 |------|-------------|--------|
-| **L3 Container Sandbox** | `run_pytest` 容器化：无网络、只读挂载、临时目录 | 3-5d |
+| **L3 Container Sandbox** | ✅ `run_pytest` 容器化完成：scope 仅 run_pytest; default subprocess; container 不可用拒绝+审计; 安全特性：禁网/只读/资源限制/超时kill | ✅ Done |
 | **L5 Dashboard/趋势** | 消费 `evidence.governance` / `repro` / `policy_meta` 做趋势图 | 2-3d |
 
 ### P2 — 长期演进
@@ -105,6 +106,7 @@ NL → Plan → (HITL) → Execute → Evidence → Judgment
 | Gate Decision | `backend/app/qualityfoundry/governance/gate.py` |
 | Policy Loader | `backend/app/qualityfoundry/governance/policy_loader.py` |
 | Sandbox Execution | `backend/app/qualityfoundry/execution/sandbox.py` |
+| Container Sandbox | `backend/app/qualityfoundry/execution/container_sandbox.py` |
 | ReproMeta | `backend/app/qualityfoundry/governance/repro.py` |
 | Evidence Collector | `backend/app/qualityfoundry/governance/tracing/collector.py` |
 | Golden Dataset | `backend/app/qualityfoundry/governance/golden/dataset.yaml` |
@@ -146,6 +148,7 @@ cd backend && python -m pytest -q --tb=short
 
 | Date | Author | Change |
 |------|--------|--------|
+| 2026-01-25 | Claude (Antigravity) | v0.15: L3 Container Sandbox complete (PR#56/#57) |
 | 2026-01-25 | Claude (Antigravity) | L4 MCP Write Security Phase 1 完成 (25 tests) |
 | 2026-01-25 | Claude (Antigravity) | Status matrix + ChatGPT roadmap alignment |
 | 2026-01-24 | Claude + ChatGPT Audit | Run unification P2 update |
