@@ -76,6 +76,30 @@ jobs:
           cd backend
           pytest tests/test_smoke_orchestration.py -v -m smoke --tb=short
 
+  # MCP Write Security - required check for L4 write capability
+  mcp-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [lint-test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend
+        run: |
+          python -m pip install -U pip setuptools wheel
+          python -m pip install -e "./backend[dev]"
+
+      - name: MCP write security tests
+        run: |
+          cd backend
+          pytest tests/test_mcp_write_security.py tests/test_mcp_server_smoke.py -v --tb=short
+
   # Regression smoke - run golden dataset evals (optional, non-blocking for now)
   regression-smoke:
     runs-on: ubuntu-latest
