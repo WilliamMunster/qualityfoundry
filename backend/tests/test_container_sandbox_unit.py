@@ -6,8 +6,7 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -17,7 +16,6 @@ from qualityfoundry.execution.container_sandbox import (
     ContainerSandboxResult,
     _detect_container_runtime,
     _is_container_runtime_available,
-    is_container_mode_available,
     run_in_container,
 )
 
