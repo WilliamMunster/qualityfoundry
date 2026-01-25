@@ -36,6 +36,10 @@ from qualityfoundry.tools.contracts import (
 
 if TYPE_CHECKING:
     from qualityfoundry.execution.sandbox import SandboxConfig, SandboxResult
+    from qualityfoundry.execution.container_sandbox import (
+        ContainerSandboxConfig,
+        ContainerSandboxResult,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +162,53 @@ async def _log_sandbox_audit(
         logger.warning("Failed to log sandbox audit event", exc_info=True)
 
 
+async def _log_container_sandbox_audit(
+    run_id,
+    tool_name: str,
+    config: "ContainerSandboxConfig",
+    result: "ContainerSandboxResult",
+) -> None:
+    """记录容器沙箱执行审计事件
+
+    Args:
+        run_id: 运行 ID
+        tool_name: 工具名称
+        config: 容器沙箱配置
+        result: 容器沙箱执行结果
+    """
+    try:
+        from qualityfoundry.database.config import SessionLocal
+        from qualityfoundry.database.audit_log_models import AuditEventType
+        from qualityfoundry.services.audit_service import write_audit_event
+
+        details = {
+            "mode": "container",
+            "image": config.image,
+            "image_hash": result.image_hash,
+            "container_id": result.container_id,
+            "timeout_s": config.timeout_s,
+            "memory_mb": config.memory_mb,
+            "cpus": config.cpus,
+            "network_disabled": config.network_disabled,
+            "readonly_workspace": config.readonly_workspace,
+            "killed_by_timeout": result.killed_by_timeout,
+            "elapsed_ms": result.elapsed_ms,
+        }
+
+        with SessionLocal() as db:
+            write_audit_event(
+                db,
+                run_id=run_id,
+                event_type=AuditEventType.SANDBOX_EXEC,
+                tool_name=tool_name,
+                status="timeout" if result.killed_by_timeout else "completed",
+                duration_ms=result.elapsed_ms,
+                details=details,
+            )
+
+    except Exception:
+        logger.warning("Failed to log container sandbox audit event", exc_info=True)
+
 def _is_safe_test_path(test_path: str) -> bool:
     """验证测试路径是否安全（防止路径穿越）
 
@@ -198,6 +249,8 @@ async def run_pytest(
     request: ToolRequest,
     *,
     sandbox_config: "SandboxConfig | None" = None,
+    sandbox_mode: str = "subprocess",
+    container_config: "ContainerSandboxConfig | None" = None,
 ) -> ToolResult:
     """Pytest 工具：执行测试并生成 JUnit XML
 
@@ -208,6 +261,8 @@ async def run_pytest(
             - extra_args: list[str] (可选) - 额外的 pytest 参数
             - working_dir: str (可选) - 工作目录
         sandbox_config: 沙箱配置（由 ToolRegistry 基于 policy 注入）
+        sandbox_mode: 沙箱模式 - "subprocess" 或 "container"
+        container_config: 容器配置（当 sandbox_mode=container 时由 registry 注入）
 
     Returns:
         ToolResult: 统一的执行结果，artifacts 包含 junit.xml
@@ -260,14 +315,65 @@ async def run_pytest(
             # 执行 pytest
             cwd = Path(working_dir) if working_dir else None
 
-            # 按 sandbox_config 是否存在决定执行路径
-            # sandbox_config 由 ToolRegistry 基于 policy 注入
-            # None = policy 禁用或不经过 registry，走 legacy subprocess
-            if sandbox_config is not None:
+            # 容器模式优先
+            if sandbox_mode == "container" and container_config is not None:
+                from qualityfoundry.execution.container_sandbox import (
+                    run_in_container,
+                    ContainerNotAvailableError,
+                )
+
+                logger.info(f"Container sandbox: image={container_config.image}")
+                
+                # 容器模式需要确定 workspace 和 output 路径
+                workspace_path = Path(working_dir) if working_dir else Path.cwd()
+                output_path = ctx.artifact_dir
+                
+                # 容器内命令：路径重映射到 /workspace, /output
+                container_cmd = [
+                    "python", "-m", "pytest",
+                    "-q",
+                    f"--junitxml=/output/junit.xml",
+                    test_path,
+                ]
+                if markers:
+                    container_cmd.extend(["-m", markers])
+                if extra_args:
+                    container_cmd.extend(extra_args)
+
+                try:
+                    container_result = await run_in_container(
+                        container_cmd,
+                        config=container_config,
+                        workspace_path=workspace_path,
+                        output_path=output_path,
+                    )
+                except ContainerNotAvailableError as e:
+                    return ctx.failed(
+                        f"Container sandbox unavailable: {e}. "
+                        "Set sandbox.mode=subprocess in policy to use fallback."
+                    )
+
+                # 容器审计
+                await _log_container_sandbox_audit(
+                    run_id=request.run_id,
+                    tool_name="run_pytest",
+                    config=container_config,
+                    result=container_result,
+                )
+
+                if container_result.killed_by_timeout:
+                    return ctx.timeout(f"pytest timed out after {container_config.timeout_s}s (container)")
+
+                stdout = container_result.stdout
+                stderr = container_result.stderr
+                exit_code = container_result.exit_code
+
+            # subprocess 沙箱模式
+            elif sandbox_config is not None:
                 # Sandbox 路径：policy 启用沙箱
                 from qualityfoundry.execution.sandbox import run_in_sandbox
 
-                logger.info(f"Sandbox enabled: timeout={sandbox_config.timeout_s}s")
+                logger.info(f"Subprocess sandbox: timeout={sandbox_config.timeout_s}s")
                 sandbox_result = await run_in_sandbox(cmd, config=sandbox_config, cwd=cwd)
 
                 # B3: 审计沙箱执行（只记录 hash/摘要，不记录敏感路径明文）

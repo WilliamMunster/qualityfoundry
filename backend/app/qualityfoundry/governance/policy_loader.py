@@ -56,13 +56,38 @@ class ToolsPolicy(BaseModel):
     )
 
 
+class ContainerPolicy(BaseModel):
+    """容器沙箱配置 (L3 强隔离)
+
+    当 sandbox.mode=container 时使用。
+    """
+    image: str = Field(
+        default="python:3.11-slim",
+        description="Docker 镜像名称（可通过 env QF_CONTAINER_IMAGE 覆盖）"
+    )
+    memory_mb: int = Field(default=512, ge=64, description="内存限制（MB）")
+    cpus: float = Field(default=1.0, ge=0.1, description="CPU 核数限制")
+    pids_limit: int = Field(default=100, ge=10, description="进程数限制")
+    network_disabled: bool = Field(default=True, description="禁用网络")
+    readonly_workspace: bool = Field(default=True, description="workspace 只读挂载")
+
+
 class SandboxPolicy(BaseModel):
     """沙箱策略配置 (L3 执行层隔离)
 
     控制 subprocess 执行的安全边界。
     默认值与 execution/sandbox.py 中的 SandboxConfig 对齐。
+    
+    mode:
+    - subprocess: 进程级沙箱（默认，跨平台）
+    - container: 容器沙箱（Linux CI，更强隔离）
     """
     enabled: bool = Field(default=True, description="是否启用沙箱")
+    mode: str = Field(
+        default="subprocess",
+        pattern="^(subprocess|container)$",
+        description="沙箱模式: subprocess（默认）或 container"
+    )
     timeout_s: int = Field(default=300, ge=1, description="硬超时（秒）")
     memory_limit_mb: int = Field(default=512, ge=64, description="内存软限制（MB）")
     allowed_paths: list[str] = Field(
@@ -86,6 +111,10 @@ class SandboxPolicy(BaseModel):
             "CI", "GITHUB_*", "RUNNER_*", "ACTIONS_*", "QF_*",
         ],
         description="环境变量白名单（支持 glob）"
+    )
+    container: ContainerPolicy = Field(
+        default_factory=ContainerPolicy,
+        description="容器沙箱配置（当 mode=container 时使用）"
     )
 
 
