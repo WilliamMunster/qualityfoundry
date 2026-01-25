@@ -26,11 +26,12 @@ class TestMCPServerBasics:
         server = MCPServer()
         tools = server.get_tool_list()
 
-        assert len(tools) == 3
+        assert len(tools) == 4  # 3 read + 1 write (run_pytest)
         names = {t["name"] for t in tools}
         assert "get_evidence" in names
         assert "list_artifacts" in names
         assert "get_artifact_content" in names
+        assert "run_pytest" in names  # Phase 1 write tool
 
     def test_tool_list_has_schema(self):
         """工具定义包含输入 schema"""
@@ -77,7 +78,7 @@ class TestMCPProtocol:
         assert response["id"] == 2
         assert "result" in response
         assert "tools" in response["result"]
-        assert len(response["result"]["tools"]) == 3
+        assert len(response["result"]["tools"]) == 4  # 3 read + 1 write
 
     @pytest.mark.asyncio
     async def test_unknown_method(self):
@@ -162,7 +163,8 @@ class TestToolCallWithAudit:
         server = MCPServer()
         result = await server.handle_tool_call(
             "get_evidence",
-            {"run_id": str(uuid4())}
+            {"run_id": str(uuid4())},
+            {},  # params
         )
 
         assert "audit_context" in result
@@ -175,7 +177,8 @@ class TestToolCallWithAudit:
         server = MCPServer()
         result = await server.handle_tool_call(
             "unknown_tool",
-            {}
+            {},
+            {},  # params
         )
 
         assert "error" in result
