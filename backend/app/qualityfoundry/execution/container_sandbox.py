@@ -196,7 +196,6 @@ async def run_in_container(
     logger.info(f"Container sandbox: {runtime} run {config.image} (network={not config.network_disabled})")
 
     # 5. 执行
-    container_id: Optional[str] = None
     killed_by_timeout = False
 
     try:

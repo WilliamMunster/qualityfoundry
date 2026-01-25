@@ -332,7 +332,7 @@ async def run_pytest(
                 container_cmd = [
                     "python", "-m", "pytest",
                     "-q",
-                    f"--junitxml=/output/junit.xml",
+                    "--junitxml=/output/junit.xml",
                     test_path,
                 ]
                 if markers:
