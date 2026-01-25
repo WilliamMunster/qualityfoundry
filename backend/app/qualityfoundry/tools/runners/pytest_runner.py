@@ -209,6 +209,45 @@ async def _log_container_sandbox_audit(
     except Exception:
         logger.warning("Failed to log container sandbox audit event", exc_info=True)
 
+
+async def _log_container_unavailable_audit(
+    run_id,
+    tool_name: str,
+    error_message: str,
+) -> None:
+    """记录容器不可用审计事件 (等价于 SANDBOX_VIOLATION)
+
+    Args:
+        run_id: 运行 ID
+        tool_name: 工具名称
+        error_message: 错误信息
+    """
+    try:
+        from qualityfoundry.database.config import SessionLocal
+        from qualityfoundry.database.audit_log_models import AuditEventType
+        from qualityfoundry.services.audit_service import write_audit_event
+
+        details = {
+            "mode": "container",
+            "violation_type": "container_unavailable",
+            "error": error_message,
+        }
+
+        with SessionLocal() as db:
+            write_audit_event(
+                db,
+                run_id=run_id,
+                event_type=AuditEventType.SANDBOX_EXEC,
+                tool_name=tool_name,
+                status="blocked",
+                duration_ms=0,
+                details=details,
+            )
+
+    except Exception:
+        logger.warning("Failed to log container unavailable audit event", exc_info=True)
+
+
 def _is_safe_test_path(test_path: str) -> bool:
     """验证测试路径是否安全（防止路径穿越）
 
@@ -348,6 +387,12 @@ async def run_pytest(
                         output_path=output_path,
                     )
                 except ContainerNotAvailableError as e:
+                    # 审计容器不可用事件 (等价于 SANDBOX_VIOLATION)
+                    await _log_container_unavailable_audit(
+                        run_id=request.run_id,
+                        tool_name="run_pytest",
+                        error_message=str(e),
+                    )
                     return ctx.failed(
                         f"Container sandbox unavailable: {e}. "
                         "Set sandbox.mode=subprocess in policy to use fallback."
