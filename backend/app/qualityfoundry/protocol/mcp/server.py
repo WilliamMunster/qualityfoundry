@@ -30,7 +30,6 @@ from qualityfoundry.protocol.mcp.errors import (
     AUTH_REQUIRED,
     PERMISSION_DENIED,
     POLICY_BLOCKED,
-    BUDGET_EXCEEDED,
     SANDBOX_VIOLATION,
     TIMEOUT,
     make_error_response,
