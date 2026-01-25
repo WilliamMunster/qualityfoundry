@@ -3,7 +3,6 @@
 测试 MCP 写能力的安全边界，覆盖 mcp-write-security.md v0.1 设计文档的所有安全约束。
 """
 
-import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -14,8 +13,6 @@ from qualityfoundry.protocol.mcp.errors import (
     PERMISSION_DENIED,
     POLICY_BLOCKED,
     SANDBOX_VIOLATION,
-    TIMEOUT,
-    BUDGET_EXCEEDED,
 )
 
 
