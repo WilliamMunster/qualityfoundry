@@ -65,6 +65,8 @@ tools:
 # Controls subprocess execution boundaries for security
 sandbox:
   enabled: true
+  # mode: subprocess (default, cross-platform) | container (Linux CI, stronger isolation)
+  mode: subprocess
   timeout_s: 300
   memory_limit_mb: 512
   allowed_paths:
@@ -113,4 +115,8 @@ sandbox:
     - "ACTIONS_*"
     # QualityFoundry
     - "QF_*"
-
+  # Container settings (used when mode=container)
+  # Env override: QF_CONTAINER_IMAGE
+  container:
+    image: "python:3.11-slim"
+    network_disabled: true
