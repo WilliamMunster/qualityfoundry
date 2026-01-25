@@ -1,65 +1,78 @@
-# QualityFoundry Progress Baseline
+# QualityFoundry 进度基线
 
-> **Release Anchor**: `main@HEAD` (2026-01-25)
-> **Last Verified**: 2026-01-25
-> **Git Tag**: `v0.15-container-sandbox`
-> **Verification Method**: Code grep + pytest (container sandbox: 23 tests)
+> **版本锚点**: `main@HEAD` (2026-01-25)
+> **最后验证**: 2026-01-25
+> **Git 标签**: `v0.15-container-sandbox`
+> **验证方式**: 代码检索 + pytest (容器沙箱: 23 测试)
 
-This document serves as the **single source of truth** for project progress. All claims are verifiable via the commands provided.
-
----
-
-## L1–L5 Architecture Status Matrix
-
-| Layer | Component | Status | Gap | Verification |
-|:-----:|-----------|:------:|-----|--------------|
-| **L1** | PolicyConfig + Gate Rules | ✅ | — | `policy_loader.py`, `gate.py` |
-| **L1** | Tools Allowlist | ✅ | — | `PolicyConfig.tools.allowlist` |
-| **L1** | Cost Governance | ✅ | — | `CostGovernance` + `_enforce_budget()` |
-| **L1** | SandboxPolicy | ✅ | — | `SandboxPolicy` + `sandbox.mode` + `ContainerPolicy` |
-| **L2** | LangGraph State Machine | ✅ | — | `build_orchestration_graph()` |
-| **L2** | Node Contracts (5 nodes) | ✅ | — | `orchestrator_service.py` |
-| **L2** | Retry/Short-circuit | ✅ | — | `GovernanceBudget` + conditional edges |
-| **L3** | Tool Contracts + Registry | ✅ | — | `tools/contracts.py`, `tools/registry.py` |
-| **L3** | Sandbox (subprocess) | ✅ | — | `execution/sandbox.py` (319 lines) |
-| **L3** | Container Sandbox (run_pytest) | ✅ | 🟡 仅 run_pytest | `execution/container_sandbox.py` (265 lines) |
-| **L3** | Policy-driven Sandbox | ✅ | — | 12 integration tests passed |
-| **L4** | MCP Client | ✅ | — | `protocol/mcp/client.py` |
-| **L4** | MCP Server (write: run_pytest) | ✅ | 🟡 Phase 2: playwright/shell | `server.py` + `errors.py` + 25 tests |
-| **L5** | Golden Dataset | ✅ | — | `governance/golden/dataset.yaml` (5 cases) |
-| **L5** | Regression CLI | ✅ | — | `python -m qualityfoundry.governance.evals` |
-| **L5** | Evidence Aggregation | ✅ | — | `evidence.json` with policy/repro/governance |
+本文档是项目进度的**唯一真实来源**。所有声明均可通过下文命令验证。
 
 ---
 
-## Core Philosophy Alignment
+## 术语表 / Glossary
 
-| Principle | Status | Implementation |
-|-----------|:------:|----------------|
-| **Evidence-First** | ✅ | `evidence.json`, artifact index, audit log |
-| **Reproducibility** | ✅ | `ReproMeta`: git_sha, branch, dirty, deps_fingerprint |
-| **Least Privilege** | ✅ | RBAC + allowlist + MCP write security chain (auth→perm→policy→sandbox) |
-| **Cost Governance** | ✅ | timeout + max_retries + budget short-circuit + evidence.governance |
-| **Hybrid Quality** | 🟡 | Deterministic checks strong; AI Judge/multi-model eval TBD |
+| 中文 | English | 说明 |
+|------|---------|------|
+| 沙箱 | Sandbox | 隔离执行环境 |
+| 策略 | Policy | 治理规则配置 |
+| 证据 | Evidence | 执行结果与审计数据 |
+| 编排 | Orchestration | 工作流调度 |
+| 网关 | Gate | 决策点 |
+| 审计 | Audit | 操作记录 |
 
 ---
 
-## MVP Loop Status
+## L1–L5 架构状态矩阵
+
+| 层级 | 组件 | 状态 | 缺口 | 验证 |
+|:----:|------|:----:|------|------|
+| **L1** | 策略配置 + 网关规则 | ✅ | — | `policy_loader.py`, `gate.py` |
+| **L1** | 工具白名单 | ✅ | — | `PolicyConfig.tools.allowlist` |
+| **L1** | 成本治理 | ✅ | — | `CostGovernance` + `_enforce_budget()` |
+| **L1** | 沙箱策略 | ✅ | — | `SandboxPolicy` + `sandbox.mode` + `ContainerPolicy` |
+| **L2** | LangGraph 状态机 | ✅ | — | `build_orchestration_graph()` |
+| **L2** | 节点契约 (5 节点) | ✅ | — | `orchestrator_service.py` |
+| **L2** | 重试/短路 | ✅ | — | `GovernanceBudget` + 条件边 |
+| **L3** | 工具契约 + 注册表 | ✅ | — | `tools/contracts.py`, `tools/registry.py` |
+| **L3** | 沙箱 (subprocess) | ✅ | — | `execution/sandbox.py` (319 行) |
+| **L3** | 容器沙箱 (run_pytest) | ✅ | 🟡 仅 run_pytest | `execution/container_sandbox.py` (265 行) |
+| **L3** | 策略驱动沙箱 | ✅ | — | 12 集成测试通过 |
+| **L4** | MCP 客户端 | ✅ | — | `protocol/mcp/client.py` |
+| **L4** | MCP 服务端 (write: run_pytest) | ✅ | 🟡 Phase 2: playwright/shell | `server.py` + `errors.py` + 25 测试 |
+| **L5** | 黄金数据集 | ✅ | — | `governance/golden/dataset.yaml` (5 用例) |
+| **L5** | 回归 CLI | ✅ | — | `python -m qualityfoundry.governance.evals` |
+| **L5** | 证据聚合 | ✅ | — | `evidence.json` 含 policy/repro/governance |
+
+---
+
+## 核心理念对齐
+
+| 原则 | 状态 | 实现 |
+|------|:----:|------|
+| **证据优先** | ✅ | `evidence.json`、构件索引、审计日志 |
+| **可复现性** | ✅ | `ReproMeta`: git_sha, branch, dirty, deps_fingerprint |
+| **最小权限** | ✅ | RBAC + 白名单 + MCP write 安全链 (auth→perm→policy→sandbox) |
+| **成本治理** | ✅ | timeout + max_retries + 预算短路 + evidence.governance |
+| **混合质量** | 🟡 | 确定性检查强；AI 评审/多模型评估待定 |
+
+---
+
+## MVP 闭环状态
 
 ```
 NL → Plan → (HITL) → Execute → Evidence → Judgment
  ✅    ✅      ✅        ✅         ✅          ✅
 ```
 
-**Closed Loop**: Evidence-First + Reproducibility + Least Privilege + Cost Governance all engineered with audit trail.
+**闭环完成**: 证据优先 + 可复现性 + 最小权限 + 成本治理，均带审计追踪。
 
 ---
 
-## Bootstrap Guarantees
+## 启动保证
 
-> **Auto-seed**: Backend startup auto-seeds `Local` environment if `environments` table is empty.
+> **自动初始化**: 后端启动时，若 `environments` 表为空则自动初始化 `Local` 环境。
 >
-> **Policy API**: `GET /api/v1/policies/current` always returns current policy metadata.
+> **策略 API**: `GET /api/v1/policies/current` 始终返回当前策略元数据。
 
 ### Run 体系唯一入口（P2 统一后）
 
@@ -73,83 +86,84 @@ NL → Plan → (HITL) → Execute → Evidence → Judgment
 
 ---
 
-## Key Gaps (Next Priorities)
+## 关键缺口 (待办优先级)
 
 ### P0 — 收口项（本周可完成）
 
-| Item | Description | Status |
-|------|-------------|--------|
-| **L4 MCP Write Safety Phase 1** | `run_pytest` 写能力 + 安全链 (auth→perm→policy→sandbox) | ✅ 25 tests |
-| **Frontend Run Center 验收** | UUID orchestration runs 主路径：启动→查看→下载证据→审计链 | 1-2d |
+| 项目 | 描述 | 状态 |
+|------|------|------|
+| **L4 MCP Write 安全 Phase 1** | `run_pytest` 写能力 + 安全链 (auth→perm→policy→sandbox) | ✅ 25 测试 |
+| **前端 Run Center 验收** | UUID orchestration runs 主路径：启动→查看→下载证据→审计链 | 1-2d |
 
 ### P1 — 能力跃迁
 
-| Item | Description | Effort |
-|------|-------------|--------|
-| **L3 Container Sandbox** | ✅ `run_pytest` 容器化完成：scope 仅 run_pytest; default subprocess; container 不可用拒绝+审计; 安全特性：禁网/只读/资源限制/超时kill | ✅ Done |
+| 项目 | 描述 | 工作量 |
+|------|------|--------|
+| **L3 容器沙箱** | ✅ `run_pytest` 容器化完成：scope 仅 run_pytest; 默认 subprocess; container 不可用拒绝+审计; 安全特性：禁网/只读/资源限制/超时kill | ✅ 已完成 |
 | **L5 Dashboard/趋势** | 消费 `evidence.governance` / `repro` / `policy_meta` 做趋势图 | 2-3d |
 
 ### P2 — 长期演进
 
-| Item | Description |
-|------|-------------|
-| **Hybrid Quality (AI Judge)** | 多模型评审资产、主观评估体系 |
-| **Multi-tenant + Quotas** | 开放给更多人/agent 使用时再做 |
+| 项目 | 描述 |
+|------|------|
+| **混合质量 (AI 评审)** | 多模型评审资产、主观评估体系 |
+| **多租户 + 配额** | 开放给更多人/agent 使用时再做 |
 
 ---
 
-## Key Files Reference
+## 关键文件参考
 
-| Function | File Path |
-|----------|-----------|
-| Orchestrator Service | `backend/app/qualityfoundry/services/orchestrator_service.py` |
-| Gate Decision | `backend/app/qualityfoundry/governance/gate.py` |
-| Policy Loader | `backend/app/qualityfoundry/governance/policy_loader.py` |
-| Sandbox Execution | `backend/app/qualityfoundry/execution/sandbox.py` |
-| Container Sandbox | `backend/app/qualityfoundry/execution/container_sandbox.py` |
-| ReproMeta | `backend/app/qualityfoundry/governance/repro.py` |
-| Evidence Collector | `backend/app/qualityfoundry/governance/tracing/collector.py` |
-| Golden Dataset | `backend/app/qualityfoundry/governance/golden/dataset.yaml` |
-| MCP Server | `backend/app/qualityfoundry/protocol/mcp/server.py` |
-| MCP Tools (read + write) | `backend/app/qualityfoundry/protocol/mcp/tools.py` |
-| MCP Errors | `backend/app/qualityfoundry/protocol/mcp/errors.py` |
-| MCP Security Tests | `backend/tests/test_mcp_write_security.py` (11 tests) |
+| 功能 | 文件路径 |
+|------|----------|
+| 编排服务 | `backend/app/qualityfoundry/services/orchestrator_service.py` |
+| 网关决策 | `backend/app/qualityfoundry/governance/gate.py` |
+| 策略加载器 | `backend/app/qualityfoundry/governance/policy_loader.py` |
+| 沙箱执行 | `backend/app/qualityfoundry/execution/sandbox.py` |
+| 容器沙箱 | `backend/app/qualityfoundry/execution/container_sandbox.py` |
+| 复现元数据 | `backend/app/qualityfoundry/governance/repro.py` |
+| 证据收集器 | `backend/app/qualityfoundry/governance/tracing/collector.py` |
+| 黄金数据集 | `backend/app/qualityfoundry/governance/golden/dataset.yaml` |
+| MCP 服务端 | `backend/app/qualityfoundry/protocol/mcp/server.py` |
+| MCP 工具 (读+写) | `backend/app/qualityfoundry/protocol/mcp/tools.py` |
+| MCP 错误码 | `backend/app/qualityfoundry/protocol/mcp/errors.py` |
+| MCP 安全测试 | `backend/tests/test_mcp_write_security.py` (11 测试) |
 
 ---
 
-## Verification Commands
+## 验证命令
 
 ```bash
-# Check L1 Policy
+# 检查 L1 策略
 cat backend/app/qualityfoundry/governance/policy_config.yaml
 
-# Check L2 LangGraph
+# 检查 L2 LangGraph
 grep -n "StateGraph\|build_orchestration_graph" backend/app/qualityfoundry/services/orchestrator_service.py
 
-# Check L3 Sandbox
-wc -l backend/app/qualityfoundry/execution/sandbox.py  # Should be ~319 lines
+# 检查 L3 沙箱
+wc -l backend/app/qualityfoundry/execution/sandbox.py  # 应为 ~319 行
 
-# Check L4 MCP Write Security (25 tests)
+# 检查 L4 MCP Write 安全 (25 测试)
 cd backend && python -m pytest tests/test_mcp_write_security.py tests/test_mcp_server_smoke.py -v
 
-# Check L4 MCP Server
+# 检查 L4 MCP 服务端
 ls backend/app/qualityfoundry/protocol/mcp/
 
-# Check L5 Golden Dataset
+# 检查 L5 黄金数据集
 cat backend/app/qualityfoundry/governance/golden/dataset.yaml
 
-# Run tests
+# 运行测试
 cd backend && python -m pytest -q --tb=short
 ```
 
 ---
 
-## Document History
+## 文档历史
 
-| Date | Author | Change |
-|------|--------|--------|
-| 2026-01-25 | Claude (Antigravity) | v0.15: L3 Container Sandbox complete (PR#56/#57) |
-| 2026-01-25 | Claude (Antigravity) | L4 MCP Write Security Phase 1 完成 (25 tests) |
-| 2026-01-25 | Claude (Antigravity) | Status matrix + ChatGPT roadmap alignment |
-| 2026-01-24 | Claude + ChatGPT Audit | Run unification P2 update |
-| 2026-01-22 | Claude + ChatGPT Audit | Initial baseline with verification |
+| 日期 | 作者 | 变更 |
+|------|------|------|
+| 2026-01-25 | Claude (Antigravity) | 文档中文化 |
+| 2026-01-25 | Claude (Antigravity) | v0.15: L3 容器沙箱完成 (PR#56/#57) |
+| 2026-01-25 | Claude (Antigravity) | L4 MCP Write Security Phase 1 完成 (25 测试) |
+| 2026-01-25 | Claude (Antigravity) | 状态矩阵 + ChatGPT 路线图对齐 |
+| 2026-01-24 | Claude + ChatGPT Audit | Run 统一 P2 更新 |
+| 2026-01-22 | Claude + ChatGPT Audit | 初始基线与验证 |

@@ -4,9 +4,9 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
-> **Current Release**: `v0.14-mcp-write-p1` @ `3466f4b`
+> **最新版本**: `v0.15-container-sandbox` — L3 容器沙箱完成
 >
-> **Progress Baseline**: See [docs/status/progress_baseline.md](docs/status/progress_baseline.md) for verified status
+> **进度基线**: 详见 [docs/status/progress_baseline.md](docs/status/progress_baseline.md)
 
 ## 1. 核心哲学 (Core Philosophy)
 - ⚖️ **Hybrid Quality**：针对确定性内容采用 assert 检查；不确定性内容使用评测/裁决（eval/judge）。
@@ -19,11 +19,11 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 
 | Layer | Name | Current Status |
 |-------|------|----------------|
-| **L1** | Policy (规则与门禁) | ✅ Complete |
-| **L2** | Orchestration (编排层) | ✅ Phase 2.2 Complete (LangGraph state machine) |
-| **L3** | Execution (执行层) | ✅ Sandbox MVP complete (policy-driven, CI verified) |
-| **L4** | Protocol (MCP) | ✅ MCP Server (read + write: run_pytest) with security chain |
-| **L5** | Governance & Evals | ✅ Phase 5.2 Complete |
+| **L1** | Policy (规则与门禁) | ✅ 完成 |
+| **L2** | Orchestration (编排层) | ✅ Phase 2.2 完成 (LangGraph 状态机) |
+| **L3** | Execution (执行层) | ✅ 容器沙箱完成 (run_pytest, 策略驱动) |
+| **L4** | Protocol (MCP) | ✅ MCP 服务端 (读+写: run_pytest) 含安全链 |
+| **L5** | Governance & Evals | ✅ Phase 5.2 完成 |
 
 - **L1 规则与门禁层 (Policy)**：定义 `policy_config.yaml`、风险分级与发布门禁。
 - **L2 编排层 (Orchestration)**：LangGraph 状态机执行，5 个节点支持动态路由扩展及 HITL 机制。
@@ -33,7 +33,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 
 ---
 
-## Current Status (main@3466f4b)
+## 当前状态 (main@HEAD)
 
 ### Completed Features (Verified)
 - ✅ **需求/场景/用例管理**：支持从 NL 需求到场景、用例的全链路生成与审核，支持自动补全 `seq_id`
