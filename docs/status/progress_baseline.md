@@ -1,6 +1,6 @@
 # QualityFoundry 进度基线
 
-> **版本锚点**: `main@0d78bd4` (2026-01-26)
+> **版本锚点**: `main@067993c` (2026-01-26)
 > **最后验证**: 2026-01-26
 > **Git 标签**: `v0.18-dashboard-p2`
 > **验证方式**: `ruff check` + `pytest -q --tb=short` + `npm run build`
@@ -39,6 +39,7 @@
 | **L3** | 策略驱动沙箱 | ✅ | — | 12+ 集成测试通过 |
 | **L4** | MCP 客户端 | ✅ | — | `protocol/mcp/client.py` |
 | **L4** | MCP 服务端 (write: run_pytest) | ✅ | — | `server.py` + `errors.py` + 25 测试 |
+| **L4** | MCP 速率限制 (Phase 2A) | ✅ | — | `rate_limiter.py` + 13 测试 (-32008/-32009) |
 | **L5** | 黄金数据集 | ✅ | — | `governance/golden/dataset.yaml` (5 用例) |
 | **L5** | 回归 CLI | ✅ | — | `python -m qualityfoundry.governance.evals` |
 | **L5** | 证据聚合 | ✅ | — | `evidence.json` 含 policy/repro/governance |
@@ -52,7 +53,7 @@
 |------|:----:|------|
 | **证据优先** | ✅ | `evidence.json`、构件索引、审计日志 |
 | **可复现性** | ✅ | `ReproMeta`: git_sha, branch, dirty, deps_fingerprint |
-| **最小权限** | ✅ | RBAC + 白名单 + MCP write 安全链 (auth→perm→policy→sandbox) |
+| **最小权限** | ✅ | RBAC + 白名单 + MCP write 安全链 (auth→perm→rate_limit→policy→sandbox) |
 | **成本治理** | ✅ | timeout + max_retries + 预算短路 + evidence.governance |
 | **混合质量** | 🟡 | 确定性检查强；AI 评审/多模型评估待定 |
 
@@ -126,7 +127,10 @@ NL → Plan → (HITL) → Execute → Evidence → Judgment
 | MCP 服务端 | `backend/app/qualityfoundry/protocol/mcp/server.py` |
 | MCP 工具 (读+写) | `backend/app/qualityfoundry/protocol/mcp/tools.py` |
 | MCP 错误码 | `backend/app/qualityfoundry/protocol/mcp/errors.py` |
+| MCP 速率限制 | `backend/app/qualityfoundry/protocol/mcp/rate_limiter.py` |
 | MCP 安全测试 | `backend/tests/test_mcp_write_security.py` (11 测试) |
+| MCP 速率测试 | `backend/tests/test_mcp_rate_limiter.py` (13 测试) |
+| Phase 2B 设计 | `docs/designs/mcp-write-phase2b.md` v0.2 |
 
 ---
 
@@ -175,6 +179,7 @@ cd backend && python -m pytest -q --tb=short
 
 | 日期 | 作者 | 变更 |
 |------|------|------|
+| 2026-01-26 | Claude (Antigravity) | MCP Phase 2A 速率限制 + Phase 2B 设计文档 v0.2 |
 | 2026-01-26 | Claude (Antigravity) | v0.18: L5 Dashboard P2 完成 (P2-2/3/4) |
 | 2026-01-25 | Claude (Antigravity) | 文档中文化 |
 | 2026-01-25 | Claude (Antigravity) | v0.15: L3 容器沙箱完成 (PR#56/#57) |
