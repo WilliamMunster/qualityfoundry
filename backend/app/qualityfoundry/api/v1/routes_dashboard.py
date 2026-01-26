@@ -1,6 +1,6 @@
 """QualityFoundry - Dashboard API Routes
 
-只读 Dashboard 聚合接口：一次请求返回 cards + trend + recent_runs。
+只读 Dashboard 聚合接口：一次请求返回 cards + trend + recent_runs + timeseries。
 
 GET /api/v1/dashboard/summary
 - RBAC: RequireOrchestrationRead
@@ -73,6 +73,15 @@ class AuditSummaryDTO(BaseModel):
     runs_with_events: int = Field(default=0, description="有事件的运行数")
 
 
+class TimeseriesPoint(BaseModel):
+    """时间序列数据点（按天）"""
+    date: str = Field(..., description="日期 (YYYY-MM-DD)")
+    pass_count: int = Field(default=0, description="PASS 数量")
+    fail_count: int = Field(default=0, description="FAIL 数量")
+    need_hitl_count: int = Field(default=0, description="NEED_HITL 数量")
+    total: int = Field(default=0, description="总数")
+
+
 class DashboardSummaryResponse(BaseModel):
     """Dashboard 聚合响应"""
     cards: DashboardCards = Field(..., description="统计卡片")
@@ -80,6 +89,7 @@ class DashboardSummaryResponse(BaseModel):
     recent_runs: list[RecentRunItem] = Field(default_factory=list, description="近期运行")
     by_decision: dict[str, int] = Field(default_factory=dict, description="按决策分组计数")
     by_policy_hash: dict[str, int] = Field(default_factory=dict, description="按策略哈希分组计数")
+    timeseries: list[TimeseriesPoint] = Field(default_factory=list, description="时间序列（按天）")
     audit_summary: Optional[AuditSummaryDTO] = Field(default=None, description="审计摘要（仅 ADMIN）")
 
 
@@ -97,13 +107,15 @@ def get_dashboard_summary(
     获取 Dashboard 聚合数据。
     
     返回 cards (统计卡片)、trend (趋势)、recent_runs (近期运行)、
-    by_decision (按决策分组计数) 和 by_policy_hash (按策略分组计数)。
+    by_decision (按决策分组计数)、by_policy_hash (按策略分组计数)、
+    timeseries (按天聚合的时间序列)。
     ADMIN 用户额外返回 audit_summary。
     
     缺失值策略：
     - 无 finished_at 的 run 仍统计到 total_runs，但不进入 duration 平均值计算
-    - 无 decision 的 run 不计入 by_decision
+    - 无 decision 的 run 不计入 by_decision 和 timeseries 的决策分类
     - 无 policy_hash 的 run 不计入 by_policy_hash
+    - 无 finished_at 的 run 不进入 timeseries（需要完整时间范围才能按天归类）
     """
     # 1. 计算时间范围
     now = datetime.now(timezone.utc)
@@ -144,6 +156,11 @@ def get_dashboard_summary(
     by_decision: dict[str, int] = defaultdict(int)
     by_policy_hash: dict[str, int] = defaultdict(int)
     
+    # 时间序列数据收集（按天聚合）
+    timeseries_data: dict[str, dict[str, int]] = defaultdict(
+        lambda: {"pass": 0, "fail": 0, "need_hitl": 0, "total": 0}
+    )
+    
     for row in run_rows:
         run_id = row.run_id
         started_at = row.started_at
@@ -177,6 +194,19 @@ def get_dashboard_summary(
         # 统计 policy_hash
         if policy_hash:
             by_policy_hash[policy_hash[:8]] += 1
+        
+        # 时间序列：只统计有 finished_at 的 run
+        if finished_at:
+            date_str = finished_at.strftime("%Y-%m-%d")
+            timeseries_data[date_str]["total"] += 1
+            if decision:
+                upper = decision.upper()
+                if upper in ("PASS", "APPROVED"):
+                    timeseries_data[date_str]["pass"] += 1
+                elif upper in ("FAIL", "REJECTED"):
+                    timeseries_data[date_str]["fail"] += 1
+                elif upper in ("NEED_HITL", "PENDING"):
+                    timeseries_data[date_str]["need_hitl"] += 1
         
         # 统计工具调用数
         tool_count = (
@@ -255,7 +285,19 @@ def get_dashboard_summary(
             runs_with_events=runs_with_events,
         )
     
-    # 8. 反转 trend 使其按时间正序
+    # 8. 构建 timeseries（按日期正序）
+    timeseries = [
+        TimeseriesPoint(
+            date=date,
+            pass_count=data["pass"],
+            fail_count=data["fail"],
+            need_hitl_count=data["need_hitl"],
+            total=data["total"],
+        )
+        for date, data in sorted(timeseries_data.items())
+    ]
+    
+    # 9. 反转 trend 使其按时间正序
     trend_points.reverse()
     
     return DashboardSummaryResponse(
@@ -264,5 +306,6 @@ def get_dashboard_summary(
         recent_runs=recent_runs,
         by_decision=dict(by_decision),
         by_policy_hash=dict(by_policy_hash),
+        timeseries=timeseries,
         audit_summary=audit_summary,
     )
