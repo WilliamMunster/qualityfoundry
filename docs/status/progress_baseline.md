@@ -155,7 +155,20 @@ cd backend && python -m pytest -q --tb=short
 ```
 
 ---
-
+ 
+## CI Gate Definition (Required Checks)
+ 
+| Job Name | Command | Description |
+|----------|---------|-------------|
+| `Lint & Unit Tests` | `ruff check .` && `pytest -q --tb=short` | 静态检查与稳定单元测试 |
+| `Smoke Fast` | `pytest -m smoke_fast` | 核心流程快速验证 |
+| `MCP Write Security`| `pytest tests/test_mcp_write_security.py ...` | L4 写能力安全门禁 |
+ 
+> [!NOTE]
+> `E2E Smoke` (Playwright) 暂不纳入合并门禁，仅作为 `workflow_dispatch` 手动触发或 nightly 运行，避免因环境不稳定阻断开发。
+ 
+---
+ 
 ## 文档历史
 
 | 日期 | 作者 | 变更 |
