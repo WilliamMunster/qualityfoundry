@@ -4,6 +4,7 @@ import { Rocket, Settings, ChevronLeft, Globe, Terminal, ShieldAlert } from 'luc
 import { useNavigate } from 'react-router-dom';
 import orchestrationsApi from '../api/orchestrations';
 import { getEnvironments, Environment } from '../api/environments';
+import ReadinessCheck from '../components/ReadinessCheck';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -62,6 +63,8 @@ const RunLaunchPage: React.FC = () => {
             >
                 返回列表
             </Button>
+
+            <ReadinessCheck />
 
             <div style={{ marginBottom: 32 }}>
                 <Title level={2}>

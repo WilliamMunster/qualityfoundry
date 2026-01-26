@@ -62,9 +62,23 @@ def test_run_center_flow():
         page.wait_for_load_state("networkidle")
         print("    ✅ 跳转到新建运行页")
         
-        # Step 3: Verify form elements
-        print("\n[3] 验证新建运行表单...")
+        # Step 3: Verify form elements and Readiness Card
+        print("\n[3] 验证新建运行页面 (含 Readiness Card)...")
         
+        # Readiness Card
+        readiness_card = page.locator("#readiness-check-card")
+        expect(readiness_card).to_be_visible()
+        print("    ✅ Readiness 就绪卡片可见")
+        
+        # Verify readiness check items
+        expect(readiness_card.locator("[data-testid='readiness-item-environment']")).to_be_visible()
+        expect(readiness_card.locator("[data-testid='readiness-item-policy']")).to_be_visible()
+        expect(readiness_card.locator("[data-testid='readiness-item-auth']")).to_be_visible()
+        
+        # Check specific status markers (e.g., they should not be in 'wait' or 'error' in a healthy test env)
+        # But per requirements: "提示缺环境/缺策略/未登录等"，so we just verify they exist and have a status.
+        print("    ✅ Readiness 项目 (data-testid) 均已展示")
+
         # NL Input textarea
         nl_input = page.locator("textarea[placeholder*='staging']").first
         expect(nl_input).to_be_visible()
