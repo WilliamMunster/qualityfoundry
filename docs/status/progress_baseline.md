@@ -1,9 +1,9 @@
 # QualityFoundry 进度基线
 
-> **版本锚点**: `main@e6ce03d` (2026-01-26)
+> **版本锚点**: `main@0d78bd4` (2026-01-26)
 > **最后验证**: 2026-01-26
-> **Git 标签**: `v0.17-dashboard-mvp`
-> **验证方式**: `ruff check` + `pytest -m smoke_fast` (Playwright 环境缺失导致 skip / 非门禁)
+> **Git 标签**: `v0.18-dashboard-p2`
+> **验证方式**: `ruff check` + `pytest -q --tb=short` + `npm run build`
 
 本文档是项目进度的**唯一真实来源**。所有声明均可通过下文命令验证。
 
@@ -42,7 +42,7 @@
 | **L5** | 黄金数据集 | ✅ | — | `governance/golden/dataset.yaml` (5 用例) |
 | **L5** | 回归 CLI | ✅ | — | `python -m qualityfoundry.governance.evals` |
 | **L5** | 证据聚合 | ✅ | — | `evidence.json` 含 policy/repro/governance |
-| **L5** | Dashboard MVP | ✅ | — | `/dashboard` + `/api/v1/dashboard/summary` |
+| **L5** | Dashboard P2 | ✅ | — | timeseries + filters + policy diff + risk card + csv + anomaly + contract guards |
 
 ---
 
@@ -100,7 +100,7 @@ NL → Plan → (HITL) → Execute → Evidence → Judgment
 
 | 项目 | 描述 | 工作量 |
 |------|------|--------|
-| **L5 Dashboard/趋势** | 消费 `evidence.governance` / `repro` / `policy_meta` 做趋势图 | 2-3d |
+| **L5 Dashboard P3** | 实时推送 / webhook 通知 / 多租户 | 2-3d |
 
 ### P2 — 长期演进
 
@@ -164,6 +164,7 @@ cd backend && python -m pytest -q --tb=short
 | `unit-tests` | `ruff check .` && `pytest -q --tb=short` | 静态检查与稳定单元测试 |
 | `smoke-fast` | `pytest -m smoke_fast` | 核心流程快速验证 |
 | `mcp-security` | `pytest tests/test_mcp_write_security.py ...` | L4 写能力安全门禁 |
+| `dashboard-contracts` | `pytest tests/test_api_contract_dashboard_summary.py` | L5 Dashboard 数据准确性护栏 |
  
 > [!NOTE]
 > `E2E Smoke` (Playwright) 暂不纳入合并门禁，仅作为 `workflow_dispatch` 手动触发或 nightly 运行，避免因环境不稳定阻断开发。
@@ -174,6 +175,7 @@ cd backend && python -m pytest -q --tb=short
 
 | 日期 | 作者 | 变更 |
 |------|------|------|
+| 2026-01-26 | Claude (Antigravity) | v0.18: L5 Dashboard P2 完成 (P2-2/3/4) |
 | 2026-01-25 | Claude (Antigravity) | 文档中文化 |
 | 2026-01-25 | Claude (Antigravity) | v0.15: L3 容器沙箱完成 (PR#56/#57) |
 | 2026-01-25 | Claude (Antigravity) | L4 MCP Write Security Phase 1 完成 (25 测试) |

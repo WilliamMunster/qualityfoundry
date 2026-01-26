@@ -4,7 +4,7 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
-> **最新版本**: `v0.17-dashboard-mvp` — L5 Dashboard MVP + Summary API
+> **最新版本**: `v0.18-dashboard-p2` (`main@0d78bd4`) — L5 Dashboard P2 Complete
 >
 > **进度基线**: 详见 [docs/status/progress_baseline.md](docs/status/progress_baseline.md)
 
@@ -61,7 +61,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 
 ### Not Started
 - 🔴 **MCP Write Phase 2**：`run_playwright`、`run_shell` 等高危工具（需容器沙箱）
-- 🔴 **L5 Dashboard P1**：时间范围过滤、多维聚合、趋势图增强
+- 🔴 **L5 Dashboard P3**：实时推送 / webhook 通知 / 多租户
 
 ---
 
@@ -163,6 +163,24 @@ qualityfoundry/
 | 报表 | /api/v1/reports          | 仪表盘统计           |
 | AI   | /api/v1/ai-configs       | AI 配置管理          |
 | 用户 | /api/v1/users            | 用户管理             |
+
+### Dashboard API
+
+| 端点 | 参数 | 说明 |
+|------|------|------|
+| `GET /api/v1/dashboard/summary` | `days=7` | 时间范围 (1-90) |
+| | `limit=50` | 返回条数上限 (1-200) |
+| 前端过滤 | `decision` | PASS / FAIL / NEED_HITL |
+| | `policy_hash` | 按策略版本过滤 |
+
+**使用入口**: 前端 `/dashboard` 页面
+
+**Capabilities**:
+- Timeseries 每日趋势 (SVG 折线图 + 表格)
+- Decision/Policy 筛选
+- Policy Diff (对比 + 风险卡片)
+- CSV 导出
+- 异常峰值标注 (7日均值偏离)
 
 ---
 
