@@ -27,6 +27,7 @@ import RunLaunchPage from "./pages/RunLaunchPage";
 import RunDetailPage from "./pages/RunDetailPage";
 import PoliciesPage from "./pages/PoliciesPage";
 import RegressionPage from "./pages/RegressionPage";
+import DashboardPage from "./pages/DashboardPage";
 import GlobalLoading from "./components/GlobalLoading";
 
 const App: React.FC = () => {
@@ -43,10 +44,10 @@ const App: React.FC = () => {
                 index
                 element={<Navigate to="/runs" replace />}
               />
-              {/* Run Center */}
               <Route path="runs" element={<RunListPage />} />
               <Route path="runs/new" element={<RunLaunchPage />} />
               <Route path="runs/:id" element={<RunDetailPage />} />
+              <Route path="dashboard" element={<DashboardPage />} />
 
               {/* Knowledge Base */}
               <Route path="policies" element={<PoliciesPage />} />
