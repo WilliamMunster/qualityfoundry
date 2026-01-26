@@ -174,9 +174,10 @@ const orchestrationsApi = {
     /**
      * 获取 Dashboard 聚合数据
      */
-    getDashboardSummary: (limit: number = 50): Promise<DashboardSummaryResponse> => {
-        return apiClient.get('/api/v1/dashboard/summary', { params: { limit } });
+    getDashboardSummary: (params: { days?: number; limit?: number } = {}): Promise<DashboardSummaryResponse> => {
+        return apiClient.get('/api/v1/dashboard/summary', { params });
     },
+
 };
 
 // ============== Dashboard Summary Types ==============
@@ -217,8 +218,11 @@ export interface DashboardSummaryResponse {
     cards: DashboardCards;
     trend: DashboardTrendPoint[];
     recent_runs: DashboardRecentRun[];
+    by_decision: Record<string, number>;
+    by_policy_hash: Record<string, number>;
     audit_summary?: DashboardAuditSummary;
 }
+
 
 export default orchestrationsApi;
 
