@@ -1,8 +1,8 @@
 # QualityFoundry 进度基线
 
-> **版本锚点**: `main@2af8cb7` (2026-01-26)
+> **版本锚点**: `main@e6ce03d` (2026-01-26)
 > **最后验证**: 2026-01-26
-> **Git 标签**: `v0.16-sandbox-mcp-docs`
+> **Git 标签**: `v0.17-dashboard-mvp`
 > **验证方式**: `ruff check` + `pytest -m smoke_fast` (Playwright 环境缺失导致 skip / 非门禁)
 
 本文档是项目进度的**唯一真实来源**。所有声明均可通过下文命令验证。
@@ -42,6 +42,7 @@
 | **L5** | 黄金数据集 | ✅ | — | `governance/golden/dataset.yaml` (5 用例) |
 | **L5** | 回归 CLI | ✅ | — | `python -m qualityfoundry.governance.evals` |
 | **L5** | 证据聚合 | ✅ | — | `evidence.json` 含 policy/repro/governance |
+| **L5** | Dashboard MVP | ✅ | — | `/dashboard` + `/api/v1/dashboard/summary` |
 
 ---
 
