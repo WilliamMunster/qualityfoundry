@@ -256,3 +256,112 @@ class TestDashboardSummaryContract:
             from tests.conftest import override_get_current_user
             app.dependency_overrides[get_current_user] = override_get_current_user
 
+    # ========== P2-4: 数据准确性护栏 ==========
+
+    def test_timeseries_total_equals_decision_sum(self, client):
+        """timeseries 每天 total == pass+fail+need_hitl (严格等式)"""
+        mock_admin = create_mock_admin()
+        app.dependency_overrides[get_current_user] = lambda: mock_admin
+        
+        try:
+            resp = client.get("/api/v1/dashboard/summary")
+            assert resp.status_code == 200
+            data = resp.json()
+            
+            # 每天的 total 必须等于三种决策之和
+            for point in data["timeseries"]:
+                decision_sum = point["pass_count"] + point["fail_count"] + point["need_hitl_count"]
+                assert point["total"] == decision_sum, (
+                    f"日期 {point['date']}: total={point['total']} != "
+                    f"pass+fail+hitl={decision_sum}"
+                )
+        finally:
+            from tests.conftest import override_get_current_user
+            app.dependency_overrides[get_current_user] = override_get_current_user
+
+    def test_by_decision_matches_cards(self, client):
+        """by_decision 聚合与 cards 计数一致"""
+        mock_admin = create_mock_admin()
+        app.dependency_overrides[get_current_user] = lambda: mock_admin
+        
+        try:
+            resp = client.get("/api/v1/dashboard/summary")
+            assert resp.status_code == 200
+            data = resp.json()
+            
+            cards = data["cards"]
+            by_decision = data["by_decision"]
+            
+            # by_decision 各项与 cards 对应字段一致
+            pass_in_decision = by_decision.get("PASS", 0) + by_decision.get("pass", 0)
+            fail_in_decision = by_decision.get("FAIL", 0) + by_decision.get("fail", 0)
+            hitl_in_decision = by_decision.get("NEED_HITL", 0) + by_decision.get("need_hitl", 0)
+            
+            assert pass_in_decision == cards["pass_count"], (
+                f"by_decision PASS={pass_in_decision} != cards.pass_count={cards['pass_count']}"
+            )
+            assert fail_in_decision == cards["fail_count"], (
+                f"by_decision FAIL={fail_in_decision} != cards.fail_count={cards['fail_count']}"
+            )
+            assert hitl_in_decision == cards["hitl_count"], (
+                f"by_decision NEED_HITL={hitl_in_decision} != cards.hitl_count={cards['hitl_count']}"
+            )
+        finally:
+            from tests.conftest import override_get_current_user
+            app.dependency_overrides[get_current_user] = override_get_current_user
+
+    def test_days_boundary_min_1(self, client):
+        """days=1 边界测试 (最小合法值)"""
+        mock_admin = create_mock_admin()
+        app.dependency_overrides[get_current_user] = lambda: mock_admin
+        
+        try:
+            resp = client.get("/api/v1/dashboard/summary?days=1")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "cards" in data
+            assert "timeseries" in data
+        finally:
+            from tests.conftest import override_get_current_user
+            app.dependency_overrides[get_current_user] = override_get_current_user
+
+    def test_limit_boundary_min_1(self, client):
+        """limit=1 边界测试 (最小合法值)"""
+        mock_admin = create_mock_admin()
+        app.dependency_overrides[get_current_user] = lambda: mock_admin
+        
+        try:
+            resp = client.get("/api/v1/dashboard/summary?limit=1")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "cards" in data
+            # 最多返回 1 条 (可能为 0)
+            assert len(data["recent_runs"]) <= 1
+        finally:
+            from tests.conftest import override_get_current_user
+            app.dependency_overrides[get_current_user] = override_get_current_user
+
+    def test_days_0_invalid(self, client):
+        """days=0 无效参数返回 422"""
+        mock_admin = create_mock_admin()
+        app.dependency_overrides[get_current_user] = lambda: mock_admin
+        
+        try:
+            resp = client.get("/api/v1/dashboard/summary?days=0")
+            assert resp.status_code == 422
+        finally:
+            from tests.conftest import override_get_current_user
+            app.dependency_overrides[get_current_user] = override_get_current_user
+
+    def test_limit_0_invalid(self, client):
+        """limit=0 无效参数返回 422"""
+        mock_admin = create_mock_admin()
+        app.dependency_overrides[get_current_user] = lambda: mock_admin
+        
+        try:
+            resp = client.get("/api/v1/dashboard/summary?limit=0")
+            assert resp.status_code == 422
+        finally:
+            from tests.conftest import override_get_current_user
+            app.dependency_overrides[get_current_user] = override_get_current_user
+
