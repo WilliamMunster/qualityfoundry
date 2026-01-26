@@ -4,7 +4,7 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
-> **最新版本**: `v0.18-dashboard-p2` (`main@0d78bd4`) — L5 Dashboard P2 Complete
+> **最新版本**: `v0.18-dashboard-p2` (`main@067993c`) — L5 Dashboard P2 + MCP Phase 2A
 >
 > **进度基线**: 详见 [docs/status/progress_baseline.md](docs/status/progress_baseline.md)
 
@@ -28,8 +28,8 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - **L1 规则与门禁层 (Policy)**：定义 `policy_config.yaml`、风险分级与发布门禁。
 - **L2 编排层 (Orchestration)**：LangGraph 状态机执行，UUID runs 主路径：启动→查看→下载证据→审计链。
 - **L3 执行层 (Execution)**：集成 Playwright、Pytest 等工具，支持 subprocess 默认沙箱与 L3 Container 强隔离沙箱。
-- **L4 接口层 (Protocol)**：MCP Client 调用外部服务，MCP Server 支持只读工具 + 受控写工具（仅限 run_pytest），具备完整安全链（认证→权限→策略→沙箱）。
-- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、成本治理（timeout/budget）已落地；Dashboard MVP 已上线。
+- **L4 接口层 (Protocol)**：MCP Client 调用外部服务，MCP Server 支持只读工具 + 受控写工具（仅限 run_pytest），具备完整安全链（认证→权限→速率限制→策略→沙箱）。
+- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、成本治理（timeout/budget）已落地；Dashboard P2 已上线。
 
 > **⚠️ 存量声明 (Legacy Notice)**: 
 > 原 `run_<TS>` 系列端点已 deprecated，转为只读。主入口请统一使用 `/api/v1/orchestrations/runs`。
@@ -54,13 +54,14 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - ✅ **Premium UI 前端**：AI 工作区前端重构，支持编排可视化与运行管理
 - ✅ **L3 沙箱执行 (PR-B)**：进程隔离沙箱，policy 驱动的超时/路径/命令/环境变量控制
 - ✅ **L4 MCP Write Security (Phase 1)**：`run_pytest` 写能力 + 安全链（auth→perm→policy→sandbox），25 项安全测试
+- ✅ **L4 MCP Rate Limiting (Phase 2A)**：并发限制 + token bucket 速率限制 + 每日配额，错误码 -32008/-32009，13 项测试
 
 ### Partial / In Progress
 - 🟡 **用户认证**：基于 token 的简单认证（非 JWT，待升级）
 - 🟡 **角色权限**：UserRole 模型存在，RBAC 通过 MCP 安全链强制执行
 
 ### Not Started
-- 🔴 **MCP Write Phase 2**：`run_playwright`、`run_shell` 等高危工具（需容器沙箱）
+- 🔴 **MCP Write Phase 2B**：`run_playwright`、`run_shell` 等高危工具（设计文档 v0.2 已完成，实现待定）
 - 🔴 **L5 Dashboard P3**：实时推送 / webhook 通知 / 多租户
 
 ---
