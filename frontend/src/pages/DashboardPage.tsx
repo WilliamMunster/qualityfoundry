@@ -1,30 +1,39 @@
-import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Table, Typography, Statistic, Spin, Alert, Tag } from 'antd';
-import { CheckCircle2, XCircle, AlertTriangle, Clock, Zap, TrendingUp, Activity } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Card, Row, Col, Table, Typography, Statistic, Spin, Alert, Tag, Select, Space, Empty } from 'antd';
+import { CheckCircle2, XCircle, AlertTriangle, Clock, Zap, TrendingUp, Activity, Filter } from 'lucide-react';
 import orchestrationsApi, { DashboardSummaryResponse, DashboardRecentRun, DashboardTrendPoint } from '../api/orchestrations';
 
 const { Title, Text } = Typography;
+
+type DecisionFilter = 'ALL' | 'PASS' | 'FAIL' | 'NEED_HITL';
 
 const DashboardPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [data, setData] = useState<DashboardSummaryResponse | null>(null);
 
+    // 筛选状态
+    const [days, setDays] = useState<number>(7);
+    const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>('ALL');
+
     useEffect(() => {
         const fetchDashboardData = async () => {
             setLoading(true);
             setError(null);
             try {
-                // 单次 API 调用获取所有 Dashboard 数据
-                const summary = await orchestrationsApi.getDashboardSummary(50);
+                const summary = await orchestrationsApi.getDashboardSummary({ days, limit: 50 });
                 setData(summary);
             } catch (err: any) {
                 if (err.response?.status === 401) {
-                    setError('需要登录 (401)');
+                    setError('需要登录才能访问 Dashboard');
                 } else if (err.response?.status === 403) {
-                    setError('无权限访问 (403)');
+                    setError('您没有权限访问 Dashboard，请联系管理员');
+                } else if (err.response?.status === 500) {
+                    setError('服务器内部错误，请稍后重试');
+                } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+                    setError('请求超时，请检查网络连接');
                 } else {
-                    setError(err.message || '加载失败');
+                    setError(err.message || '加载失败，请刷新页面重试');
                 }
             } finally {
                 setLoading(false);
@@ -32,7 +41,20 @@ const DashboardPage: React.FC = () => {
         };
 
         fetchDashboardData();
-    }, []);
+    }, [days]);
+
+    // 根据 decision filter 过滤 recent_runs
+    const filteredRuns = useMemo(() => {
+        if (!data?.recent_runs) return [];
+        if (decisionFilter === 'ALL') return data.recent_runs;
+        return data.recent_runs.filter(run => {
+            const upper = run.decision?.toUpperCase();
+            if (decisionFilter === 'PASS') return upper === 'PASS' || upper === 'APPROVED';
+            if (decisionFilter === 'FAIL') return upper === 'FAIL' || upper === 'REJECTED';
+            if (decisionFilter === 'NEED_HITL') return upper === 'NEED_HITL' || upper === 'PENDING';
+            return true;
+        });
+    }, [data?.recent_runs, decisionFilter]);
 
     const columns = [
         {
@@ -80,38 +102,82 @@ const DashboardPage: React.FC = () => {
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-                <Spin size="large" />
+                <Spin size="large" tip="加载中..." />
             </div>
         );
     }
 
     if (error) {
         return (
-            <div style={{ padding: 24 }} data-testid="dashboard-error">
-                <Alert message={error} type="warning" showIcon />
+            <div style={{ padding: 24, maxWidth: 600, margin: '0 auto' }} data-testid="dashboard-error">
+                <Alert
+                    message="加载失败"
+                    description={error}
+                    type="error"
+                    showIcon
+                    action={
+                        <a onClick={() => window.location.reload()}>刷新页面</a>
+                    }
+                />
             </div>
         );
     }
 
     if (!data) {
         return (
-            <div style={{ padding: 24 }} data-testid="dashboard-error">
-                <Alert message="无数据" type="info" showIcon />
+            <div style={{ padding: 24 }} data-testid="dashboard-empty">
+                <Empty description="暂无数据" />
             </div>
         );
     }
 
-    const { cards, trend, recent_runs } = data;
-
-    // 转换 trend 数据用于渲染
+    const { cards, trend } = data;
     const trendData = trend.filter((p: DashboardTrendPoint) => p.elapsed_ms !== null);
 
     return (
         <div style={{ padding: '24px' }} data-testid="dashboard-summary">
-            <Title level={2} style={{ marginBottom: 24 }}>
-                <Activity size={24} style={{ marginRight: 12, verticalAlign: 'middle' }} />
-                L5 Dashboard
-            </Title>
+            <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+                <Col>
+                    <Title level={2} style={{ margin: 0 }}>
+                        <Activity size={24} style={{ marginRight: 12, verticalAlign: 'middle' }} />
+                        L5 Dashboard
+                    </Title>
+                </Col>
+                <Col>
+                    <Space size="middle">
+                        <Space>
+                            <Filter size={16} />
+                            <Text type="secondary">时间窗口:</Text>
+                            <Select
+                                value={days}
+                                onChange={setDays}
+                                style={{ width: 100 }}
+                                options={[
+                                    { value: 7, label: '7 天' },
+                                    { value: 30, label: '30 天' },
+                                    { value: 90, label: '90 天' },
+                                ]}
+                                data-testid="days-filter"
+                            />
+                        </Space>
+                        <Space>
+                            <Text type="secondary">决策筛选:</Text>
+                            <Select
+                                value={decisionFilter}
+                                onChange={setDecisionFilter}
+                                style={{ width: 120 }}
+                                options={[
+                                    { value: 'ALL', label: '全部' },
+                                    { value: 'PASS', label: 'PASS' },
+                                    { value: 'FAIL', label: 'FAIL' },
+                                    { value: 'NEED_HITL', label: 'NEED_HITL' },
+                                ]}
+                                data-testid="decision-filter"
+                            />
+                        </Space>
+                    </Space>
+                </Col>
+            </Row>
 
             {/* Summary Cards */}
             <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
@@ -169,7 +235,7 @@ const DashboardPage: React.FC = () => {
                     </Card>
                 </Col>
                 <Col xs={24} md={16}>
-                    <Card title={<><TrendingUp size={16} style={{ marginRight: 8 }} />执行耗时趋势</>}>
+                    <Card title={<><TrendingUp size={16} style={{ marginRight: 8 }} />执行耗时趋势 (最近 {days} 天)</>}>
                         {trendData.length > 0 ? (
                             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 100 }}>
                                 {trendData.map((point: DashboardTrendPoint, idx: number) => {
@@ -191,22 +257,43 @@ const DashboardPage: React.FC = () => {
                                 })}
                             </div>
                         ) : (
-                            <Text type="secondary">无数据</Text>
+                            <Empty description="无趋势数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                         )}
                     </Card>
                 </Col>
             </Row>
 
             {/* Recent Runs Table */}
-            <Card title="近期 Runs" style={{ marginBottom: 24 }}>
-                <Table
-                    columns={columns}
-                    dataSource={recent_runs}
-                    rowKey="run_id"
-                    pagination={false}
-                    size="small"
-                    data-testid="dashboard-table"
-                />
+            <Card
+                title={
+                    <Space>
+                        近期 Runs
+                        {decisionFilter !== 'ALL' && (
+                            <Tag color="blue">筛选: {decisionFilter}</Tag>
+                        )}
+                    </Space>
+                }
+                style={{ marginBottom: 24 }}
+            >
+                {filteredRuns.length > 0 ? (
+                    <Table
+                        columns={columns}
+                        dataSource={filteredRuns}
+                        rowKey="run_id"
+                        pagination={false}
+                        size="small"
+                        data-testid="dashboard-table"
+                    />
+                ) : (
+                    <Empty
+                        description={
+                            decisionFilter !== 'ALL'
+                                ? `没有 ${decisionFilter} 状态的运行记录`
+                                : '暂无运行记录'
+                        }
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    />
+                )}
             </Card>
         </div>
     );
