@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Card, Row, Col, Table, Typography, Statistic, Spin, Alert, Tag, Select, Space, Empty } from 'antd';
-import { CheckCircle2, XCircle, AlertTriangle, Clock, Zap, TrendingUp, Activity, Filter } from 'lucide-react';
+import { Card, Row, Col, Table, Typography, Statistic, Spin, Alert, Tag, Select, Space, Empty, Button } from 'antd';
+import { CheckCircle2, XCircle, AlertTriangle, Clock, Zap, TrendingUp, Activity, Filter, GitCompare } from 'lucide-react';
 import orchestrationsApi, { DashboardSummaryResponse, DashboardRecentRun, DashboardTrendPoint } from '../api/orchestrations';
 
 const { Title, Text } = Typography;
@@ -15,6 +15,12 @@ const DashboardPage: React.FC = () => {
     // 筛选状态
     const [days, setDays] = useState<number>(7);
     const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>('ALL');
+    const [policyHashFilter, setPolicyHashFilter] = useState<string | null>(null);
+
+    // Policy Diff 状态
+    const [policyHashA, setPolicyHashA] = useState<string | null>(null);
+    const [policyHashB, setPolicyHashB] = useState<string | null>(null);
+    const [showDiff, setShowDiff] = useState(false);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -43,18 +49,58 @@ const DashboardPage: React.FC = () => {
         fetchDashboardData();
     }, [days]);
 
-    // 根据 decision filter 过滤 recent_runs
+    // Policy hash 选项
+    const policyHashOptions = useMemo(() => {
+        if (!data?.by_policy_hash) return [];
+        return Object.keys(data.by_policy_hash).map(hash => ({
+            value: hash,
+            label: `${hash} (${data.by_policy_hash[hash]} runs)`,
+        }));
+    }, [data?.by_policy_hash]);
+
+    // 根据 decision/policy filter 过滤 recent_runs
     const filteredRuns = useMemo(() => {
         if (!data?.recent_runs) return [];
-        if (decisionFilter === 'ALL') return data.recent_runs;
-        return data.recent_runs.filter(run => {
-            const upper = run.decision?.toUpperCase();
-            if (decisionFilter === 'PASS') return upper === 'PASS' || upper === 'APPROVED';
-            if (decisionFilter === 'FAIL') return upper === 'FAIL' || upper === 'REJECTED';
-            if (decisionFilter === 'NEED_HITL') return upper === 'NEED_HITL' || upper === 'PENDING';
-            return true;
-        });
-    }, [data?.recent_runs, decisionFilter]);
+        let runs = data.recent_runs;
+
+        // Policy hash filter
+        if (policyHashFilter) {
+            runs = runs.filter(run => run.policy_hash === policyHashFilter);
+        }
+
+        // Decision filter
+        if (decisionFilter !== 'ALL') {
+            runs = runs.filter(run => {
+                const upper = run.decision?.toUpperCase();
+                if (decisionFilter === 'PASS') return upper === 'PASS' || upper === 'APPROVED';
+                if (decisionFilter === 'FAIL') return upper === 'FAIL' || upper === 'REJECTED';
+                if (decisionFilter === 'NEED_HITL') return upper === 'NEED_HITL' || upper === 'PENDING';
+                return true;
+            });
+        }
+
+        return runs;
+    }, [data?.recent_runs, decisionFilter, policyHashFilter]);
+
+    // Diff 对比逻辑
+    const diffResult = useMemo(() => {
+        if (!showDiff || !policyHashA || !policyHashB || !data?.by_policy_hash) return null;
+        const countA = data.by_policy_hash[policyHashA] || 0;
+        const countB = data.by_policy_hash[policyHashB] || 0;
+        const diff = countA - countB;
+        return { countA, countB, diff };
+    }, [showDiff, policyHashA, policyHashB, data?.by_policy_hash]);
+
+    // 应用 hash 过滤并重置 diff 视图
+    const applyHashFilter = (hash: string) => {
+        setPolicyHashFilter(hash);
+        setShowDiff(false);
+    };
+
+    // 清除 hash 过滤
+    const clearHashFilter = () => {
+        setPolicyHashFilter(null);
+    };
 
     const columns = [
         {
@@ -313,6 +359,115 @@ const DashboardPage: React.FC = () => {
                 )}
             </Card>
 
+            {/* Policy Diff Section */}
+            <Card
+                title={<><GitCompare size={16} style={{ marginRight: 8 }} />Policy 对比</>}
+                style={{ marginBottom: 24 }}
+                data-testid="policy-diff-section"
+            >
+                {policyHashOptions.length >= 2 ? (
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                        <Row gutter={16} align="middle">
+                            <Col>
+                                <Space>
+                                    <Text type="secondary">Hash A:</Text>
+                                    <Select
+                                        value={policyHashA}
+                                        onChange={(v) => { setPolicyHashA(v); setShowDiff(false); }}
+                                        style={{ width: 200 }}
+                                        placeholder="选择 Policy Hash"
+                                        options={policyHashOptions}
+                                        allowClear
+                                        data-testid="policy-hash-a"
+                                    />
+                                </Space>
+                            </Col>
+                            <Col>
+                                <Space>
+                                    <Text type="secondary">Hash B:</Text>
+                                    <Select
+                                        value={policyHashB}
+                                        onChange={(v) => { setPolicyHashB(v); setShowDiff(false); }}
+                                        style={{ width: 200 }}
+                                        placeholder="选择 Policy Hash"
+                                        options={policyHashOptions}
+                                        allowClear
+                                        data-testid="policy-hash-b"
+                                    />
+                                </Space>
+                            </Col>
+                            <Col>
+                                <Button
+                                    type="primary"
+                                    onClick={() => setShowDiff(true)}
+                                    disabled={!policyHashA || !policyHashB || policyHashA === policyHashB}
+                                    data-testid="compare-btn"
+                                >
+                                    Compare
+                                </Button>
+                            </Col>
+                        </Row>
+
+                        {/* 错误态：相同 hash */}
+                        {policyHashA && policyHashB && policyHashA === policyHashB && (
+                            <Alert
+                                message="请选择不同的 Policy Hash 进行对比"
+                                type="warning"
+                                showIcon
+                            />
+                        )}
+
+                        {/* Diff 结果 */}
+                        {diffResult && (
+                            <div style={{ padding: 16, background: '#fafafa', borderRadius: 8 }}>
+                                <Row gutter={24}>
+                                    <Col span={8}>
+                                        <Statistic
+                                            title={<><Tag color="blue">{policyHashA}</Tag> Runs</>}
+                                            value={diffResult.countA}
+                                        />
+                                        <Button
+                                            size="small"
+                                            style={{ marginTop: 8 }}
+                                            onClick={() => applyHashFilter(policyHashA!)}
+                                            data-testid="apply-filter-a"
+                                        >
+                                            筛选 Hash A
+                                        </Button>
+                                    </Col>
+                                    <Col span={8}>
+                                        <Statistic
+                                            title={<><Tag color="green">{policyHashB}</Tag> Runs</>}
+                                            value={diffResult.countB}
+                                        />
+                                        <Button
+                                            size="small"
+                                            style={{ marginTop: 8 }}
+                                            onClick={() => applyHashFilter(policyHashB!)}
+                                            data-testid="apply-filter-b"
+                                        >
+                                            筛选 Hash B
+                                        </Button>
+                                    </Col>
+                                    <Col span={8}>
+                                        <Statistic
+                                            title="差异"
+                                            value={diffResult.diff}
+                                            prefix={diffResult.diff > 0 ? '+' : ''}
+                                            valueStyle={{ color: diffResult.diff > 0 ? '#52c41a' : diffResult.diff < 0 ? '#ff4d4f' : '#8c8c8c' }}
+                                        />
+                                    </Col>
+                                </Row>
+                            </div>
+                        )}
+                    </Space>
+                ) : policyHashOptions.length === 1 ? (
+                    <Empty description="只有 1 个 Policy Hash，无法对比" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                ) : (
+                    <Empty description="无 Policy Hash 数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                )}
+            </Card>
+
             {/* Recent Runs Table */}
 
             <Card
@@ -320,7 +475,12 @@ const DashboardPage: React.FC = () => {
                     <Space>
                         近期 Runs
                         {decisionFilter !== 'ALL' && (
-                            <Tag color="blue">筛选: {decisionFilter}</Tag>
+                            <Tag color="blue">决策: {decisionFilter}</Tag>
+                        )}
+                        {policyHashFilter && (
+                            <Tag color="purple" closable onClose={clearHashFilter}>
+                                Policy: {policyHashFilter}
+                            </Tag>
                         )}
                     </Space>
                 }
