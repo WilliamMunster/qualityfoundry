@@ -5,15 +5,17 @@
 GET /api/v1/dashboard/summary
 - RBAC: RequireOrchestrationRead
 - ADMIN: 额外返回 audit_summary
+- Query params: days (7/30/90), limit (max 200)
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import desc, distinct, func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
@@ -76,6 +78,8 @@ class DashboardSummaryResponse(BaseModel):
     cards: DashboardCards = Field(..., description="统计卡片")
     trend: list[TrendPoint] = Field(default_factory=list, description="趋势数据")
     recent_runs: list[RecentRunItem] = Field(default_factory=list, description="近期运行")
+    by_decision: dict[str, int] = Field(default_factory=dict, description="按决策分组计数")
+    by_policy_hash: dict[str, int] = Field(default_factory=dict, description="按策略哈希分组计数")
     audit_summary: Optional[AuditSummaryDTO] = Field(default=None, description="审计摘要（仅 ADMIN）")
 
 
@@ -84,22 +88,33 @@ class DashboardSummaryResponse(BaseModel):
 
 @router.get("/summary", response_model=DashboardSummaryResponse)
 def get_dashboard_summary(
-    limit: int = 50,
+    days: int = Query(default=7, ge=1, le=90, description="时间窗口（天）"),
+    limit: int = Query(default=50, ge=1, le=200, description="最大返回数量"),
     db: Session = Depends(get_db),
     current_user: User = Depends(RequireOrchestrationRead),
 ):
     """
     获取 Dashboard 聚合数据。
     
-    返回 cards (统计卡片)、trend (趋势) 和 recent_runs (近期运行)。
+    返回 cards (统计卡片)、trend (趋势)、recent_runs (近期运行)、
+    by_decision (按决策分组计数) 和 by_policy_hash (按策略分组计数)。
     ADMIN 用户额外返回 audit_summary。
+    
+    缺失值策略：
+    - 无 finished_at 的 run 仍统计到 total_runs，但不进入 duration 平均值计算
+    - 无 decision 的 run 不计入 by_decision
+    - 无 policy_hash 的 run 不计入 by_policy_hash
     """
-    # 1. 构建基础查询（所有权过滤）
-    base_query = db.query(AuditLog)
+    # 1. 计算时间范围
+    now = datetime.now(timezone.utc)
+    start_time = now - timedelta(days=days)
+    
+    # 2. 构建基础查询（所有权过滤 + 时间范围）
+    base_query = db.query(AuditLog).filter(AuditLog.ts >= start_time)
     if current_user.role != UserRole.ADMIN:
         base_query = base_query.filter(AuditLog.created_by_user_id == current_user.id)
     
-    # 2. 获取 run 列表（按最新事件时间降序，取 limit 条）
+    # 3. 获取 run 列表（按最新事件时间降序，取 limit 条）
     run_subquery = (
         base_query.with_entities(
             AuditLog.run_id,
@@ -118,7 +133,7 @@ def get_dashboard_summary(
         run_subquery.c.finished_at,
     ).all()
     
-    # 3. 收集统计数据
+    # 4. 收集统计数据
     pass_count = 0
     fail_count = 0
     hitl_count = 0
@@ -126,6 +141,8 @@ def get_dashboard_summary(
     elapsed_values: list[float] = []
     trend_points: list[TrendPoint] = []
     recent_runs: list[RecentRunItem] = []
+    by_decision: dict[str, int] = defaultdict(int)
+    by_policy_hash: dict[str, int] = defaultdict(int)
     
     for row in run_rows:
         run_id = row.run_id
@@ -149,12 +166,17 @@ def get_dashboard_summary(
         # 统计决策
         if decision:
             upper = decision.upper()
+            by_decision[upper] += 1
             if upper in ("PASS", "APPROVED"):
                 pass_count += 1
             elif upper in ("FAIL", "REJECTED"):
                 fail_count += 1
             elif upper in ("NEED_HITL", "PENDING"):
                 hitl_count += 1
+        
+        # 统计 policy_hash
+        if policy_hash:
+            by_policy_hash[policy_hash[:8]] += 1
         
         # 统计工具调用数
         tool_count = (
@@ -176,6 +198,7 @@ def get_dashboard_summary(
             if evidence.governance:
                 elapsed_ms = getattr(evidence.governance, 'elapsed_ms_total', None)
                 short_circuited = getattr(evidence.governance, 'short_circuited', False)
+                # 只有有 elapsed_ms 的才计入平均值
                 if elapsed_ms is not None:
                     elapsed_values.append(elapsed_ms)
                 if short_circuited:
@@ -207,12 +230,12 @@ def get_dashboard_summary(
                 policy_hash=policy_hash[:8] if policy_hash else None,
             ))
     
-    # 4. 计算平均执行时间
+    # 5. 计算平均执行时间（只统计有 elapsed_ms 的 run）
     avg_elapsed_ms = None
     if elapsed_values:
         avg_elapsed_ms = sum(elapsed_values) / len(elapsed_values)
     
-    # 5. 构建 cards
+    # 6. 构建 cards
     cards = DashboardCards(
         pass_count=pass_count,
         fail_count=fail_count,
@@ -222,7 +245,7 @@ def get_dashboard_summary(
         total_runs=len(run_rows),
     )
     
-    # 6. 审计摘要（仅 ADMIN）
+    # 7. 审计摘要（仅 ADMIN）
     audit_summary = None
     if current_user.role == UserRole.ADMIN:
         total_events = base_query.count()
@@ -232,12 +255,14 @@ def get_dashboard_summary(
             runs_with_events=runs_with_events,
         )
     
-    # 7. 反转 trend 使其按时间正序
+    # 8. 反转 trend 使其按时间正序
     trend_points.reverse()
     
     return DashboardSummaryResponse(
         cards=cards,
         trend=trend_points,
         recent_runs=recent_runs,
+        by_decision=dict(by_decision),
+        by_policy_hash=dict(by_policy_hash),
         audit_summary=audit_summary,
     )
