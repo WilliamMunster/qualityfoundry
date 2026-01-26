@@ -4,7 +4,7 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
-> **最新版本**: `v0.16-sandbox-mcp-docs` — L3 容器沙箱 + MCP 写安全 + 文档收口
+> **最新版本**: `v0.17-dashboard-mvp` — L5 Dashboard MVP + Summary API
 >
 > **进度基线**: 详见 [docs/status/progress_baseline.md](docs/status/progress_baseline.md)
 
@@ -29,7 +29,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - **L2 编排层 (Orchestration)**：LangGraph 状态机执行，UUID runs 主路径：启动→查看→下载证据→审计链。
 - **L3 执行层 (Execution)**：集成 Playwright、Pytest 等工具，支持 subprocess 默认沙箱与 L3 Container 强隔离沙箱。
 - **L4 接口层 (Protocol)**：MCP Client 调用外部服务，MCP Server 支持只读工具 + 受控写工具（仅限 run_pytest），具备完整安全链（认证→权限→策略→沙箱）。
-- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、成本治理（timeout/budget）已落地；Dashboard 待 P1 演进。
+- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、成本治理（timeout/budget）已落地；Dashboard MVP 已上线。
 
 > **⚠️ 存量声明 (Legacy Notice)**: 
 > 原 `run_<TS>` 系列端点已 deprecated，转为只读。主入口请统一使用 `/api/v1/orchestrations/runs`。
@@ -61,7 +61,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 
 ### Not Started
 - 🔴 **MCP Write Phase 2**：`run_playwright`、`run_shell` 等高危工具（需容器沙箱）
-- 🔴 **L5 Dashboard**：趋势聚合与可视化
+- 🔴 **L5 Dashboard P1**：时间范围过滤、多维聚合、趋势图增强
 
 ---
 
