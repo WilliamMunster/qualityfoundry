@@ -170,7 +170,55 @@ const orchestrationsApi = {
     getCurrentPolicy: (): Promise<PolicyInfo> => {
         return apiClient.get('/api/v1/policies/current');
     },
+
+    /**
+     * 获取 Dashboard 聚合数据
+     */
+    getDashboardSummary: (limit: number = 50): Promise<DashboardSummaryResponse> => {
+        return apiClient.get('/api/v1/dashboard/summary', { params: { limit } });
+    },
 };
+
+// ============== Dashboard Summary Types ==============
+
+export interface DashboardCards {
+    pass_count: number;
+    fail_count: number;
+    hitl_count: number;
+    avg_elapsed_ms: number | null;
+    short_circuit_count: number;
+    total_runs: number;
+}
+
+export interface DashboardTrendPoint {
+    run_id: string;
+    elapsed_ms: number | null;
+    started_at: string;
+    decision: string | null;
+}
+
+export interface DashboardRecentRun {
+    run_id: string;
+    started_at: string;
+    finished_at?: string;
+    decision?: string;
+    decision_source?: string;
+    tool_count: number;
+    policy_version?: string;
+    policy_hash?: string;
+}
+
+export interface DashboardAuditSummary {
+    total_events: number;
+    runs_with_events: number;
+}
+
+export interface DashboardSummaryResponse {
+    cards: DashboardCards;
+    trend: DashboardTrendPoint[];
+    recent_runs: DashboardRecentRun[];
+    audit_summary?: DashboardAuditSummary;
+}
 
 export default orchestrationsApi;
 
