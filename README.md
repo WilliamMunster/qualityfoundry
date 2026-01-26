@@ -4,7 +4,7 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
-> **最新版本**: `v0.15-container-sandbox` — L3 容器沙箱完成
+> **最新版本**: `v0.16-sandbox-mcp-docs` — L3 容器沙箱 + MCP 写安全 + 文档收口
 >
 > **进度基线**: 详见 [docs/status/progress_baseline.md](docs/status/progress_baseline.md)
 
@@ -20,16 +20,20 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 | Layer | Name | Current Status |
 |-------|------|----------------|
 | **L1** | Policy (规则与门禁) | ✅ 完成 |
-| **L2** | Orchestration (编排层) | ✅ Phase 2.2 完成 (LangGraph 状态机) |
-| **L3** | Execution (执行层) | ✅ 容器沙箱完成 (run_pytest, 策略驱动) |
-| **L4** | Protocol (MCP) | ✅ MCP 服务端 (读+写: run_pytest) 含安全链 |
-| **L5** | Governance & Evals | ✅ Phase 5.2 完成 |
+| **L2** | Orchestration (编排层) | ✅ 完成 (UUID runs 主路径) |
+| **L3** | Execution (执行层) | ✅ 完成 (subprocess 默认 + container 可选; 不可用则拒绝审计) |
+| **L4** | Protocol (MCP) | ✅ 完成 (read-only + write: run_pytest 仅受控写) |
+| **L5** | Governance & Evals | ✅ 完成 (cost governance + golden regression) |
 
 - **L1 规则与门禁层 (Policy)**：定义 `policy_config.yaml`、风险分级与发布门禁。
-- **L2 编排层 (Orchestration)**：LangGraph 状态机执行，5 个节点支持动态路由扩展及 HITL 机制。
-- **L3 执行层 (Execution)**：集成 Playwright、Pytest 等工具，进程隔离沙箱已实现。
-- **L4 接口层 (Protocol)**：MCP Client 调用外部服务，MCP Server 支持只读工具 + 受控写工具（run_pytest），具备完整安全链（认证→权限→策略→沙箱）。
-- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、变更对比报告（在线漂移监控待实现）。
+- **L2 编排层 (Orchestration)**：LangGraph 状态机执行，UUID runs 主路径：启动→查看→下载证据→审计链。
+- **L3 执行层 (Execution)**：集成 Playwright、Pytest 等工具，支持 subprocess 默认沙箱与 L3 Container 强隔离沙箱。
+- **L4 接口层 (Protocol)**：MCP Client 调用外部服务，MCP Server 支持只读工具 + 受控写工具（仅限 run_pytest），具备完整安全链（认证→权限→策略→沙箱）。
+- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、成本治理（timeout/budget）已落地；Dashboard 待 P1 演进。
+
+> **⚠️ 存量声明 (Legacy Notice)**: 
+> 原 `run_<TS>` 系列端点已 deprecated，转为只读。主入口请统一使用 `/api/v1/orchestrations/runs`。
+
 
 ---
 
