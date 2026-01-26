@@ -192,3 +192,67 @@ class TestDashboardSummaryContract:
         finally:
             from tests.conftest import override_get_current_user
             app.dependency_overrides[get_current_user] = override_get_current_user
+    
+    def test_timeseries_field_exists(self, client):
+        """timeseries 字段存在"""
+        mock_admin = create_mock_admin()
+        app.dependency_overrides[get_current_user] = lambda: mock_admin
+        
+        try:
+            resp = client.get("/api/v1/dashboard/summary")
+            assert resp.status_code == 200
+            data = resp.json()
+            
+            # timeseries 字段存在且是列表
+            assert "timeseries" in data
+            assert isinstance(data["timeseries"], list)
+        finally:
+            from tests.conftest import override_get_current_user
+            app.dependency_overrides[get_current_user] = override_get_current_user
+    
+    def test_timeseries_point_structure(self, client):
+        """timeseries 数据点结构正确"""
+        mock_admin = create_mock_admin()
+        app.dependency_overrides[get_current_user] = lambda: mock_admin
+        
+        try:
+            resp = client.get("/api/v1/dashboard/summary")
+            assert resp.status_code == 200
+            data = resp.json()
+            
+            # timeseries 中每个点应有必需字段
+            for point in data["timeseries"]:
+                assert "date" in point
+                assert "pass_count" in point
+                assert "fail_count" in point
+                assert "need_hitl_count" in point
+                assert "total" in point
+                # date 格式应为 YYYY-MM-DD
+                assert len(point["date"]) == 10
+                assert point["date"][4] == "-" and point["date"][7] == "-"
+        finally:
+            from tests.conftest import override_get_current_user
+            app.dependency_overrides[get_current_user] = override_get_current_user
+    
+    def test_timeseries_sum_consistency(self, client):
+        """timeseries 各天总和 <= total_runs"""
+        mock_admin = create_mock_admin()
+        app.dependency_overrides[get_current_user] = lambda: mock_admin
+        
+        try:
+            resp = client.get("/api/v1/dashboard/summary")
+            assert resp.status_code == 200
+            data = resp.json()
+            
+            # timeseries 各天总和不超过 total_runs
+            timeseries_total = sum(p["total"] for p in data["timeseries"])
+            assert timeseries_total <= data["cards"]["total_runs"]
+            
+            # 每天的 pass + fail + need_hitl <= total
+            for point in data["timeseries"]:
+                decision_sum = point["pass_count"] + point["fail_count"] + point["need_hitl_count"]
+                assert decision_sum <= point["total"]
+        finally:
+            from tests.conftest import override_get_current_user
+            app.dependency_overrides[get_current_user] = override_get_current_user
+

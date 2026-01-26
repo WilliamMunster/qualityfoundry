@@ -263,7 +263,58 @@ const DashboardPage: React.FC = () => {
                 </Col>
             </Row>
 
+            {/* Timeseries Daily Trend */}
+            <Card
+                title={<><TrendingUp size={16} style={{ marginRight: 8 }} />每日趋势 (最近 {days} 天)</>}
+                style={{ marginBottom: 24 }}
+                data-testid="timeseries-section"
+            >
+                {data.timeseries && data.timeseries.length > 0 ? (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                            <thead>
+                                <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
+                                    <th style={{ padding: '8px 12px', textAlign: 'left' }}>日期</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'center', color: '#52c41a' }}>PASS</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'center', color: '#ff4d4f' }}>FAIL</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'center', color: '#faad14' }}>NEED_HITL</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'center' }}>总计</th>
+                                    <th style={{ padding: '8px 12px', textAlign: 'left', minWidth: 200 }}>分布</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.timeseries.map((point, idx) => {
+                                    const total = point.total || 1;
+                                    const passWidth = (point.pass_count / total) * 100;
+                                    const failWidth = (point.fail_count / total) * 100;
+                                    const hitlWidth = (point.need_hitl_count / total) * 100;
+                                    return (
+                                        <tr key={idx} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                            <td style={{ padding: '8px 12px' }}>{point.date}</td>
+                                            <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 500, color: '#52c41a' }}>{point.pass_count}</td>
+                                            <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 500, color: '#ff4d4f' }}>{point.fail_count}</td>
+                                            <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 500, color: '#faad14' }}>{point.need_hitl_count}</td>
+                                            <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{point.total}</td>
+                                            <td style={{ padding: '8px 12px' }}>
+                                                <div style={{ display: 'flex', height: 16, borderRadius: 4, overflow: 'hidden', background: '#f5f5f5' }}>
+                                                    {passWidth > 0 && <div style={{ width: `${passWidth}%`, background: '#52c41a' }} title={`PASS: ${point.pass_count}`} />}
+                                                    {failWidth > 0 && <div style={{ width: `${failWidth}%`, background: '#ff4d4f' }} title={`FAIL: ${point.fail_count}`} />}
+                                                    {hitlWidth > 0 && <div style={{ width: `${hitlWidth}%`, background: '#faad14' }} title={`NEED_HITL: ${point.need_hitl_count}`} />}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <Empty description="无每日趋势数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                )}
+            </Card>
+
             {/* Recent Runs Table */}
+
             <Card
                 title={
                     <Space>

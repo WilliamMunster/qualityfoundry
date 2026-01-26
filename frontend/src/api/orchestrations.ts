@@ -214,15 +214,25 @@ export interface DashboardAuditSummary {
     runs_with_events: number;
 }
 
+export interface TimeseriesPoint {
+    date: string;
+    pass_count: number;
+    fail_count: number;
+    need_hitl_count: number;
+    total: number;
+}
+
 export interface DashboardSummaryResponse {
     cards: DashboardCards;
     trend: DashboardTrendPoint[];
     recent_runs: DashboardRecentRun[];
     by_decision: Record<string, number>;
     by_policy_hash: Record<string, number>;
+    timeseries: TimeseriesPoint[];
     audit_summary?: DashboardAuditSummary;
 }
 
 
 export default orchestrationsApi;
+
 
