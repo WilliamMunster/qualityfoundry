@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Card, Row, Col, Table, Typography, Statistic, Spin, Alert, Tag, Select, Space, Empty, Button } from 'antd';
-import { CheckCircle2, XCircle, AlertTriangle, Clock, Zap, TrendingUp, Activity, Filter, GitCompare } from 'lucide-react';
-import orchestrationsApi, { DashboardSummaryResponse, DashboardRecentRun, DashboardTrendPoint } from '../api/orchestrations';
+import { Card, Row, Col, Table, Typography, Statistic, Spin, Alert, Tag, Select, Space, Empty, Button, Collapse } from 'antd';
+import { CheckCircle2, XCircle, AlertTriangle, Clock, Zap, TrendingUp, Activity, Filter, GitCompare, Shield, AlertCircle } from 'lucide-react';
+import orchestrationsApi, { DashboardSummaryResponse, DashboardRecentRun, DashboardTrendPoint, PolicyInfo } from '../api/orchestrations';
 
 const { Title, Text } = Typography;
 
@@ -21,6 +21,9 @@ const DashboardPage: React.FC = () => {
     const [policyHashA, setPolicyHashA] = useState<string | null>(null);
     const [policyHashB, setPolicyHashB] = useState<string | null>(null);
     const [showDiff, setShowDiff] = useState(false);
+
+    // P2-2: 当前策略信息
+    const [currentPolicy, setCurrentPolicy] = useState<PolicyInfo | null>(null);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -48,6 +51,13 @@ const DashboardPage: React.FC = () => {
 
         fetchDashboardData();
     }, [days]);
+
+    // P2-2: 获取当前策略信息
+    useEffect(() => {
+        orchestrationsApi.getCurrentPolicy()
+            .then(setCurrentPolicy)
+            .catch(() => setCurrentPolicy(null));
+    }, []);
 
     // Policy hash 选项
     const policyHashOptions = useMemo(() => {
@@ -309,163 +319,352 @@ const DashboardPage: React.FC = () => {
                 </Col>
             </Row>
 
-            {/* Timeseries Daily Trend */}
+            {/* Timeseries Daily Trend - Enhanced P2-3 */}
             <Card
                 title={<><TrendingUp size={16} style={{ marginRight: 8 }} />每日趋势 (最近 {days} 天)</>}
                 style={{ marginBottom: 24 }}
                 data-testid="timeseries-section"
+                extra={
+                    data.timeseries && data.timeseries.length > 0 && (
+                        <Button
+                            size="small"
+                            onClick={() => {
+                                const header = 'Date,Pass,Fail,NeedHITL,Total';
+                                const rows = data.timeseries.map(p =>
+                                    `${p.date},${p.pass_count},${p.fail_count},${p.need_hitl_count},${p.total}`
+                                );
+                                const csv = [header, ...rows].join('\n');
+                                const blob = new Blob([csv], { type: 'text/csv' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `trend_${days}d_${new Date().toISOString().split('T')[0]}.csv`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            }}
+                            data-testid="export-csv-btn"
+                        >
+                            导出 CSV
+                        </Button>
+                    )
+                }
             >
                 {data.timeseries && data.timeseries.length > 0 ? (
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-                            <thead>
-                                <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
-                                    <th style={{ padding: '8px 12px', textAlign: 'left' }}>日期</th>
-                                    <th style={{ padding: '8px 12px', textAlign: 'center', color: '#52c41a' }}>PASS</th>
-                                    <th style={{ padding: '8px 12px', textAlign: 'center', color: '#ff4d4f' }}>FAIL</th>
-                                    <th style={{ padding: '8px 12px', textAlign: 'center', color: '#faad14' }}>NEED_HITL</th>
-                                    <th style={{ padding: '8px 12px', textAlign: 'center' }}>总计</th>
-                                    <th style={{ padding: '8px 12px', textAlign: 'left', minWidth: 200 }}>分布</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.timeseries.map((point, idx) => {
-                                    const total = point.total || 1;
-                                    const passWidth = (point.pass_count / total) * 100;
-                                    const failWidth = (point.fail_count / total) * 100;
-                                    const hitlWidth = (point.need_hitl_count / total) * 100;
-                                    return (
-                                        <tr key={idx} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                                            <td style={{ padding: '8px 12px' }}>{point.date}</td>
-                                            <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 500, color: '#52c41a' }}>{point.pass_count}</td>
-                                            <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 500, color: '#ff4d4f' }}>{point.fail_count}</td>
-                                            <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 500, color: '#faad14' }}>{point.need_hitl_count}</td>
-                                            <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{point.total}</td>
-                                            <td style={{ padding: '8px 12px' }}>
-                                                <div style={{ display: 'flex', height: 16, borderRadius: 4, overflow: 'hidden', background: '#f5f5f5' }}>
-                                                    {passWidth > 0 && <div style={{ width: `${passWidth}%`, background: '#52c41a' }} title={`PASS: ${point.pass_count}`} />}
-                                                    {failWidth > 0 && <div style={{ width: `${failWidth}%`, background: '#ff4d4f' }} title={`FAIL: ${point.fail_count}`} />}
-                                                    {hitlWidth > 0 && <div style={{ width: `${hitlWidth}%`, background: '#faad14' }} title={`NEED_HITL: ${point.need_hitl_count}`} />}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Space direction="vertical" style={{ width: '100%' }} size="large">
+                        {/* SVG Line Chart */}
+                        {(() => {
+                            const ts = data.timeseries;
+                            const chartWidth = 600;
+                            const chartHeight = 120;
+                            const padding = { top: 10, right: 40, bottom: 20, left: 40 };
+                            const innerWidth = chartWidth - padding.left - padding.right;
+                            const innerHeight = chartHeight - padding.top - padding.bottom;
+
+                            const maxTotal = Math.max(...ts.map(p => p.total), 1);
+                            const xStep = ts.length > 1 ? innerWidth / (ts.length - 1) : innerWidth;
+
+                            // 计算 7 日滚动均值和异常点
+                            const avgWindow = 7;
+                            const anomalyThreshold = 2; // 2x 偏离
+                            const anomalies: number[] = [];
+
+                            ts.forEach((point, idx) => {
+                                const windowStart = Math.max(0, idx - avgWindow + 1);
+                                const windowData = ts.slice(windowStart, idx + 1);
+                                const avg = windowData.reduce((s, p) => s + p.total, 0) / windowData.length;
+                                if (windowData.length >= 3 && point.total > avg * anomalyThreshold) {
+                                    anomalies.push(idx);
+                                }
+                            });
+
+                            // 生成路径
+                            const totalPath = ts.map((p, i) => {
+                                const x = padding.left + i * xStep;
+                                const y = padding.top + innerHeight - (p.total / maxTotal) * innerHeight;
+                                return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+                            }).join(' ');
+
+                            const failHitlPath = ts.map((p, i) => {
+                                const x = padding.left + i * xStep;
+                                const failHitl = p.fail_count + p.need_hitl_count;
+                                const y = padding.top + innerHeight - (failHitl / maxTotal) * innerHeight;
+                                return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+                            }).join(' ');
+
+                            return (
+                                <div style={{ overflowX: 'auto' }}>
+                                    <svg width={chartWidth} height={chartHeight} style={{ display: 'block' }}>
+                                        {/* Grid lines */}
+                                        <line x1={padding.left} y1={padding.top} x2={padding.left} y2={chartHeight - padding.bottom} stroke="#e8e8e8" />
+                                        <line x1={padding.left} y1={chartHeight - padding.bottom} x2={chartWidth - padding.right} y2={chartHeight - padding.bottom} stroke="#e8e8e8" />
+
+                                        {/* Total line (blue) */}
+                                        <path d={totalPath} fill="none" stroke="#1890ff" strokeWidth={2} />
+
+                                        {/* Fail+HITL line (red) */}
+                                        <path d={failHitlPath} fill="none" stroke="#ff4d4f" strokeWidth={2} strokeDasharray="4,2" />
+
+                                        {/* Data points */}
+                                        {ts.map((p, i) => {
+                                            const x = padding.left + i * xStep;
+                                            const y = padding.top + innerHeight - (p.total / maxTotal) * innerHeight;
+                                            const isAnomaly = anomalies.includes(i);
+                                            return (
+                                                <g key={i}>
+                                                    <circle cx={x} cy={y} r={4} fill={isAnomaly ? '#faad14' : '#1890ff'} stroke="#fff" strokeWidth={1}>
+                                                        <title>{`${p.date}\nTotal: ${p.total}\nPass: ${p.pass_count}\nFail: ${p.fail_count}\nHITL: ${p.need_hitl_count}${isAnomaly ? '\n⚠️ 异常峰值' : ''}`}</title>
+                                                    </circle>
+                                                    {isAnomaly && (
+                                                        <text x={x} y={y - 10} textAnchor="middle" fontSize={10} fill="#faad14">⚠️</text>
+                                                    )}
+                                                </g>
+                                            );
+                                        })}
+
+                                        {/* Legend */}
+                                        <g transform={`translate(${chartWidth - padding.right + 5}, ${padding.top})`}>
+                                            <line x1={0} y1={5} x2={20} y2={5} stroke="#1890ff" strokeWidth={2} />
+                                            <text x={25} y={8} fontSize={10} fill="#666">Total</text>
+                                            <line x1={0} y1={20} x2={20} y2={20} stroke="#ff4d4f" strokeWidth={2} strokeDasharray="4,2" />
+                                            <text x={25} y={23} fontSize={10} fill="#666">Fail+HITL</text>
+                                        </g>
+
+                                        {/* Y-axis labels */}
+                                        <text x={padding.left - 5} y={padding.top + 4} textAnchor="end" fontSize={10} fill="#999">{maxTotal}</text>
+                                        <text x={padding.left - 5} y={chartHeight - padding.bottom} textAnchor="end" fontSize={10} fill="#999">0</text>
+                                    </svg>
+                                </div>
+                            );
+                        })()}
+
+                        {/* Table */}
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
+                                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>日期</th>
+                                        <th style={{ padding: '8px 12px', textAlign: 'center', color: '#52c41a' }}>PASS</th>
+                                        <th style={{ padding: '8px 12px', textAlign: 'center', color: '#ff4d4f' }}>FAIL</th>
+                                        <th style={{ padding: '8px 12px', textAlign: 'center', color: '#faad14' }}>NEED_HITL</th>
+                                        <th style={{ padding: '8px 12px', textAlign: 'center' }}>总计</th>
+                                        <th style={{ padding: '8px 12px', textAlign: 'left', minWidth: 200 }}>分布</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.timeseries.map((point, idx) => {
+                                        const total = point.total || 1;
+                                        const passWidth = (point.pass_count / total) * 100;
+                                        const failWidth = (point.fail_count / total) * 100;
+                                        const hitlWidth = (point.need_hitl_count / total) * 100;
+                                        return (
+                                            <tr key={idx} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                                <td style={{ padding: '8px 12px' }}>{point.date}</td>
+                                                <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 500, color: '#52c41a' }}>{point.pass_count}</td>
+                                                <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 500, color: '#ff4d4f' }}>{point.fail_count}</td>
+                                                <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 500, color: '#faad14' }}>{point.need_hitl_count}</td>
+                                                <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600 }}>{point.total}</td>
+                                                <td style={{ padding: '8px 12px' }}>
+                                                    <div style={{ display: 'flex', height: 16, borderRadius: 4, overflow: 'hidden', background: '#f5f5f5' }}>
+                                                        {passWidth > 0 && <div style={{ width: `${passWidth}%`, background: '#52c41a' }} title={`PASS: ${point.pass_count}`} />}
+                                                        {failWidth > 0 && <div style={{ width: `${failWidth}%`, background: '#ff4d4f' }} title={`FAIL: ${point.fail_count}`} />}
+                                                        {hitlWidth > 0 && <div style={{ width: `${hitlWidth}%`, background: '#faad14' }} title={`NEED_HITL: ${point.need_hitl_count}`} />}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Space>
                 ) : (
                     <Empty description="无每日趋势数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                 )}
             </Card>
 
-            {/* Policy Diff Section */}
+            {/* Policy Diff Section - Enhanced P2-2 */}
             <Card
                 title={<><GitCompare size={16} style={{ marginRight: 8 }} />Policy 对比</>}
                 style={{ marginBottom: 24 }}
                 data-testid="policy-diff-section"
             >
-                {policyHashOptions.length >= 2 ? (
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                        <Row gutter={16} align="middle">
-                            <Col>
-                                <Space>
-                                    <Text type="secondary">Hash A:</Text>
-                                    <Select
-                                        value={policyHashA}
-                                        onChange={(v) => { setPolicyHashA(v); setShowDiff(false); }}
-                                        style={{ width: 200 }}
-                                        placeholder="选择 Policy Hash"
-                                        options={policyHashOptions}
-                                        allowClear
-                                        data-testid="policy-hash-a"
-                                    />
-                                </Space>
-                            </Col>
-                            <Col>
-                                <Space>
-                                    <Text type="secondary">Hash B:</Text>
-                                    <Select
-                                        value={policyHashB}
-                                        onChange={(v) => { setPolicyHashB(v); setShowDiff(false); }}
-                                        style={{ width: 200 }}
-                                        placeholder="选择 Policy Hash"
-                                        options={policyHashOptions}
-                                        allowClear
-                                        data-testid="policy-hash-b"
-                                    />
-                                </Space>
-                            </Col>
-                            <Col>
-                                <Button
-                                    type="primary"
-                                    onClick={() => setShowDiff(true)}
-                                    disabled={!policyHashA || !policyHashB || policyHashA === policyHashB}
-                                    data-testid="compare-btn"
+                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                    {/* P2-2: Current Policy Risk Card */}
+                    {currentPolicy && (
+                        <div style={{ padding: 16, background: '#f6ffed', borderRadius: 8, border: '1px solid #b7eb8f' }} data-testid="policy-risk-card">
+                            <Row gutter={16} align="middle">
+                                <Col>
+                                    <Shield size={20} style={{ color: '#52c41a' }} />
+                                </Col>
+                                <Col flex="auto">
+                                    <Text strong>当前策略</Text>
+                                    <Text type="secondary" style={{ marginLeft: 12 }}>
+                                        Hash: <Text code>{currentPolicy.policy_hash}</Text>
+                                        {currentPolicy.version && <> | v{currentPolicy.version}</>}
+                                    </Text>
+                                </Col>
+                            </Row>
+
+                            {/* Domain-grouped summary */}
+                            <Collapse ghost size="small" style={{ marginTop: 12 }}>
+                                <Collapse.Panel
+                                    header={<Text type="secondary">域配置摘要</Text>}
+                                    key="domains"
                                 >
-                                    Compare
-                                </Button>
-                            </Col>
-                        </Row>
+                                    <Row gutter={[16, 8]}>
+                                        <Col span={12}>
+                                            <Space>
+                                                <Text type="secondary">🔧 Tools:</Text>
+                                                {currentPolicy.summary.tools_allowlist_count === 0 ? (
+                                                    <Tag color="orange">允许所有</Tag>
+                                                ) : (
+                                                    <Tag color="green">{currentPolicy.summary.tools_allowlist_count} 个白名单</Tag>
+                                                )}
+                                            </Space>
+                                        </Col>
+                                        <Col span={12}>
+                                            <Space>
+                                                <Text type="secondary">⏱️ Budget:</Text>
+                                                <Tag>超时 {currentPolicy.summary.cost_governance.timeout_s}s</Tag>
+                                                <Tag>重试 {currentPolicy.summary.cost_governance.max_retries}</Tag>
+                                            </Space>
+                                        </Col>
+                                        <Col span={12}>
+                                            <Space>
+                                                <Text type="secondary">🚨 高危关键词:</Text>
+                                                <Tag color={currentPolicy.summary.high_risk_keywords_count > 0 ? 'blue' : 'default'}>
+                                                    {currentPolicy.summary.high_risk_keywords_count} 个
+                                                </Tag>
+                                            </Space>
+                                        </Col>
+                                        <Col span={12}>
+                                            <Space>
+                                                <Text type="secondary">📝 高危模式:</Text>
+                                                <Tag color={currentPolicy.summary.high_risk_patterns_count > 0 ? 'blue' : 'default'}>
+                                                    {currentPolicy.summary.high_risk_patterns_count} 个
+                                                </Tag>
+                                            </Space>
+                                        </Col>
+                                    </Row>
 
-                        {/* 错误态：相同 hash */}
-                        {policyHashA && policyHashB && policyHashA === policyHashB && (
-                            <Alert
-                                message="请选择不同的 Policy Hash 进行对比"
-                                type="warning"
-                                showIcon
-                            />
-                        )}
+                                    {/* Security Alerts */}
+                                    {currentPolicy.summary.tools_allowlist_count === 0 && (
+                                        <Alert
+                                            message="工具白名单为空，允许所有工具执行"
+                                            type="warning"
+                                            showIcon
+                                            icon={<AlertCircle size={14} />}
+                                            style={{ marginTop: 12 }}
+                                        />
+                                    )}
+                                </Collapse.Panel>
+                            </Collapse>
+                        </div>
+                    )}
 
-                        {/* Diff 结果 */}
-                        {diffResult && (
-                            <div style={{ padding: 16, background: '#fafafa', borderRadius: 8 }}>
-                                <Row gutter={24}>
-                                    <Col span={8}>
-                                        <Statistic
-                                            title={<><Tag color="blue">{policyHashA}</Tag> Runs</>}
-                                            value={diffResult.countA}
+                    {/* Hash Comparison */}
+                    {policyHashOptions.length >= 2 ? (
+                        <>
+                            <Row gutter={16} align="middle">
+                                <Col>
+                                    <Space>
+                                        <Text type="secondary">Hash A:</Text>
+                                        <Select
+                                            value={policyHashA}
+                                            onChange={(v) => { setPolicyHashA(v); setShowDiff(false); }}
+                                            style={{ width: 200 }}
+                                            placeholder="选择 Policy Hash"
+                                            options={policyHashOptions}
+                                            allowClear
+                                            data-testid="policy-hash-a"
                                         />
-                                        <Button
-                                            size="small"
-                                            style={{ marginTop: 8 }}
-                                            onClick={() => applyHashFilter(policyHashA!)}
-                                            data-testid="apply-filter-a"
-                                        >
-                                            筛选 Hash A
-                                        </Button>
-                                    </Col>
-                                    <Col span={8}>
-                                        <Statistic
-                                            title={<><Tag color="green">{policyHashB}</Tag> Runs</>}
-                                            value={diffResult.countB}
+                                    </Space>
+                                </Col>
+                                <Col>
+                                    <Space>
+                                        <Text type="secondary">Hash B:</Text>
+                                        <Select
+                                            value={policyHashB}
+                                            onChange={(v) => { setPolicyHashB(v); setShowDiff(false); }}
+                                            style={{ width: 200 }}
+                                            placeholder="选择 Policy Hash"
+                                            options={policyHashOptions}
+                                            allowClear
+                                            data-testid="policy-hash-b"
                                         />
-                                        <Button
-                                            size="small"
-                                            style={{ marginTop: 8 }}
-                                            onClick={() => applyHashFilter(policyHashB!)}
-                                            data-testid="apply-filter-b"
-                                        >
-                                            筛选 Hash B
-                                        </Button>
-                                    </Col>
-                                    <Col span={8}>
-                                        <Statistic
-                                            title="差异"
-                                            value={diffResult.diff}
-                                            prefix={diffResult.diff > 0 ? '+' : ''}
-                                            valueStyle={{ color: diffResult.diff > 0 ? '#52c41a' : diffResult.diff < 0 ? '#ff4d4f' : '#8c8c8c' }}
-                                        />
-                                    </Col>
-                                </Row>
-                            </div>
-                        )}
-                    </Space>
-                ) : policyHashOptions.length === 1 ? (
-                    <Empty description="只有 1 个 Policy Hash，无法对比" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                ) : (
-                    <Empty description="无 Policy Hash 数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                )}
+                                    </Space>
+                                </Col>
+                                <Col>
+                                    <Button
+                                        type="primary"
+                                        onClick={() => setShowDiff(true)}
+                                        disabled={!policyHashA || !policyHashB || policyHashA === policyHashB}
+                                        data-testid="compare-btn"
+                                    >
+                                        Compare
+                                    </Button>
+                                </Col>
+                            </Row>
+
+                            {/* 错误态：相同 hash */}
+                            {policyHashA && policyHashB && policyHashA === policyHashB && (
+                                <Alert
+                                    message="请选择不同的 Policy Hash 进行对比"
+                                    type="warning"
+                                    showIcon
+                                />
+                            )}
+
+                            {/* Diff 结果 */}
+                            {diffResult && (
+                                <div style={{ padding: 16, background: '#fafafa', borderRadius: 8 }}>
+                                    <Row gutter={24}>
+                                        <Col span={8}>
+                                            <Statistic
+                                                title={<><Tag color="blue">{policyHashA}</Tag> Runs</>}
+                                                value={diffResult.countA}
+                                            />
+                                            <Button
+                                                size="small"
+                                                style={{ marginTop: 8 }}
+                                                onClick={() => applyHashFilter(policyHashA!)}
+                                                data-testid="apply-filter-a"
+                                            >
+                                                筛选 Hash A
+                                            </Button>
+                                        </Col>
+                                        <Col span={8}>
+                                            <Statistic
+                                                title={<><Tag color="green">{policyHashB}</Tag> Runs</>}
+                                                value={diffResult.countB}
+                                            />
+                                            <Button
+                                                size="small"
+                                                style={{ marginTop: 8 }}
+                                                onClick={() => applyHashFilter(policyHashB!)}
+                                                data-testid="apply-filter-b"
+                                            >
+                                                筛选 Hash B
+                                            </Button>
+                                        </Col>
+                                        <Col span={8}>
+                                            <Statistic
+                                                title="差异"
+                                                value={diffResult.diff}
+                                                prefix={diffResult.diff > 0 ? '+' : ''}
+                                                valueStyle={{ color: diffResult.diff > 0 ? '#52c41a' : diffResult.diff < 0 ? '#ff4d4f' : '#8c8c8c' }}
+                                            />
+                                        </Col>
+                                    </Row>
+                                </div>
+                            )}
+                        </>
+                    ) : policyHashOptions.length === 1 ? (
+                        <Empty description="只有 1 个 Policy Hash，无法对比" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                    ) : !currentPolicy ? (
+                        <Empty description="无 Policy Hash 数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                    ) : null}
+                </Space>
             </Card>
 
             {/* Recent Runs Table */}
