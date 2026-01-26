@@ -17,6 +17,8 @@ POLICY_BLOCKED = -32004
 BUDGET_EXCEEDED = -32005
 SANDBOX_VIOLATION = -32006
 TIMEOUT = -32007
+RATE_LIMITED = -32008       # 速率/并发限制
+QUOTA_EXCEEDED = -32009     # 配额超限
 
 # JSON-RPC 标准错误码
 INVALID_PARAMS = -32602
@@ -32,6 +34,8 @@ ERROR_MESSAGES = {
     BUDGET_EXCEEDED: "Budget exceeded",
     SANDBOX_VIOLATION: "Sandbox violation",
     TIMEOUT: "Execution timeout",
+    RATE_LIMITED: "Rate limited",
+    QUOTA_EXCEEDED: "Quota exceeded",
     INVALID_PARAMS: "Invalid params",
     METHOD_NOT_FOUND: "Method not found",
 }

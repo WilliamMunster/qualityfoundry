@@ -16,6 +16,7 @@ import hashlib
 import json
 import logging
 import sys
+import time
 from typing import Any
 from uuid import uuid4
 
@@ -32,8 +33,11 @@ from qualityfoundry.protocol.mcp.errors import (
     POLICY_BLOCKED,
     SANDBOX_VIOLATION,
     TIMEOUT,
+    RATE_LIMITED,
+    QUOTA_EXCEEDED,
     make_error_response,
 )
+from qualityfoundry.protocol.mcp.rate_limiter import get_rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +163,34 @@ class MCPServer:
                 }
         return None
 
+    def _check_rate_limit(self, user_id: str) -> dict | None:
+        """检查速率限制
+
+        Args:
+            user_id: 用户 ID
+
+        Returns:
+            错误对象（如果有），否则 None
+        """
+        result = get_rate_limiter().check_limits(str(user_id))
+        if not result.allowed:
+            if result.reason == "QUOTA_EXCEEDED":
+                return {
+                    "code": QUOTA_EXCEEDED,
+                    "message": "Daily quota exceeded",
+                    "data": {"reason": result.reason},
+                }
+            else:
+                return {
+                    "code": RATE_LIMITED,
+                    "message": f"Rate limited: {result.reason}",
+                    "data": {
+                        "reason": result.reason,
+                        "retry_after_seconds": result.retry_after_seconds,
+                    },
+                }
+        return None
+
     def _write_audit_log(
         self,
         run_id,
@@ -228,7 +260,17 @@ class MCPServer:
                 )
                 return {"error": perm_error}
 
-            # 3. 策略
+            # 3. 速率限制 (新增)
+            rate_error = self._check_rate_limit(user.id)
+            if rate_error:
+                self._write_audit_log(
+                    run_id, tool_name, user_id=user.id, args_hash=args_hash,
+                    status="rate_limited" if rate_error["code"] == RATE_LIMITED else "quota_exceeded",
+                    details={"reason": rate_error.get("data", {}).get("reason")},
+                )
+                return {"error": rate_error}
+
+            # 4. 策略
             policy, policy_error = self._check_policy(tool_name)
             if policy_error:
                 self._write_audit_log(
@@ -236,13 +278,16 @@ class MCPServer:
                 )
                 return {"error": policy_error}
 
-            # 4. 沙箱
+            # 5. 沙箱
             sandbox_error = self._check_sandbox(policy, tool_name)
             if sandbox_error:
                 self._write_audit_log(
                     run_id, tool_name, user_id=user.id, args_hash=args_hash, status="sandbox_violation"
                 )
                 return {"error": sandbox_error}
+
+            # 获取执行槽位
+            get_rate_limiter().acquire(str(user.id))
 
             # 写入入口审计
             self._write_audit_log(
@@ -262,6 +307,7 @@ class MCPServer:
 
         elif tool_name in WRITE_HANDLERS:
             handler = WRITE_HANDLERS[tool_name]
+            start_time = time.monotonic()
             try:
                 # 写工具传递额外参数
                 result = await handler(
@@ -272,13 +318,14 @@ class MCPServer:
                 result["audit_context"] = audit_ctx.to_dict()
 
                 # 写入完成审计
+                elapsed_ms = (time.monotonic() - start_time) * 1000
                 self._write_audit_log(
                     run_id,
                     tool_name,
                     user_id=user.id if user else None,
                     args_hash=args_hash,
                     status=result.get("status", "completed"),
-                    details={"elapsed_ms": result.get("elapsed_ms")},
+                    details={"elapsed_ms": elapsed_ms},
                 )
                 return result
             except asyncio.TimeoutError:
@@ -301,6 +348,11 @@ class MCPServer:
                     details={"error": str(e)},
                 )
                 return {"error": str(e), "audit_context": audit_ctx.to_dict()}
+            finally:
+                # 释放执行槽位
+                if user:
+                    elapsed_ms = (time.monotonic() - start_time) * 1000
+                    get_rate_limiter().release(str(user.id), elapsed_ms)
 
         else:
             return {"error": f"Unknown tool: {tool_name}", "audit_context": audit_ctx.to_dict()}
