@@ -3,9 +3,7 @@
 
 使用 conftest.py 中统一的测试数据库配置
 """
-from fastapi.testclient import TestClient
 
-from qualityfoundry.main import app
 
 # 不再使用模块级全局 client，改为使用 conftest.py 提供的 client fixture
 
