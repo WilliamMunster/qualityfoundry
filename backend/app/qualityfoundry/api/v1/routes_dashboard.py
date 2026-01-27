@@ -37,6 +37,12 @@ router = APIRouter(
 # ============== Response Models ==============
 
 
+class DashboardArtifactMetrics(BaseModel):
+    """产物审计聚合指标 (P1)"""
+    total_artifact_count: int = Field(default=0, description="总产物数量")
+    runs_with_artifact_count: int = Field(default=0, description="有产物的运行数量")
+    truncated_runs_count: int = Field(default=0, description="发生截断的运行数量")
+
 class DashboardCards(BaseModel):
     """Dashboard 统计卡片"""
     pass_count: int = Field(default=0, description="PASS 数量")
@@ -45,6 +51,7 @@ class DashboardCards(BaseModel):
     avg_elapsed_ms: Optional[float] = Field(default=None, description="平均执行时间 (ms)")
     short_circuit_count: int = Field(default=0, description="短路熔断次数")
     total_runs: int = Field(default=0, description="总运行数")
+    artifact_metrics: DashboardArtifactMetrics = Field(default_factory=DashboardArtifactMetrics, description="产物审计指标")
 
 
 class TrendPoint(BaseModel):
@@ -156,6 +163,11 @@ def get_dashboard_summary(
     by_decision: dict[str, int] = defaultdict(int)
     by_policy_hash: dict[str, int] = defaultdict(int)
     
+    # 产物审计聚合 (P1)
+    total_artifact_count = 0
+    runs_with_artifact_count = 0
+    truncated_runs_count = 0
+    
     # 时间序列数据收集（按天聚合）
     timeseries_data: dict[str, dict[str, int]] = defaultdict(
         lambda: {"pass": 0, "fail": 0, "need_hitl": 0, "total": 0}
@@ -179,6 +191,27 @@ def get_dashboard_summary(
         decision = decision_event.status if decision_event else None
         decision_source = decision_event.decision_source if decision_event else None
         policy_hash = decision_event.policy_hash if decision_event else None
+        
+        # 获取产物审计事件 (P1)
+        artifact_event = (
+            db.query(AuditLog)
+            .filter(
+                AuditLog.run_id == run_id,
+                AuditLog.event_type == AuditEventType.ARTIFACT_COLLECTED,
+            )
+            .order_by(AuditLog.ts.desc())
+            .first()
+        )
+        if artifact_event and artifact_event.details:
+            import json
+            try:
+                art_details = json.loads(artifact_event.details)
+                runs_with_artifact_count += 1
+                total_artifact_count += art_details.get("total_count", 0)
+                if art_details.get("truncated"):
+                    truncated_runs_count += 1
+            except Exception:
+                pass
         
         # 统计决策
         if decision:
@@ -273,6 +306,11 @@ def get_dashboard_summary(
         avg_elapsed_ms=avg_elapsed_ms,
         short_circuit_count=short_circuit_count,
         total_runs=len(run_rows),
+        artifact_metrics=DashboardArtifactMetrics(
+            total_artifact_count=total_artifact_count,
+            runs_with_artifact_count=runs_with_artifact_count,
+            truncated_runs_count=truncated_runs_count,
+        ),
     )
     
     # 7. 审计摘要（仅 ADMIN）

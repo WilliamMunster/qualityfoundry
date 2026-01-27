@@ -163,6 +163,15 @@ class SummaryInfo(BaseModel):
     tool_count: int = Field(default=0, description="工具调用数量")
 
 
+class ArtifactAuditSummary(BaseModel):
+    """产物审计汇总 (L5 Dashboard)"""
+    total_count: int = Field(..., description="总产物数量")
+    stats_by_type: dict[str, int] = Field(..., description="按类型统计")
+    truncated: bool = Field(..., description="是否截断示例")
+    boundary: dict[str, Any] = Field(..., description="收集边界 (scope/extensions)")
+    samples: list[dict[str, Any]] = Field(default_factory=list, description="产物样本预览")
+
+
 class RunDetail(BaseModel):
     """运行详情 DTO (P1)"""
     run_id: UUID = Field(..., description="运行 ID")
@@ -172,6 +181,7 @@ class RunDetail(BaseModel):
     repro: Optional[ReproMetaDTO] = Field(default=None, description="可复现性元数据")
     governance: Optional[GovernanceDTO] = Field(default=None, description="治理元数据")
     artifacts: list[ArtifactInfo] = Field(default_factory=list, description="产物列表")
+    artifact_audit: Optional[ArtifactAuditSummary] = Field(default=None, description="产物审计汇总")
     audit_summary: Optional[AuditSummary] = Field(default=None, description="审计摘要（仅 ADMIN）")
 
 
@@ -455,7 +465,14 @@ def get_run_detail(
         if evidence.summary:
             ok = evidence.summary.failures == 0 and evidence.summary.errors == 0
     
-    # 6. 审计摘要（仅 ADMIN）
+    # 6. 从审计日志聚合产物汇总 (PR-Dashboard)
+    from qualityfoundry.services.audit_service import get_latest_artifact_audit
+    artifact_audit_data = get_latest_artifact_audit(db, run_id)
+    artifact_audit_summary = None
+    if artifact_audit_data:
+        artifact_audit_summary = ArtifactAuditSummary(**artifact_audit_data)
+    
+    # 7. 审计摘要（仅 ADMIN）
     audit_summary = None
     if current_user.role == UserRole.ADMIN:
         audit_summary = AuditSummary(
@@ -464,7 +481,7 @@ def get_run_detail(
             last_at=finished_at,
         )
     
-    # 7. 构建返回
+    # 8. 构建返回
     return RunDetail(
         run_id=run_id,
         owner=owner_info,
@@ -480,6 +497,7 @@ def get_run_detail(
         repro=repro_meta,
         governance=governance_dto,
         artifacts=artifacts,
+        artifact_audit=artifact_audit_summary,
         audit_summary=audit_summary,
     )
 

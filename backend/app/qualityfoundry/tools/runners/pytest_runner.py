@@ -475,6 +475,34 @@ async def run_pytest(
             # 收集 artifacts (JUnit XML & 业务产物)
             _collect_artifacts(ctx, exit_code)
 
+            # P1: 额外记录 UI/Playwright 跳过原因 (如果存在)
+            if "ui" in test_path or "playwright" in test_path:
+                ui_dir = ctx.artifact_dir / "ui"
+                ui_dir.mkdir(parents=True, exist_ok=True)
+                status_file = ui_dir / "playwright_status.json"
+                
+                # 情况 A：JUnit XML 显示有跳过
+                if junit_path.exists():
+                    stats = _parse_junit_stats(junit_path)
+                    if stats.get("skipped", 0) > 0:
+                        import json
+                        with open(status_file, "w") as f:
+                            json.dump({
+                                "status": "skipped",
+                                "reason": f"Pytest reported {stats['skipped']} skipped tests in UI suite. Likely due to environment mismatch or missing browser.",
+                                "ts": str(ctx.request.run_id) # Using run_id as a dummy TS anchor
+                            }, f)
+                
+                # 情况 B：执行异常且没有生成 junit.xml (可能是环境崩溃)
+                elif exit_code != 0:
+                    import json
+                    with open(status_file, "w") as f:
+                        json.dump({
+                            "status": "error",
+                            "reason": f"Execution failed with code {exit_code} before JUnit report generation. Check logs for environment errors.",
+                            "ts": str(ctx.request.run_id)
+                        }, f)
+
             # 判断结果
             if exit_code == 0:
                 result = ctx.success(

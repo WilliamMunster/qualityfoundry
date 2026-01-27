@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Card, Row, Col, Table, Typography, Statistic, Spin, Alert, Tag, Select, Space, Empty, Button, Collapse } from 'antd';
 import { CheckCircle2, XCircle, AlertTriangle, Clock, Zap, TrendingUp, Activity, Filter, GitCompare, Shield, AlertCircle } from 'lucide-react';
 import orchestrationsApi, { DashboardSummaryResponse, DashboardRecentRun, DashboardTrendPoint, PolicyInfo } from '../api/orchestrations';
+import EvidenceCoverageCard from '../components/Dashboard/EvidenceCoverageCard';
 
 const { Title, Text } = Typography;
 
@@ -275,6 +276,17 @@ const DashboardPage: React.FC = () => {
                             prefix={<Clock size={20} className="text-blue-500" />}
                         />
                     </Card>
+                </Col>
+            </Row>
+
+            {/* P1: Evidence Coverage Section */}
+            <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
+                <Col xs={24}>
+                    <EvidenceCoverageCard
+                        data={data.cards.artifact_metrics}
+                        totalRuns={data.cards.total_runs}
+                        loading={loading}
+                    />
                 </Col>
             </Row>
 
