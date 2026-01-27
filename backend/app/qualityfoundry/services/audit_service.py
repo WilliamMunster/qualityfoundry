@@ -205,6 +205,26 @@ def query_audit_events(
     return query.order_by(AuditLog.ts.asc()).limit(limit).all()
 
 
+def get_latest_artifact_audit(db: Session, run_id: UUID) -> dict | None:
+    """
+    获取指定运行的最新产物收集审计事件详情。
+    
+    用于 RunDetail DTO 聚合。
+    """
+    event = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.run_id == run_id,
+            AuditLog.event_type == AuditEventType.ARTIFACT_COLLECTED,
+        )
+        .order_by(AuditLog.ts.desc())
+        .first()
+    )
+    if event and event.details:
+        return json.loads(event.details)
+    return None
+
+
 def audit_event_to_dict(event: AuditLog) -> dict[str, Any]:
     """将审计事件转换为字典"""
     return {

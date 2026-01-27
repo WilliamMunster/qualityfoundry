@@ -71,6 +71,17 @@ export interface SummaryInfo {
     tool_count: number;
 }
 
+export interface ArtifactAuditSummary {
+    total_count: number;
+    stats_by_type: Record<string, number>;
+    truncated: boolean;
+    boundary: {
+        scope: string[];
+        extensions: string[];
+    };
+    samples: any[];
+}
+
 export interface RunDetail {
     run_id: string;
     owner?: OwnerInfo;
@@ -79,6 +90,7 @@ export interface RunDetail {
     repro?: ReproMeta;
     governance?: GovernanceDTO;
     artifacts: ArtifactInfo[];
+    artifact_audit?: ArtifactAuditSummary | null;
     audit_summary?: AuditSummary;  // 仅 ADMIN 可见
 }
 
@@ -182,6 +194,12 @@ const orchestrationsApi = {
 
 // ============== Dashboard Summary Types ==============
 
+export interface DashboardArtifactMetrics {
+    total_artifact_count: number;
+    runs_with_artifact_count: number;
+    truncated_runs_count: number;
+}
+
 export interface DashboardCards {
     pass_count: number;
     fail_count: number;
@@ -189,6 +207,7 @@ export interface DashboardCards {
     avg_elapsed_ms: number | null;
     short_circuit_count: number;
     total_runs: number;
+    artifact_metrics: DashboardArtifactMetrics;
 }
 
 export interface DashboardTrendPoint {

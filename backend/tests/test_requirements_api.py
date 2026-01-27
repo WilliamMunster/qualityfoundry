@@ -3,15 +3,11 @@
 
 使用 conftest.py 中统一的测试数据库配置
 """
-from fastapi.testclient import TestClient
-
-from qualityfoundry.main import app
-
-# 使用 conftest.py 中的 client fixture
-client = TestClient(app)
 
 
-def test_create_requirement():
+# 不再使用模块级全局 client，改为使用 conftest.py 提供的 client fixture
+
+def test_create_requirement(client):
     """测试创建需求"""
     response = client.post(
         "/api/v1/requirements",
@@ -29,7 +25,7 @@ def test_create_requirement():
     assert "id" in data
 
 
-def test_list_requirements():
+def test_list_requirements(client):
     """测试需求列表"""
     # 创建几个需求
     for i in range(3):
@@ -50,7 +46,7 @@ def test_list_requirements():
     assert len(data["items"]) == 3
 
 
-def test_get_requirement():
+def test_get_requirement(client):
     """测试获取需求详情"""
     # 创建需求
     create_response = client.post(
@@ -71,7 +67,7 @@ def test_get_requirement():
     assert data["title"] == "测试需求"
 
 
-def test_update_requirement():
+def test_update_requirement(client):
     """测试更新需求"""
     # 创建需求
     create_response = client.post(
@@ -98,7 +94,7 @@ def test_update_requirement():
     assert data["content"] == "新内容"
 
 
-def test_delete_requirement():
+def test_delete_requirement(client):
     """测试删除需求"""
     # 创建需求
     create_response = client.post(
@@ -120,7 +116,7 @@ def test_delete_requirement():
     assert get_response.status_code == 404
 
 
-def test_search_requirements():
+def test_search_requirements(client):
     """测试需求搜索"""
     # 创建需求
     client.post(

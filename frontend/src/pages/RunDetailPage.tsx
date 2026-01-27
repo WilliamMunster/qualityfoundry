@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Typography, Card, Row, Col, Space, Button, message, Skeleton, Tag } from 'antd';
 import { ChevronLeft, Share2, Download, Activity, FileJson, GitBranch } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
-import orchestrationsApi from '../api/orchestrations';
+import orchestrationsApi, { RunDetail as RunDetailType } from '../api/orchestrations';
 import EvidenceSplitter from '../components/EvidenceSplitter';
+import EvidenceCheckCard from '../components/EvidenceCheckCard';
 import AuditTimeline from '../components/AuditTimeline';
 import NodeProgress from '../components/NodeProgress';
 import ExecutionFlow from '../components/ExecutionFlow';
@@ -15,6 +16,7 @@ const RunDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [runDetail, setRunDetail] = useState<RunDetailType | null>(null);
   const [evidence, setEvidence] = useState<any>(null);
   const [auditData, setAuditData] = useState<any[]>([]);
 
@@ -33,6 +35,13 @@ const RunDetailPage: React.FC = () => {
     if (!id) return;
     setLoading(true);
     try {
+      // 使用统一的 getRunDetail P1 DTO
+      const detail = await orchestrationsApi.getRunDetail(id);
+      setRunDetail(detail);
+
+      // 为了兼容现有组件，依然保留 evidence 和 auditData 的状态设置
+      // 注意：getRunDetail 返回的 artifacts 格式与 evidence.json 略有不同，
+      // 且现有 EvidenceSplitter 深度依赖原始 evidence.json。改为并行获取以防破坏。
       const [ev, au] = await Promise.all([
         orchestrationsApi.getEvidence(id),
         orchestrationsApi.getAudit(id)
@@ -139,6 +148,15 @@ const RunDetailPage: React.FC = () => {
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.15 }}
+            style={{ marginBottom: 24 }}
+          >
+            <EvidenceCheckCard data={runDetail?.artifact_audit} runId={id} />
+          </motion.div>
+
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
             <Card
@@ -146,7 +164,7 @@ const RunDetailPage: React.FC = () => {
               title={<Space><Activity size={18} className="text-emerald-500" />审计追踪 (Audit Log)</Space>}
               style={{ borderRadius: 20, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
             >
-              <div style={{ maxHeight: 'calc(100vh - 380px)', overflow: 'auto', padding: '12px 0' }}>
+              <div style={{ maxHeight: 'calc(100vh - 580px)', overflow: 'auto', padding: '12px 0' }}>
                 <AuditTimeline events={auditData} />
               </div>
             </Card>

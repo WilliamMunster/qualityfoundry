@@ -5,12 +5,9 @@
 """
 import os
 import pytest
-from fastapi.testclient import TestClient
 
-from qualityfoundry.main import app
 
-# 使用 conftest.py 中的 client fixture
-client = TestClient(app)
+# 不再使用模块级全局 client，改为使用 conftest.py 提供的 client fixture
 
 ENABLE_AI_TESTS = os.environ.get("QF_ENABLE_AI_TESTS", "").lower() in ("1", "true", "yes")
 AI_API_KEY = os.environ.get("QF_AI_API_KEY")
@@ -20,7 +17,7 @@ AI_PROVIDER = os.environ.get("QF_AI_PROVIDER", "openai")
 AI_READY = ENABLE_AI_TESTS and bool(AI_API_KEY)
 
 
-def _ensure_ai_config():
+def _ensure_ai_config(client):
     response = client.post(
         "/api/v1/ai-configs",
         json={
@@ -38,9 +35,9 @@ def _ensure_ai_config():
 
 
 @pytest.mark.skipif(not AI_READY, reason="需要真实 AI 服务配置（QF_ENABLE_AI_TESTS=1 且 QF_AI_API_KEY 已配置）")
-def test_generate_scenarios():
+def test_generate_scenarios(client):
     """测试 AI 生成场景"""
-    _ensure_ai_config()
+    _ensure_ai_config(client)
     # 先创建需求
     req_response = client.post(
         "/api/v1/requirements",
@@ -62,7 +59,7 @@ def test_generate_scenarios():
     assert data[0]["approval_status"] == "approved"
 
 
-def test_create_scenario():
+def test_create_scenario(client):
     """测试创建场景"""
     # 先创建需求
     req_response = client.post(
@@ -87,7 +84,7 @@ def test_create_scenario():
     assert len(data["steps"]) == 2
 
 
-def test_list_scenarios():
+def test_list_scenarios(client):
     """测试场景列表"""
     # 创建需求和场景
     req_response = client.post(
@@ -113,7 +110,7 @@ def test_list_scenarios():
     assert data["total"] == 3
 
 
-def test_get_scenario():
+def test_get_scenario(client):
     """测试获取场景详情"""
     # 创建需求和场景
     req_response = client.post(
@@ -139,7 +136,7 @@ def test_get_scenario():
     assert data["id"] == scenario_id
 
 
-def test_update_scenario():
+def test_update_scenario(client):
     """测试更新场景"""
     # 创建需求和场景
     req_response = client.post(
@@ -172,7 +169,7 @@ def test_update_scenario():
     assert len(data["steps"]) == 2
 
 
-def test_delete_scenario():
+def test_delete_scenario(client):
     """测试删除场景"""
     # 创建需求和场景
     req_response = client.post(
