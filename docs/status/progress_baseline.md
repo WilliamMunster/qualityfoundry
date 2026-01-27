@@ -1,8 +1,8 @@
 # QualityFoundry 进度基线
 
-> **版本锚点**: `main@067993c` (2026-01-26)
-> **最后验证**: 2026-01-26
-> **Git 标签**: `v0.18-dashboard-p2`
+> **版本锚点**: `main@39d3c24` (2026-01-27)
+> **最后验证**: 2026-01-27
+> **Git 标签**: `v0.19-audit-solidification`
 > **验证方式**: `ruff check` + `pytest -q --tb=short` + `npm run build`
 
 本文档是项目进度的**唯一真实来源**。所有声明均可通过下文命令验证。
