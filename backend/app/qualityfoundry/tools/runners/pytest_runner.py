@@ -538,6 +538,15 @@ def _collect_artifacts(ctx: ToolExecutionContext, exit_code: int) -> None:
                     atype = ArtifactType.LOG
                 
                 artifact = ArtifactRef.from_file(file_path, atype)
+                # 显式保存相对路径和预览标识，用于前端展示和证据预览
+                rel_path = file_path.relative_to(artifact_dir)
+                artifact.metadata["rel_path"] = str(rel_path.as_posix())
+                
+                # 如果是图像，确保标记为 IMAGE 以便前端直接启用预览
+                if atype == ArtifactType.SCREENSHOT:
+                    artifact.metadata["is_image"] = True
+                    # 提示：实际预览 URL 由后端统一在 API 层拼装，此处打标即可
+                
                 ctx.add_artifact(artifact)
 
     # 2. 解析 JUnit XML 获取统计
