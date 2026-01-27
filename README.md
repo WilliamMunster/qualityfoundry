@@ -4,7 +4,7 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
-> **最新版本**: `v0.18-dashboard-p2` (`main@067993c`) — L5 Dashboard P2 + MCP Phase 2A
+> **最新版本**: `v0.19-audit-solidification` (`main@39d3c24`) — 审计闭环 + CI 容器门禁 + Playwright 观测
 >
 > **进度基线**: 详见 [docs/status/progress_baseline.md](docs/status/progress_baseline.md)
 
@@ -23,13 +23,13 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 | **L2** | Orchestration (编排层) | ✅ 完成 (UUID runs 主路径) |
 | **L3** | Execution (执行层) | ✅ 完成 (subprocess 默认 + container 可选; 不可用则拒绝审计) |
 | **L4** | Protocol (MCP) | ✅ 完成 (read-only + write: run_pytest 仅受控写) |
-| **L5** | Governance & Evals | ✅ 完成 (cost governance + golden regression) |
+| **L5** | Governance & Evals | ✅ 完成 (cost governance + golden regression + 审计闭环 + 证据覆盖) |
 
 - **L1 规则与门禁层 (Policy)**：定义 `policy_config.yaml`、风险分级与发布门禁。
 - **L2 编排层 (Orchestration)**：LangGraph 状态机执行，UUID runs 主路径：启动→查看→下载证据→审计链。
 - **L3 执行层 (Execution)**：集成 Playwright、Pytest 等工具，支持 subprocess 默认沙箱与 L3 Container 强隔离沙箱。
 - **L4 接口层 (Protocol)**：MCP Client 调用外部服务，MCP Server 支持只读工具 + 受控写工具（仅限 run_pytest），具备完整安全链（认证→权限→速率限制→策略→沙箱）。
-- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、成本治理（timeout/budget）已落地；Dashboard P2 已上线。
+- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、成本治理（timeout/budget）已落地；Dashboard P2 已上线，含证据覆盖卡片与产物审计闭环。
 
 > **⚠️ 存量声明 (Legacy Notice)**: 
 > 原 `run_<TS>` 系列端点已 deprecated，转为只读。主入口请统一使用 `/api/v1/orchestrations/runs`。
@@ -55,6 +55,10 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - ✅ **L3 沙箱执行 (PR-B)**：进程隔离沙箱，policy 驱动的超时/路径/命令/环境变量控制
 - ✅ **L4 MCP Write Security (Phase 1)**：`run_pytest` 写能力 + 安全链（auth→perm→policy→sandbox），25 项安全测试
 - ✅ **L4 MCP Rate Limiting (Phase 2A)**：并发限制 + token bucket 速率限制 + 每日配额，错误码 -32008/-32009，13 项测试
+- ✅ **产物审计闭环 (v0.19)**：`artifact_collected` 事件通用化，支持 pytest + playwright，含 10 样本截断策略
+- ✅ **Dashboard 证据覆盖卡片 (v0.19)**：`EvidenceCoverageCard` 展示全局证据覆盖率与爆发风险预警
+- ✅ **Playwright 观测能力 (v0.19)**：`PlaywrightSkipReason` 标准枚举 + 前端诊断提示映射
+- ✅ **Linux CI 容器门禁 (v0.19)**：`sandbox-container` 任务确保 L3 强隔离持续验证
 
 ### Partial / In Progress
 - 🟡 **用户认证**：基于 token 的简单认证（非 JWT，待升级）
@@ -245,6 +249,17 @@ MIT License
 ---
 
 ## 更新日志
+
+### V0.19 (2026-01-27)
+
+**审计闭环与 CI 容器门禁 (Audit Solidification & CI Gate)**
+
+- ✅ **产物审计通用化**：`artifact_collected` 事件现已覆盖 pytest + playwright，支持 `rel_path` 存储与 10 样本截断
+- ✅ **Dashboard 证据卡片**：新增 `EvidenceCoverageCard` 展示全局证据覆盖率与爆发风险
+- ✅ **Playwright 观测能力**：`PlaywrightSkipReason` 标准枚举 + 前端诊断提示
+- ✅ **Linux CI 容器门禁**：`sandbox-container` 任务集成 Docker 隔离验证，确保 L3 强隔离不回退
+- ✅ **lifespan 迁移**：`main.py` 启动逻辑现代化，消除 FastAPI 弃用警告
+- ✅ **测试稳定性**：`conftest.py` 依赖隔离 + API 单测 Fixture 规范化
 
 ### V0.14.1 (2026-01-25)
 
