@@ -51,9 +51,25 @@ def override_get_current_user():
     return MOCK_ADMIN_USER
 
 
-# 覆盖应用的数据库和认证依赖
+# 默认覆盖（作为兜底）
 app.dependency_overrides[get_db] = override_get_db
 app.dependency_overrides[get_current_user] = override_get_current_user
+
+
+@pytest.fixture(autouse=True)
+def apply_overrides():
+    """每个测试自动应用依赖覆盖，并在结束后清理"""
+    # 先保存原始状态（如果需要）
+    old_overrides = app.dependency_overrides.copy()
+    
+    # 强制重新设置覆盖（防止被其他测试清理）
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    
+    yield
+    
+    # 恢复状态，但不建议直接 clear()，因为可能影响并行
+    app.dependency_overrides = old_overrides
 
 
 @pytest.fixture(autouse=True)

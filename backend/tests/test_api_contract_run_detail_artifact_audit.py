@@ -22,15 +22,7 @@ def db_session():
     finally:
         db.close()
 
-@pytest.fixture(autouse=True)
-def shared_setup(client, db_session):
-    """清理依赖覆盖并确保数据库一致"""
-    app.dependency_overrides = {}
-    from qualityfoundry.database.config import get_db
-    from tests.conftest import override_get_db
-    app.dependency_overrides[get_db] = override_get_db
-    yield
-    app.dependency_overrides = {}
+# 移除冲突的 shared_setup，交由 conftest.py 的 apply_overrides 自动处理
 
 @pytest.fixture
 def admin_user(db_session: Session):
@@ -144,8 +136,7 @@ def test_run_detail_artifact_audit_last_win(client: TestClient, db_session: Sess
     assert response.status_code == 200
     data = response.json()
     assert data["artifact_audit"]["total_count"] == 2
-    # 取消 override 避免干扰后续测试
-    app.dependency_overrides.clear()
+    # 由 autouse fixture 自动处理清理逻辑
 
 def test_run_detail_artifact_audit_rbac(client: TestClient, db_session: Session, admin_user: User):
     """(P0.5) 验证 RBAC 权限一致性：非 Owner 且非 Admin 访问他人的 run 应被拒或无法获取审计字段"""
@@ -183,5 +174,4 @@ def test_run_detail_artifact_audit_rbac(client: TestClient, db_session: Session,
 
     # 应该返回 403 Forbidden
     assert response.status_code == 403
-    
-    app.dependency_overrides.clear()
+    # 由 autouse fixture 自动处理清理逻辑
