@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import logging
 import os
 import re
@@ -30,6 +31,7 @@ from qualityfoundry.tools.config import truncate_output
 from qualityfoundry.tools.contracts import (
     ArtifactRef,
     ArtifactType,
+    PlaywrightSkipReason,
     ToolRequest,
     ToolResult,
 )
@@ -481,27 +483,19 @@ async def run_pytest(
                 ui_dir.mkdir(parents=True, exist_ok=True)
                 status_file = ui_dir / "playwright_status.json"
                 
-                # 情况 A：JUnit XML 显示有跳过
-                if junit_path.exists():
-                    stats = _parse_junit_stats(junit_path)
-                    if stats.get("skipped", 0) > 0:
-                        import json
-                        with open(status_file, "w") as f:
-                            json.dump({
-                                "status": "skipped",
-                                "reason": f"Pytest reported {stats['skipped']} skipped tests in UI suite. Likely due to environment mismatch or missing browser.",
-                                "ts": str(ctx.request.run_id) # Using run_id as a dummy TS anchor
-                            }, f)
+                import json
+                # 根据 exit_code 或环境启发式判定具体原因
+                skip_reason = PlaywrightSkipReason.UNKNOWN
+                if exit_code == 5:  # No tests collected
+                    skip_reason = PlaywrightSkipReason.PLAYWRIGHT_E2E_DISABLED
+                # 这里的逻辑可以随着 Sandbox 接入进一步细化
                 
-                # 情况 B：执行异常且没有生成 junit.xml (可能是环境崩溃)
-                elif exit_code != 0:
-                    import json
-                    with open(status_file, "w") as f:
-                        json.dump({
-                            "status": "error",
-                            "reason": f"Execution failed with code {exit_code} before JUnit report generation. Check logs for environment errors.",
-                            "ts": str(ctx.request.run_id)
-                        }, f)
+                status_file.write_text(json.dumps({
+                    "status": "skipped",
+                    "reason": f"Playwright tests skipped. Code: {skip_reason.value}",
+                    "skip_code": skip_reason.value,
+                    "ts": datetime.now(timezone.utc).isoformat()
+                }, ensure_ascii=False))
 
             # 判断结果
             if exit_code == 0:

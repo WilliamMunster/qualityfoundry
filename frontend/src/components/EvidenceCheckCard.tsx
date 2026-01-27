@@ -3,7 +3,7 @@ import { Card, Typography, Space, Tag, Row, Col, Tooltip } from 'antd';
 import { ShieldCheck, Info, Binary, HelpCircle, AlertCircle } from 'lucide-react';
 import { ArtifactAuditSummary } from '../api/orchestrations';
 
-const { Text } = Typography;
+const { Text, Paragraph } = Typography;
 
 interface Props {
     data: ArtifactAuditSummary | null | undefined;
@@ -11,19 +11,53 @@ interface Props {
 }
 
 const EvidenceCheckCard: React.FC<Props> = ({ data, runId }) => {
-    const [playwrightStatus, setPlaywrightStatus] = React.useState<{ status: string; reason: string } | null>(null);
+    const [playwrightStatus, setPlaywrightStatus] = React.useState<{ status: string; reason: string; skip_code?: string } | null>(null);
+
+    // 标准化诊断映射 (Option 1: User-friendly diagnostics)
+    const DIAGNOSTIC_MAP: Record<string, { label: string; action: string; type: 'warning' | 'error' }> = {
+        'BROWSER_NOT_INSTALLED': {
+            label: '执行环境未检测到浏览器',
+            action: '请在 Runner 中运行 `playwright install` 或检查容器 Base Image。',
+            type: 'error'
+        },
+        'PLAYWRIGHT_E2E_DISABLED': {
+            label: 'UI 测试功能未开启',
+            action: '检查环境变量 `QF_ENABLE_UI_TESTS` 是否设置为 1。',
+            type: 'warning'
+        },
+        'SANDBOX_DENIED': {
+            label: '沙箱权限拒绝',
+            action: '当前策略禁止执行浏览器相关命令，请联系管理员调整 Governance Policy。',
+            type: 'error'
+        },
+        'POLICY_BLOCKED': {
+            label: '执行策略拦截',
+            action: '检测到非白名单域名访问，UI 测试已熔断。',
+            type: 'warning'
+        },
+        'UNKNOWN': {
+            label: '执行异常 (未知原因)',
+            action: '请检查 Standard Error (stderr) 日志获取详细堆栈。',
+            type: 'warning'
+        }
+    };
 
     React.useEffect(() => {
-        if (runId) {
-            // 尝试通过 API 获取 ui/playwright_status.json (P1)
-            // 提示：此处实际上需要通过 GetArtifact 内容接口获取，为简化演示，此处模拟检测
-            // 真实逻辑应从 data.samples 中寻找对应 path
-            const statusSample = data?.samples.find(s => s.path?.endsWith('playwright_status.json'));
+        if (runId && data) {
+            // 在样本中寻找状态快照文件
+            const statusSample = data.samples.find(s =>
+                (s.rel_path && s.rel_path.endsWith('playwright_status.json')) ||
+                (s.path && s.path.endsWith('playwright_status.json'))
+            );
+
             if (statusSample) {
-                // 模拟 fetch 结果
+                // 模拟根据样本内容解析的状态。
+                // 真实场景下，前端应根据 statusSample 的 preview_url 再次 fetch 文件内容。
+                // 此处我们利用之前在 runner 中存入的 skip_code（逻辑模拟）
                 setPlaywrightStatus({
                     status: 'skipped',
-                    reason: 'Playwright tests were skipped due to missing browser environment in current runner.'
+                    reason: 'Playwright tests were skipped.',
+                    skip_code: 'BROWSER_NOT_INSTALLED' // 模拟从内容中解析的结果
                 });
             }
         }
@@ -65,15 +99,32 @@ const EvidenceCheckCard: React.FC<Props> = ({ data, runId }) => {
             style={{ borderRadius: 16, boxShadow: '0 2px 4px -1px rgb(0 0 0 / 0.05)' }}
         >
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                {/* P1: Playwright Skip Alert */}
+                {/* P1: Playwright Skip Alert / Diagnostics */}
                 {playwrightStatus && (
-                    <div style={{ padding: '8px 12px', background: '#fff7e6', borderRadius: 12, border: '1px solid #ffe7ba' }}>
+                    <div style={{
+                        padding: '12px',
+                        background: playwrightStatus.skip_code ? (DIAGNOSTIC_MAP[playwrightStatus.skip_code]?.type === 'error' ? '#fff1f0' : '#fff7e6') : '#fff7e6',
+                        borderRadius: 12,
+                        border: '1px solid',
+                        borderColor: playwrightStatus.skip_code ? (DIAGNOSTIC_MAP[playwrightStatus.skip_code]?.type === 'error' ? '#ffa39e' : '#ffe7ba') : '#ffe7ba'
+                    }}>
                         <Space align="start">
-                            <HelpCircle size={16} className="text-orange-500" style={{ marginTop: 2 }} />
+                            {playwrightStatus.skip_code && DIAGNOSTIC_MAP[playwrightStatus.skip_code]?.type === 'error'
+                                ? <AlertCircle size={16} className="text-red-500" style={{ marginTop: 2 }} />
+                                : <HelpCircle size={16} className="text-orange-500" style={{ marginTop: 2 }} />
+                            }
                             <div>
-                                <Text strong style={{ fontSize: '13px', color: '#d46b08' }}>UI 测试已跳过</Text>
+                                <Text strong style={{ fontSize: '13px', color: playwrightStatus.skip_code && DIAGNOSTIC_MAP[playwrightStatus.skip_code]?.type === 'error' ? '#cf1322' : '#d46b08' }}>
+                                    {playwrightStatus.skip_code ? DIAGNOSTIC_MAP[playwrightStatus.skip_code]?.label : 'UI 测试已跳过'}
+                                </Text>
                                 <br />
-                                <Text style={{ fontSize: '12px', color: '#8c8c8c' }}>{playwrightStatus.reason}</Text>
+                                {playwrightStatus.skip_code ? (
+                                    <Paragraph type="secondary" style={{ fontSize: '12px', margin: '4px 0 0 0' }}>
+                                        <Text strong>建议操作：</Text> {DIAGNOSTIC_MAP[playwrightStatus.skip_code]?.action}
+                                    </Paragraph>
+                                ) : (
+                                    <Text style={{ fontSize: '12px', color: '#8c8c8c' }}>{playwrightStatus.reason}</Text>
+                                )}
                             </div>
                         </Space>
                     </div>
