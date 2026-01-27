@@ -511,8 +511,8 @@ def _collect_artifacts(ctx: ToolExecutionContext, exit_code: int) -> None:
     # 1. 扫描特定目录和后缀 (有边界的收集)
     # 目录: ui/, http/, repro/
     # 后缀: .json, .xml, .png, .jpg, .webp, .txt, .log
-    allowed_dirs = {"ui", "http", "repro"}
-    allowed_exts = {".json", ".xml", ".png", ".jpg", ".webp", ".txt", ".log"}
+    allowed_dirs = ["ui", "http", "repro"]
+    allowed_exts = [".json", ".xml", ".png", ".jpg", ".webp", ".txt", ".log"]
     
     # 递归扫描 artifact_dir
     for root, dirs, files in os.walk(artifact_dir):
@@ -548,8 +548,26 @@ def _collect_artifacts(ctx: ToolExecutionContext, exit_code: int) -> None:
                     # 提示：实际预览 URL 由后端统一在 API 层拼装，此处打标即可
                 
                 ctx.add_artifact(artifact)
+    
+    # 3. 记录产物审计日志
+    if ctx._artifacts:
+        try:
+            from qualityfoundry.database.config import SessionLocal
+            from qualityfoundry.services.audit_service import write_artifact_collected_event
 
-    # 2. 解析 JUnit XML 获取统计
+            with SessionLocal() as db:
+                write_artifact_collected_event(
+                    db,
+                    run_id=ctx.request.run_id,
+                    tool_name=ctx.request.tool_name,
+                    artifacts=ctx._artifacts,
+                    scope=allowed_dirs,
+                    extensions=allowed_exts,
+                )
+        except Exception:
+            logger.warning("Failed to log artifact audit event", exc_info=True)
+
+    # 4. 解析 JUnit XML 获取统计
     if junit_path.exists():
         stats = _parse_junit_stats(junit_path)
         ctx.update_metrics(

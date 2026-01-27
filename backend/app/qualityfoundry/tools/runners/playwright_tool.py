@@ -101,6 +101,23 @@ async def run_playwright(request: ToolRequest) -> ToolResult:
                     ctx.add_artifact(trace_artifact)
                     logger.info(f"Added trace artifact: {trace_path}")
 
+            # 记录产物审计日志
+            if ctx._artifacts:
+                try:
+                    from qualityfoundry.database.config import SessionLocal
+                    from qualityfoundry.services.audit_service import write_artifact_collected_event
+                    
+                    with SessionLocal() as db:
+                        write_artifact_collected_event(
+                            db,
+                            run_id=request.run_id,
+                            tool_name="run_playwright",
+                            artifacts=ctx._artifacts,
+                            scope=["screenshots", "traces"],
+                        )
+                except Exception:
+                    logger.warning("Failed to log playwright artifact audit event", exc_info=True)
+
             # 更新 metrics
             ctx.update_metrics(
                 steps_total=len(evidence),

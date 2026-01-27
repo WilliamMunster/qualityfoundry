@@ -177,8 +177,7 @@ cd backend && python -m pytest -q --tb=short
  
 ## 文档历史
 
-| 日期 | 作者 | 变更 |
-|------|------|------|
+| 2026-01-27 | Claude (Antigravity) | Artifact audit 已通用化，pytest+playwright 均覆盖，payload 有边界 |
 | 2026-01-26 | Claude (Antigravity) | MCP Phase 2A 速率限制 + Phase 2B 设计文档 v0.2 |
 | 2026-01-26 | Claude (Antigravity) | v0.18: L5 Dashboard P2 完成 (P2-2/3/4) |
 | 2026-01-25 | Claude (Antigravity) | 文档中文化 |
