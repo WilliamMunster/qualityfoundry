@@ -4,13 +4,12 @@
 """
 
 from __future__ import annotations
-
 import hashlib
 import json
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -18,6 +17,9 @@ from sqlalchemy.orm import Session
 from qualityfoundry.database.audit_log_models import AuditEventType, AuditLog
 from qualityfoundry.governance.repro import get_git_sha
 from qualityfoundry.governance.policy_loader import get_policy
+
+if TYPE_CHECKING:
+    from qualityfoundry.tools.contracts import ArtifactRef
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +111,70 @@ def write_audit_event(
     except Exception as e:
         logger.exception(f"Failed to write audit event: {e}")
         db.rollback()
+        return None
+
+
+def write_artifact_collected_event(
+    db: Session,
+    *,
+    run_id: UUID,
+    tool_name: str,
+    artifacts: list[ArtifactRef],
+    scope: list[str] | None = None,
+    extensions: list[str] | None = None,
+) -> AuditLog | None:
+    """
+    记录产物收集审计事件 (带汇总、脱敏与截断策略)
+    
+    该函数由运行器在产物收集完成后调用，强制执行路径脱敏与存储边界控制。
+    """
+    if not is_audit_enabled():
+        return None
+
+    try:
+        from pathlib import Path
+        
+        # 1. 按类型统计数量 (避免存储全量路径)
+        stats_by_type = {}
+        for a in artifacts:
+            stats_by_type[a.type.value] = stats_by_type.get(a.type.value, 0) + 1
+
+        # 2. 提取示例产物 (限制前 10 个，且仅保留相对路径)
+        limit = 10
+        samples = []
+        for a in artifacts[:limit]:
+            # 优先取 rel_path 元数据，否则取 path 的文件名部分以防泄露绝对路径
+            # 注意：a.path 可能是相对也可能是绝对，由 ArtifactRef 定义决定
+            rel_path = a.metadata.get("rel_path") or Path(a.path).name
+            samples.append({
+                "type": a.type.value,
+                "rel_path": rel_path,
+                "size": a.size,
+            })
+
+        details = {
+            "tool_name": tool_name,
+            "total_count": len(artifacts),
+            "stats_by_type": stats_by_type,
+            "samples": samples,
+            "truncated": len(artifacts) > limit,
+            "boundary": {
+                "scope": scope or [],
+                "extensions": extensions or [],
+            }
+        }
+
+        return write_audit_event(
+            db,
+            run_id=run_id,
+            event_type=AuditEventType.ARTIFACT_COLLECTED,
+            tool_name=tool_name,
+            status="completed",
+            details=details,
+        )
+    except Exception as e:
+        # 审计写入失败不应阻塞主流程
+        logger.warning(f"Failed to write artifact collected audit: {e}", exc_info=True)
         return None
 
 

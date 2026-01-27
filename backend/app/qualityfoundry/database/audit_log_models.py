@@ -24,6 +24,7 @@ class AuditEventType(str, enum.Enum):
     GOVERNANCE_SHORT_CIRCUIT = "governance_short_circuit"
     SANDBOX_EXEC = "sandbox_exec"  # L3 沙箱执行事件
     MCP_TOOL_CALL = "mcp_tool_call"  # MCP 工具调用入口事件
+    ARTIFACT_COLLECTED = "artifact_collected"  # 产物收集事件
 
 
 class AuditLog(Base):
