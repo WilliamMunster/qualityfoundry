@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from contextlib import asynccontextmanager
 
 from qualityfoundry.api.v1.routes import router as v1_router
 from qualityfoundry.logging_config import setup_logging
@@ -26,45 +27,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app = FastAPI()
 
-# 配置日志
-setup_logging()
-
-# 安全响应头中间件
-app.add_middleware(SecurityHeadersMiddleware)
-
-# CORS 中间件
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # 允许所有来源，生产环境请指定具体域名
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(v1_router)
-
-
-@app.get("/healthz", include_in_schema=False)
-def healthz():
-    return {"ok": True}
-
-
-@app.get("/health", include_in_schema=False)
-def health():
-    return {"ok": True}
-
-
-@app.on_event("startup")
-def on_startup():
-    """应用启动时执行初始化逻辑。
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理。
     
     包含：
     - 数据 seed（默认环境等）
     - Token 清理（需开启 QF_TOKEN_CLEANUP_ENABLED=true）
-    
-    注意：如果数据库不可用（如 CI 环境），不阻塞服务启动。
     """
     import logging
     logger = logging.getLogger(__name__)
@@ -94,7 +64,35 @@ def on_startup():
         finally:
             db.close()
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(f"Startup tasks skipped: {e}")
+        logger.warning(f"Startup tasks skipped: {e}")
+    
+    yield  # 应用开始处理请求
+
+app = FastAPI(lifespan=lifespan)
+
+# 配置日志
+setup_logging()
+
+# 安全响应头中间件
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS 中间件
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有来源，生产环境请指定具体域名
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(v1_router)
+
+@app.get("/healthz", include_in_schema=False)
+def healthz():
+    return {"ok": True}
+
+@app.get("/health", include_in_schema=False)
+def health():
+    return {"ok": True}
 
 

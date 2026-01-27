@@ -171,7 +171,8 @@ class TestRunInSandbox:
     @pytest.mark.asyncio
     async def test_python_version(self):
         """Python 版本命令"""
-        result = await run_in_sandbox(["python", "--version"])
+        import sys
+        result = await run_in_sandbox([sys.executable, "--version"])
         assert result.exit_code == 0
         assert "Python" in result.stdout or "Python" in result.stderr
 
