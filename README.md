@@ -23,13 +23,13 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 | **L2** | Orchestration (编排层) | ✅ 完成 (UUID runs 主路径) |
 | **L3** | Execution (执行层) | ✅ 完成 (subprocess 默认 + container 可选; 不可用则拒绝审计) |
 | **L4** | Protocol (MCP) | ✅ 完成 (read-only + write: run_pytest 仅受控写) |
-| **L5** | Governance & Evals | ✅ 完成 (cost governance + golden regression) |
+| **L5** | Governance & Evals | ✅ 完成 (cost governance + golden regression + 审计闭环 + 证据覆盖) |
 
 - **L1 规则与门禁层 (Policy)**：定义 `policy_config.yaml`、风险分级与发布门禁。
 - **L2 编排层 (Orchestration)**：LangGraph 状态机执行，UUID runs 主路径：启动→查看→下载证据→审计链。
 - **L3 执行层 (Execution)**：集成 Playwright、Pytest 等工具，支持 subprocess 默认沙箱与 L3 Container 强隔离沙箱。
 - **L4 接口层 (Protocol)**：MCP Client 调用外部服务，MCP Server 支持只读工具 + 受控写工具（仅限 run_pytest），具备完整安全链（认证→权限→速率限制→策略→沙箱）。
-- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、成本治理（timeout/budget）已落地；Dashboard P2 已上线。
+- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、成本治理（timeout/budget）已落地；Dashboard P2 已上线，含证据覆盖卡片与产物审计闭环。
 
 > **⚠️ 存量声明 (Legacy Notice)**: 
 > 原 `run_<TS>` 系列端点已 deprecated，转为只读。主入口请统一使用 `/api/v1/orchestrations/runs`。
