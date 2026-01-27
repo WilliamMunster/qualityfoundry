@@ -350,6 +350,10 @@ async def run_pytest(
                 cmd.extend(extra_args)
 
             logger.info(f"Running pytest: {' '.join(cmd)}")
+            
+            # 设置产物目录环境变量，供测试脚本（如 Playwright）使用
+            env = os.environ.copy()
+            env["QUALITYFOUNDRY_ARTIFACT_DIR"] = str(ctx.artifact_dir)
 
             # 执行 pytest
             cwd = Path(working_dir) if working_dir else None
@@ -419,7 +423,7 @@ async def run_pytest(
                 from qualityfoundry.execution.sandbox import run_in_sandbox
 
                 logger.info(f"Subprocess sandbox: timeout={sandbox_config.timeout_s}s")
-                sandbox_result = await run_in_sandbox(cmd, config=sandbox_config, cwd=cwd)
+                sandbox_result = await run_in_sandbox(cmd, config=sandbox_config, cwd=cwd, env=env)
 
                 # B3: 审计沙箱执行（只记录 hash/摘要，不记录敏感路径明文）
                 await _log_sandbox_audit(
@@ -442,7 +446,7 @@ async def run_pytest(
                 stdout = sandbox_result.stdout
                 stderr = sandbox_result.stderr
                 exit_code = sandbox_result.exit_code
-
+                
             else:
                 # Legacy 路径：policy 禁用沙箱或直接调用（不经过 registry）
                 import asyncio
@@ -454,6 +458,7 @@ async def run_pytest(
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE,
                         cwd=cwd,
+                        env=env,
                     )
                     stdout_bytes, stderr_bytes = await asyncio.wait_for(
                         process.communicate(),
@@ -467,22 +472,8 @@ async def run_pytest(
                     await process.wait()
                     return ctx.timeout(f"pytest timed out after {request.timeout_s}s")
 
-            # 收集 JUnit XML artifact
-            if junit_path.exists():
-                artifact = ArtifactRef.from_file(junit_path, ArtifactType.JUNIT_XML)
-                ctx.add_artifact(artifact)
-
-                # 解析 JUnit XML 获取统计
-                stats = _parse_junit_stats(junit_path)
-                ctx.update_metrics(
-                    exit_code=exit_code,
-                    steps_total=stats.get("tests", 0),
-                    steps_passed=stats.get("tests", 0) - stats.get("failures", 0) - stats.get("errors", 0),
-                    steps_failed=stats.get("failures", 0) + stats.get("errors", 0),
-                )
-
-            else:
-                ctx.update_metrics(exit_code=exit_code)
+            # 收集 artifacts (JUnit XML & 业务产物)
+            _collect_artifacts(ctx, exit_code)
 
             # 判断结果
             if exit_code == 0:
@@ -510,6 +501,56 @@ async def run_pytest(
         except Exception as e:
             logger.exception("run_pytest failed")
             return ctx.failed(error_message=str(e))
+
+
+def _collect_artifacts(ctx: ToolExecutionContext, exit_code: int) -> None:
+    """收集测试产物，包括 JUnit XML 和指定的业务产物 (ui/, http/, repro/)。"""
+    artifact_dir = ctx.artifact_dir
+    junit_path = artifact_dir / "junit.xml"
+
+    # 1. 扫描特定目录和后缀 (有边界的收集)
+    # 目录: ui/, http/, repro/
+    # 后缀: .json, .xml, .png, .jpg, .webp, .txt, .log
+    allowed_dirs = {"ui", "http", "repro"}
+    allowed_exts = {".json", ".xml", ".png", ".jpg", ".webp", ".txt", ".log"}
+    
+    # 递归扫描 artifact_dir
+    for root, dirs, files in os.walk(artifact_dir):
+        rel_root = Path(root).relative_to(artifact_dir)
+        
+        # 只处理根目录或允许的子目录
+        if rel_root != Path(".") and rel_root.parts[0] not in allowed_dirs:
+            continue
+            
+        for file in files:
+            file_path = Path(root) / file
+            ext = file_path.suffix.lower()
+            
+            if ext in allowed_exts:
+                # 确定 ArtifactType
+                if ext in {".png", ".jpg", ".jpeg", ".webp"}:
+                    atype = ArtifactType.SCREENSHOT
+                elif file == "junit.xml":
+                    atype = ArtifactType.JUNIT_XML
+                elif ext == ".json":
+                    atype = ArtifactType.OTHER
+                else:
+                    atype = ArtifactType.LOG
+                
+                artifact = ArtifactRef.from_file(file_path, atype)
+                ctx.add_artifact(artifact)
+
+    # 2. 解析 JUnit XML 获取统计
+    if junit_path.exists():
+        stats = _parse_junit_stats(junit_path)
+        ctx.update_metrics(
+            exit_code=exit_code,
+            steps_total=stats.get("tests", 0),
+            steps_passed=stats.get("tests", 0) - stats.get("failures", 0) - stats.get("errors", 0),
+            steps_failed=stats.get("failures", 0) + stats.get("errors", 0),
+        )
+    else:
+        ctx.update_metrics(exit_code=exit_code)
 
 
 def _parse_junit_stats(junit_path: Path) -> dict:

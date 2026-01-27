@@ -142,8 +142,32 @@ const RunLaunchPage: React.FC = () => {
                             <Form.Item label="指定工具" name="tool_name">
                                 <Select>
                                     <Select.Option value="run_pytest">Pytest (单元/集成测试)</Select.Option>
-                                    <Select.Option value="run_playwright">Playwright (浏览器端对端)</Select.Option>
+                                    <Select.Option value="playwright">Pytest (UI: Playwright)</Select.Option>
                                 </Select>
+                            </Form.Item>
+
+                            <Form.Item noStyle shouldUpdate={(prev, curr) => prev.tool_name !== curr.tool_name}>
+                                {({ getFieldValue }) => {
+                                    const tool = getFieldValue('tool_name');
+                                    if (tool === 'playwright') {
+                                        return (
+                                            <div style={{ marginBottom: 16, padding: '8px 12px', background: '#e6f4ff', borderRadius: 8, border: '1px solid #91caff' }}>
+                                                <Space align="start">
+                                                    <Terminal size={14} className="text-blue-500" style={{ marginTop: 2 }} />
+                                                    <div>
+                                                        <Text strong style={{ fontSize: '14px' }}>模式说明：</Text>
+                                                        <br />
+                                                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                                                            此模式将底层调用 <code>run_pytest</code>，并默认执行 <code>tests/ui</code> 下的测试。
+                                                            截图将自动收集并导出至 1 级产物目录。
+                                                        </Text>
+                                                    </div>
+                                                </Space>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                }}
                             </Form.Item>
 
                             <Form.Item label="工具参数 (JSON)" name="args">

@@ -60,6 +60,7 @@ class SandboxConfig(BaseModel):
             "PLAYWRIGHT_*", "DISPLAY", "XDG_*", "DBUS_*",
             # QualityFoundry
             "QF_*",
+            "QUALITYFOUNDRY_*",
         ],
         description="环境变量白名单（支持 glob）",
     )
@@ -98,19 +99,21 @@ def _match_glob_pattern(value: str, patterns: list[str]) -> bool:
     return False
 
 
-def _sanitize_env(whitelist: list[str]) -> dict[str, str]:
-    """清洗环境变量，只保留白名单中的变量
-
+def _sanitize_env(whitelist: list[str], extra_env: dict[str, str] | None = None) -> dict[str, str]:
+    """清洗环境变量，并合并额外变量。
+    
     Args:
-        whitelist: 环境变量白名单（支持 glob，如 "QF_*"）
-
-    Returns:
-        过滤后的环境变量字典
+        whitelist: 环境变量白名单
+        extra_env: 强制包含的额外环境变量
     """
     result: dict[str, str] = {}
     for key, value in os.environ.items():
         if _match_glob_pattern(key, whitelist):
             result[key] = value
+    
+    if extra_env:
+        result.update(extra_env)
+        
     return result
 
 
@@ -198,6 +201,7 @@ async def run_in_sandbox(
     *,
     config: SandboxConfig | None = None,
     cwd: Path | str | None = None,
+    env: dict[str, str] | None = None,
     input_data: bytes | None = None,
 ) -> SandboxResult:
     """在受限环境中执行命令
@@ -206,6 +210,7 @@ async def run_in_sandbox(
         cmd: 命令参数列表
         config: 沙箱配置（默认使用 SandboxConfig()）
         cwd: 工作目录
+        env: 额外的环境变量（强制包含）
         input_data: 传递给进程的标准输入
 
     Returns:
@@ -256,7 +261,7 @@ async def run_in_sandbox(
         sanitized_env = None  # 继承所有环境变量
         logger.info("Sandbox: CI environment detected, inheriting all env vars")
     else:
-        sanitized_env = _sanitize_env(config.env_whitelist)
+        sanitized_env = _sanitize_env(config.env_whitelist, extra_env=env)
 
     # 4. 执行命令
     logger.info(f"Sandbox executing: {' '.join(cmd[:5])}{'...' if len(cmd) > 5 else ''}")

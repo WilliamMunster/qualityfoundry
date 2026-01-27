@@ -191,25 +191,25 @@ def _build_tool_request(
     - 未指定则做简单 heuristic（默认跑 pytest）
     """
     if options:
+        actual_tool_name = options.tool_name
+        args = options.args.copy()
+
+        # 显式映射：将 "playwright" UI 选项映射到 run_pytest 指令
+        if actual_tool_name == "playwright":
+            actual_tool_name = "run_pytest"
+            # 如果未指定测试路径，默认为 tests/ui
+            if "test_path" not in args:
+                args["test_path"] = "tests/ui"
+
         return ToolRequest(
-            tool_name=options.tool_name,
-            args=options.args,
+            tool_name=actual_tool_name,
+            args=args,
             run_id=run_id,
             timeout_s=options.timeout_s,
             dry_run=options.dry_run,
         )
 
-    # 简单启发式：根据 nl_input 关键词决定工具
-    nl_lower = nl_input.lower()
-    if "playwright" in nl_lower or "browser" in nl_lower or "e2e" in nl_lower:
-        return ToolRequest(
-            tool_name="run_playwright",
-            args={},
-            run_id=run_id,
-            timeout_s=300,
-        )
-
-    # 默认：pytest
+    # 简单启发式：默认跑 pytest
     return ToolRequest(
         tool_name="run_pytest",
         args={"test_path": "tests"},
