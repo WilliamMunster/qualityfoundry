@@ -538,6 +538,10 @@ def _collect_artifacts(ctx: ToolExecutionContext, exit_code: int) -> None:
                     atype = ArtifactType.LOG
                 
                 artifact = ArtifactRef.from_file(file_path, atype)
+                # 显式保存相对路径，用于前端展示和证据预览
+                rel_path = file_path.relative_to(artifact_dir)
+                artifact.metadata["rel_path"] = str(rel_path.as_posix())
+                
                 ctx.add_artifact(artifact)
 
     # 2. 解析 JUnit XML 获取统计

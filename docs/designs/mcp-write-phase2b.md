@@ -53,7 +53,6 @@ sandbox:
   image: "mcr.microsoft.com/playwright:v1.40.0-focal"
   network:
     mode: "none"  # Phase 2B-1: 默认禁网
-    # allowlist: Phase 2B-2 可选增强（需 sidecar/代理）
   mounts:
     - source: /work      # 只读代码
       target: /work
@@ -62,10 +61,16 @@ sandbox:
       target: /output
       readonly: false
   resources:
-    memory: 1024m        # 保守默认
+    memory: 1024m
     cpu: 1.0
     timeout_s: 120
 ```
+
+**审计事件 (Audit Events)**:
+- `MCP_CONTAINER_SPAWN`: 记录容器创建时间、镜像、资源限制
+- `MCP_CONTAINER_EXEC`: 记录在容器内执行的具体 playwright 命令
+- `MCP_CONTAINER_CLEANUP`: 记录容器销毁时间、退出状态
+- `MCP_FILE_WRITE`: 记录写入 `/output` 的产物元数据
 
 **输出目录契约**:
 

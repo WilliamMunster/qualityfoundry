@@ -151,18 +151,41 @@ const RunLaunchPage: React.FC = () => {
                                     const tool = getFieldValue('tool_name');
                                     if (tool === 'playwright') {
                                         return (
-                                            <div style={{ marginBottom: 16, padding: '8px 12px', background: '#e6f4ff', borderRadius: 8, border: '1px solid #91caff' }}>
-                                                <Space align="start">
-                                                    <Terminal size={14} className="text-blue-500" style={{ marginTop: 2 }} />
-                                                    <div>
-                                                        <Text strong style={{ fontSize: '14px' }}>模式说明：</Text>
-                                                        <br />
-                                                        <Text type="secondary" style={{ fontSize: '11px' }}>
-                                                            此模式将底层调用 <code>run_pytest</code>，并默认执行 <code>tests/ui</code> 下的测试。
-                                                            截图将自动收集并导出至 1 级产物目录。
+                                            <div style={{ marginBottom: 16 }}>
+                                                <div style={{ padding: '12px', background: '#e6f4ff', borderRadius: 8, border: '1px solid #91caff', marginBottom: 12 }}>
+                                                    <Space align="start" style={{ marginBottom: 8 }}>
+                                                        <Terminal size={14} className="text-blue-500" style={{ marginTop: 2 }} />
+                                                        <Text strong style={{ fontSize: '14px' }}>我会发生什么 (Workflow)</Text>
+                                                    </Space>
+                                                    <div style={{ marginLeft: 22 }}>
+                                                        <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                                                            1. <b>映射</b>：系统自动将请求路由至 <code>run_pytest</code> 工具。
+                                                        </Text>
+                                                        <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                                                            2. <b>执行</b>：在沙箱中运行 <code>tests/ui</code> 下标记为 playwright 的测试。
+                                                        </Text>
+                                                        <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                                                            3. <b>收集</b>：截图将自动从环境变量 <code>QUALITYFOUNDRY_ARTIFACT_DIR/ui</code> 中提取。
+                                                        </Text>
+                                                        <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
+                                                            4. <b>展示</b>：详情页详情页 Evidence 标签页将实时预览截图。
                                                         </Text>
                                                     </div>
-                                                </Space>
+                                                </div>
+
+                                                <div style={{ padding: '12px', background: '#fff7e6', borderRadius: 8, border: '1px solid #ffe58f' }}>
+                                                    <Space align="start" style={{ marginBottom: 4 }}>
+                                                        <ShieldAlert size={14} className="text-amber-500" style={{ marginTop: 2 }} />
+                                                        <Text strong style={{ fontSize: '14px' }}>失败常见原因 (Troubleshooting)</Text>
+                                                    </Space>
+                                                    <div style={{ marginLeft: 22 }}>
+                                                        <ul style={{ paddingLeft: 0, margin: 0, listStyle: 'none' }}>
+                                                            <li><Text type="secondary" style={{ fontSize: '12px' }}>• 环境未安装浏览器 (Playwright Browsers missing)</Text></li>
+                                                            <li><Text type="secondary" style={{ fontSize: '12px' }}>• 测试代码未保存至 <code>qf_artifact_path</code> 目录</Text></li>
+                                                            <li><Text type="secondary" style={{ fontSize: '12px' }}>• 域名不在 Environment 的网络白名单内</Text></li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
                                             </div>
                                         );
                                     }
