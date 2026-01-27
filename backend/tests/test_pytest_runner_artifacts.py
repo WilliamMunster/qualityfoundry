@@ -38,8 +38,8 @@ def test_collect_artifacts_scoping(tmp_path):
     # 执行收集
     _collect_artifacts(ctx, 0)
     
-    # 验证收集结果 (将绝对路径转换为相对路径以方便断言)
-    art_paths = [str(Path(a.path).relative_to(artifact_dir)) for a in ctx.artifacts]
+    # 验证收集结果 (将绝对路径转换为相对路径并统一使用 posix 风格以方便断言)
+    art_paths = [Path(a.path).relative_to(artifact_dir).as_posix() for a in ctx.artifacts]
     
     # 应该包含
     assert "ui/screenshot.png" in art_paths
