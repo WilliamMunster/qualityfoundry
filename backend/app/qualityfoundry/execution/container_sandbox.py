@@ -259,6 +259,12 @@ async def run_in_container(
 
 
 def is_container_mode_available() -> bool:
-    """检查容器模式是否可用（供 policy 逻辑检测）"""
+    """检查容器模式是否可用（供 policy 逻辑检测）
+    
+    目前强隔离容器模式仅在 Linux 下支持。
+    """
+    import sys
+    if sys.platform != "linux":
+        return False
     available, _ = _is_container_runtime_available()
     return available

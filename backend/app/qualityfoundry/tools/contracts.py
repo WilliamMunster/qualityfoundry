@@ -32,6 +32,15 @@ class ArtifactType(str, Enum):
     OTHER = "other"
 
 
+class PlaywrightSkipReason(str, Enum):
+    """Playwright 测试跳过原因标准化枚举"""
+    BROWSER_NOT_INSTALLED = "BROWSER_NOT_INSTALLED"
+    PLAYWRIGHT_E2E_DISABLED = "PLAYWRIGHT_E2E_DISABLED"
+    SANDBOX_DENIED = "SANDBOX_DENIED"
+    POLICY_BLOCKED = "POLICY_BLOCKED"
+    UNKNOWN = "UNKNOWN"
+
+
 class ArtifactRef(BaseModel):
     """产物引用：描述工具执行产生的文件/资源
 

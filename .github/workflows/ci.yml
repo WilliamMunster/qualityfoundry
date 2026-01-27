@@ -154,3 +154,31 @@ jobs:
             --baseline-id ci-baseline \
             --fail-on-regression || true
 
+  # Sandbox Container Mode - required check for L3 strong isolation
+  sandbox-container:
+    name: sandbox-container
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [unit-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend
+        run: |
+          python -m pip install -U pip setuptools wheel
+          python -m pip install -e "./backend[dev]"
+
+      - name: Pre-pull sandbox image
+        run: docker pull python:3.11-slim
+
+      - name: Run container sandbox tests
+        run: |
+          cd backend
+          pytest tests/test_container_sandbox.py -v --tb=short
+

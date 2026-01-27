@@ -176,13 +176,14 @@ const RunLaunchPage: React.FC = () => {
                                                 <div style={{ padding: '12px', background: '#fff7e6', borderRadius: 8, border: '1px solid #ffe58f' }}>
                                                     <Space align="start" style={{ marginBottom: 4 }}>
                                                         <ShieldAlert size={14} className="text-amber-500" style={{ marginTop: 2 }} />
-                                                        <Text strong style={{ fontSize: '14px' }}>失败常见原因 (Troubleshooting)</Text>
+                                                        <Text strong style={{ fontSize: '14px' }}>启动先决条件 (Pre-requisites)</Text>
                                                     </Space>
                                                     <div style={{ marginLeft: 22 }}>
                                                         <ul style={{ paddingLeft: 0, margin: 0, listStyle: 'none' }}>
-                                                            <li><Text type="secondary" style={{ fontSize: '12px' }}>• 环境未安装浏览器 (Playwright Browsers missing)</Text></li>
-                                                            <li><Text type="secondary" style={{ fontSize: '12px' }}>• 测试代码未保存至 <code>qf_artifact_path</code> 目录</Text></li>
-                                                            <li><Text type="secondary" style={{ fontSize: '12px' }}>• 域名不在 Environment 的网络白名单内</Text></li>
+                                                            <li><Text type="secondary" style={{ fontSize: '12px' }}>• <b>开关</b>：环境变量 <code>QF_ENABLE_UI_TESTS=1</code> 已开启</Text></li>
+                                                            <li><Text type="secondary" style={{ fontSize: '12px' }}>• <b>浏览器</b>：Runner 已安装 Playwright Browsers</Text></li>
+                                                            <li><Text type="secondary" style={{ fontSize: '12px' }}>• <b>策略</b>：当前 Governance Policy 允许 <code>run_pytest</code> 操作</Text></li>
+                                                            <li><Text type="secondary" style={{ fontSize: '12px', color: '#d46b08' }}><i>注意：若缺失先决条件，系统将自动记录 Skip 证据以保持审计完整性。</i></Text></li>
                                                         </ul>
                                                     </div>
                                                 </div>
