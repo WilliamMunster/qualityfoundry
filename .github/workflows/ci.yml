@@ -33,6 +33,15 @@ jobs:
         run: |
           ruff check .
 
+      - name: Playwright Status Check
+        shell: pwsh
+        run: |
+          if ($env:PLAYWRIGHT_E2E -eq "1") {
+            Write-Host "✅ PLAYWRIGHT_E2E is enabled"
+          } else {
+            Write-Host "⏭️ PLAYWRIGHT_E2E is disabled (Expected in CI)"
+          }
+
       - name: Unit tests (pytest)
         shell: pwsh
         run: |
