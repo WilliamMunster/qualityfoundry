@@ -177,6 +177,7 @@ cd backend && python -m pytest -q --tb=short
  
 ## 文档历史
 
+| 2026-01-27 | Claude (Antigravity) | 审计标准化 (Option 1) 完成：一致性口径、Playback 跳过诊断映射；Linux CI 容器门禁 (Option 2) 已建立。 |
 | 2026-01-27 | Claude (Antigravity) | Artifact audit 已通用化：pytest + playwright 均覆盖；payload bounded & sanitized (rel_path / samples<=10 / boundary) |
 | 2026-01-26 | Claude (Antigravity) | MCP Phase 2A 速率限制 + Phase 2B 设计文档 v0.2 |
 | 2026-01-26 | Claude (Antigravity) | v0.18: L5 Dashboard P2 完成 (P2-2/3/4) |
