@@ -125,8 +125,8 @@ class PolicyMeta(BaseModel):
 class ReproMetaDTO(BaseModel):
     """可复现性元数据"""
     git_sha: Optional[str] = Field(default=None, description="Git SHA")
-    branch: Optional[str] = Field(default=None, description="分支")
-    dirty: bool = Field(default=False, description="是否有未提交变更")
+    git_branch: Optional[str] = Field(default=None, description="分支")
+    git_dirty: bool = Field(default=False, description="是否有未提交变更")
     deps_fingerprint: Optional[str] = Field(default=None, description="依赖指纹")
 
 
@@ -159,7 +159,6 @@ class SummaryInfo(BaseModel):
     finished_at: Optional[datetime] = Field(default=None, description="结束时间")
     ok: Optional[bool] = Field(default=None, description="是否成功")
     decision: Optional[str] = Field(default=None, description="门禁决策")
-    decision_source: Optional[str] = Field(default=None, description="决策来源")
     tool_count: int = Field(default=0, description="工具调用数量")
 
 
@@ -438,8 +437,8 @@ def get_run_detail(
         if evidence.repro:
             repro_meta = ReproMetaDTO(
                 git_sha=evidence.repro.git_sha,
-                branch=evidence.repro.git_branch,
-                dirty=evidence.repro.git_dirty or False,
+                git_branch=evidence.repro.git_branch,
+                git_dirty=evidence.repro.git_dirty or False,
                 deps_fingerprint=evidence.repro.deps_fingerprint,
             )
         
