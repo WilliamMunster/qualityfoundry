@@ -8,6 +8,7 @@
 """
 
 import pytest
+from qualityfoundry.database.run_event_models import RunEvent  # noqa: F401 - 强制注册
 
 
 @pytest.mark.smoke

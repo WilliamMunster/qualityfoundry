@@ -25,6 +25,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from qualityfoundry.database.config import Base
+from qualityfoundry.database import run_event_models  # noqa: F401 - 强制注册
 
 
 # ============================================================

@@ -1,4 +1,5 @@
 import pytest
+from qualityfoundry.database.run_event_models import RunEvent  # noqa: F401 - 强制注册
 from uuid import uuid4
 from unittest.mock import MagicMock, patch
 from qualityfoundry.tools.runners.pytest_runner import _collect_artifacts
@@ -84,10 +85,19 @@ async def test_run_playwright_triggers_audit(tmp_path):
     # 模拟 run_actions 返回证据 (必须是已存在的物理路径)
     evidence = [MagicMock(screenshot=str(screenshot_file), ok=True, index=0)]
     
-    with patch("qualityfoundry.tools.runners.playwright_tool.run_actions", return_value=(True, evidence, str(trace_file))), \
+    with patch("qualityfoundry.tools.runners.playwright_tool.get_policy") as mock_policy_getter, \
+         patch("qualityfoundry.tools.runners.playwright_tool.run_actions", return_value=(True, evidence, str(trace_file))), \
          patch("qualityfoundry.database.config.SessionLocal"), \
          patch("qualityfoundry.services.audit_service.write_artifact_collected_event") as mock_gen_audit:
         
+        # 确保 policy 满足 Playwright 运行门禁 (container mode)
+        mock_policy = MagicMock()
+        mock_policy.sandbox.enabled = True
+        mock_policy.sandbox.mode = "container"
+        mock_policy.artifact_limits.max_count = 50
+        mock_policy.artifact_limits.max_size_mb = 10
+        mock_policy_getter.return_value = mock_policy
+
         # 注入 mock artifact_dir
         with patch("qualityfoundry.tools.base.get_artifact_dir", return_value=artifact_dir):
             await run_playwright(request)

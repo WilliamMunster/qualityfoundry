@@ -96,8 +96,8 @@ class TestSandboxEnforcement:
 
     @pytest.mark.asyncio
     async def test_non_sandboxable_tools_not_in_constant(self):
-        """run_playwright 不在 SANDBOXABLE_TOOLS 中"""
-        assert "run_playwright" not in SANDBOXABLE_TOOLS
+        """fetch_logs 不在 SANDBOXABLE_TOOLS 中"""
+        assert "run_playwright" in SANDBOXABLE_TOOLS
         assert "fetch_logs" not in SANDBOXABLE_TOOLS
 
     @pytest.mark.asyncio
@@ -161,7 +161,7 @@ class TestSandboxEnforcement:
         registry = ToolRegistry()
         call_args = []
 
-        async def mock_playwright(request):
+        async def mock_playwright(request, *, sandbox_config=None, sandbox_mode="subprocess", container_config=None):
             call_args.append(("request", request))
             return ToolResult.success()
 

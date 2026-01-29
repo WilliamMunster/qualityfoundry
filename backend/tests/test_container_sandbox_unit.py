@@ -30,7 +30,7 @@ class TestContainerSandboxConfig:
         assert config.memory_mb == 512
         assert config.cpus == 1.0
         assert config.pids_limit == 100
-        assert config.network_disabled is True
+        assert config.network_policy == "deny"
         assert config.readonly_workspace is True
 
     def test_custom_config(self):
@@ -39,13 +39,13 @@ class TestContainerSandboxConfig:
             timeout_s=60,
             memory_mb=1024,
             cpus=2.0,
-            network_disabled=False,
+            network_policy="all",
         )
         assert config.image == "python:3.12"
         assert config.timeout_s == 60
         assert config.memory_mb == 1024
         assert config.cpus == 2.0
-        assert config.network_disabled is False
+        assert config.network_policy == "all"
 
 
 class TestContainerSandboxResult:
