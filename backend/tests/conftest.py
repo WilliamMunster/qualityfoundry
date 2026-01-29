@@ -34,6 +34,16 @@ def override_get_db():
         db.close()
 
 
+@pytest.fixture
+def db():
+    """提供数据库会话"""
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 # 创建 Mock Admin 用户（用于测试）
 MOCK_ADMIN_USER = User(
     id=uuid4(),
