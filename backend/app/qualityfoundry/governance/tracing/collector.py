@@ -2,20 +2,7 @@
 
 将执行结果汇总为 evidence.json，作为证据链的单一事实来源。
 
-Evidence 结构:
-{
-  "run_id": "uuid",
-  "input_nl": "自然语言输入",
-  "environment": {"base_url": "...", "headless": true},
-  "tool_calls": [
-    {"tool_name": "run_pytest", "status": "success", "duration_ms": 1234, "exit_code": 0}
-  ],
-  "artifacts": [
-    {"type": "junit_xml", "path": "run_id/tools/run_pytest/junit.xml", ...}
-  ],
-  "summary": {"tests": 5, "failures": 0, "errors": 0, "skipped": 0, "time": 2.34},
-  "collected_at": "2024-01-01T00:00:00Z"
-}
+Evidence Schema: https://qualityfoundry.ai/schemas/evidence.v1.schema.json
 """
 
 from __future__ import annotations
@@ -31,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from qualityfoundry.governance.repro import ReproMeta, get_repro_meta
 from qualityfoundry.governance.tracing.junit_parser import JUnitSummary, parse_junit_xml
+from qualityfoundry.schemas import EVIDENCE_SCHEMA_V1
 from qualityfoundry.tools.base import make_relative_path
 from qualityfoundry.tools.config import get_artifacts_root
 from qualityfoundry.tools.contracts import ArtifactType, ToolResult
@@ -120,7 +108,10 @@ class GovernanceEvidence(BaseModel):
 
 
 class Evidence(BaseModel):
-    """完整证据结构"""
+    """完整证据结构
+    
+    Schema: https://qualityfoundry.ai/schemas/evidence.v1.schema.json
+    """
     model_config = ConfigDict(extra="forbid")
 
     run_id: str
@@ -132,15 +123,23 @@ class Evidence(BaseModel):
     repro: ReproMeta | None = None
     governance: GovernanceEvidence | None = None
     collected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    schema_ref: str = Field(default=EVIDENCE_SCHEMA_V1.schema_uri, alias="$schema")
+    
+    # Schema 版本标识
+    @property
+    def schema_uri(self) -> str:
+        return EVIDENCE_SCHEMA_V1.schema_uri
+    
+    @property
+    def schema_version(self) -> str:
+        return EVIDENCE_SCHEMA_V1.version
 
     def model_dump_json_for_file(self) -> str:
-        """导出为 JSON 字符串（用于写文件）"""
-        data = self.model_dump(mode="json")
-        # 格式化 collected_at
-        if isinstance(data.get("collected_at"), str):
-            pass  # 已经是字符串
-        elif data.get("collected_at"):
-            data["collected_at"] = data["collected_at"].isoformat()
+        """导出为 JSON 字符串（用于写文件）
+        
+        自动使用 alias 以包含 $schema。
+        """
+        data = self.model_dump(mode="json", by_alias=True)
         return json.dumps(data, indent=2, ensure_ascii=False)
 
 
@@ -216,6 +215,14 @@ class TraceCollector:
             artifacts=all_artifacts,
             summary=summary,
             repro=repro,
+            governance=GovernanceEvidence(
+                budget={
+                    "elapsed_ms_total": sum(tc.duration_ms for tc in tool_calls),
+                    "attempts_total": len(tool_calls),
+                    "retries_used_total": 0,  # TODO: 从 ToolResult 提取
+                },
+                short_circuited=False,
+            )
         )
 
     def _generate_summary(self, junit_paths: list[Path]) -> EvidenceSummary:

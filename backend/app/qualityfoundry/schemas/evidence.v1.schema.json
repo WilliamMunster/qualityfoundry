@@ -1,0 +1,393 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qualityfoundry.ai/schemas/evidence.v1.schema.json",
+  "title": "QualityFoundry Evidence Schema v1",
+  "description": "证据链标准格式，用于运行结果的可校验、可追溯、可复现存储",
+  "version": "1.0.0",
+  "type": "object",
+  "required": [
+    "run_id",
+    "input_nl",
+    "environment",
+    "tool_calls",
+    "artifacts",
+    "summary",
+    "repro",
+    "governance",
+    "collected_at",
+    "$schema"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://qualityfoundry.ai/schemas/evidence.v1.schema.json",
+      "description": "Schema URI，用于版本校验"
+    },
+    "run_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "运行唯一标识符 (UUID v4)"
+    },
+    "input_nl": {
+      "type": "string",
+      "minLength": 1,
+      "description": "用户原始自然语言输入"
+    },
+    "environment": {
+      "type": "object",
+      "description": "运行环境配置",
+      "properties": {
+        "environment_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid",
+          "description": "环境配置ID"
+        },
+        "base_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri",
+          "description": "目标服务基础URL"
+        },
+        "headless": {
+          "type": "boolean",
+          "description": "是否无头模式运行"
+        }
+      },
+      "additionalProperties": true
+    },
+    "tool_calls": {
+      "type": "array",
+      "description": "工具调用记录列表",
+      "items": {
+        "type": "object",
+        "required": [
+          "tool_name",
+          "status",
+          "duration_ms"
+        ],
+        "properties": {
+          "tool_name": {
+            "type": "string",
+            "enum": [
+              "run_pytest",
+              "run_playwright",
+              "run_shell"
+            ],
+            "description": "调用的工具名称"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failed",
+              "timeout",
+              "skipped"
+            ],
+            "description": "工具执行状态"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "执行耗时（毫秒）"
+          },
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "进程退出码"
+          },
+          "steps_total": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "总步骤数"
+          },
+          "steps_passed": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "通过步骤数"
+          },
+          "steps_failed": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "失败步骤数"
+          },
+          "error_message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "description": "错误信息摘要（截断）"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "description": "产物文件清单",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "path"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "junit_xml",
+              "screenshot",
+              "trace",
+              "log",
+              "video",
+              "har",
+              "stdout",
+              "stderr"
+            ],
+            "description": "产物类型"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^[a-f0-9\\-]+/.+$",
+            "description": "相对路径（格式: {run_id}/...），禁止绝对路径"
+          },
+          "size": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "文件大小（字节）"
+          },
+          "mime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "MIME类型"
+          },
+          "rel_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "标准化相对路径（去敏感化）"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "object",
+      "description": "执行结果摘要",
+      "required": [
+        "tests",
+        "failures",
+        "errors",
+        "skipped",
+        "time"
+      ],
+      "properties": {
+        "tests": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "总测试数"
+        },
+        "failures": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "失败数"
+        },
+        "errors": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "错误数"
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "跳过数"
+        },
+        "time": {
+          "type": "number",
+          "minimum": 0,
+          "description": "总耗时（秒）"
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "通过数（计算字段）"
+        }
+      },
+      "additionalProperties": true
+    },
+    "repro": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "可复现性元数据",
+      "required": [
+        "git_sha",
+        "git_branch",
+        "git_dirty",
+        "deps_fingerprint"
+      ],
+      "properties": {
+        "git_sha": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{7,40}$",
+          "description": "Git commit SHA"
+        },
+        "git_branch": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Git分支名"
+        },
+        "git_dirty": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "是否有未提交变更"
+        },
+        "python_version": {
+          "type": "string",
+          "description": "Python 版本 (e.g., '3.11.0')"
+        },
+        "platform_info": {
+          "type": "string",
+          "description": "平台信息 (e.g., 'darwin-arm64')"
+        },
+        "deps_fingerprint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "依赖指纹（SHA256）"
+        },
+        "deps_fingerprint_algo": {
+          "type": "string",
+          "description": "依赖指纹算法"
+        },
+        "deps_source": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "依赖来源文件"
+        }
+      },
+      "additionalProperties": false
+    },
+    "governance": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "成本治理与决策元数据",
+      "required": [
+        "budget",
+        "short_circuited"
+      ],
+      "properties": {
+        "budget": {
+          "type": "object",
+          "required": [
+            "elapsed_ms_total",
+            "attempts_total",
+            "retries_used_total"
+          ],
+          "properties": {
+            "elapsed_ms_total": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "累计耗时（毫秒）"
+            },
+            "attempts_total": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "尝试次数"
+            },
+            "retries_used_total": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "重试次数"
+            }
+          }
+        },
+        "policy_limits": {
+          "type": "object",
+          "properties": {
+            "timeout_s": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "策略超时（秒）"
+            },
+            "max_retries": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "策略最大重试"
+            }
+          }
+        },
+        "short_circuited": {
+          "type": "boolean",
+          "description": "是否被提前熔断"
+        },
+        "short_circuit_reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "budget_elapsed_exceeded",
+            "budget_attempts_exceeded",
+            "policy_blocked",
+            null
+          ],
+          "description": "熔断原因"
+        },
+        "decision_source": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "gate_evaluator",
+            "governance_short_circuit",
+            null
+          ],
+          "description": "决策来源"
+        }
+      },
+      "additionalProperties": false
+    },
+    "collected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "证据收集时间（ISO 8601 UTC）"
+    }
+  },
+  "additionalProperties": false
+}
