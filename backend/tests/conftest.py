@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from qualityfoundry.database.config import Base, get_db
-from qualityfoundry.database import *  # noqa: F401 - 注册所有模型
+from qualityfoundry.database import *  # noqa: F401, F403 - 注册所有模型
 from qualityfoundry.database.user_models import User, UserRole
 from qualityfoundry.api.deps.auth_deps import get_current_user
 from qualityfoundry.main import app
