@@ -4,7 +4,7 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
-> **最新版本**: `v0.19-audit-solidification` (`main@39d3c24`) — 审计闭环 + CI 容器门禁 + Playwright 观测
+> **最新版本**: `v0.20-realtime-hardened` (`main@c38a7e3`) — 实时事件流 (Dashboard P3) + 容器硬隔离 (MCP Phase 2B)
 >
 > **进度基线**: 详见 [docs/status/progress_baseline.md](docs/status/progress_baseline.md)
 
@@ -21,15 +21,15 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 |-------|------|----------------|
 | **L1** | Policy (规则与门禁) | ✅ 完成 |
 | **L2** | Orchestration (编排层) | ✅ 完成 (UUID runs 主路径) |
-| **L3** | Execution (执行层) | ✅ 完成 (subprocess 默认 + container 可选; 不可用则拒绝审计) |
-| **L4** | Protocol (MCP) | ✅ 完成 (read-only + write: run_pytest 仅受控写) |
-| **L5** | Governance & Evals | ✅ 完成 (cost governance + golden regression + 审计闭环 + 证据覆盖) |
+| **L3** | Execution (执行层) | ✅ 完成 (subprocess 默认 + container 强隔离; Playwright 强制容器化) |
+| **L4** | Protocol (MCP) | ✅ 完成 (read-only + write: run_pytest/run_playwright 受控安全路径) |
+| **L5** | Governance & Evals | ✅ 完成 (cost governance + golden regression + 审计闭环 + 实时事件流 P3) |
 
 - **L1 规则与门禁层 (Policy)**：定义 `policy_config.yaml`、风险分级与发布门禁。
 - **L2 编排层 (Orchestration)**：LangGraph 状态机执行，UUID runs 主路径：启动→查看→下载证据→审计链。
-- **L3 执行层 (Execution)**：集成 Playwright、Pytest 等工具，支持 subprocess 默认沙箱与 L3 Container 强隔离沙箱。
-- **L4 接口层 (Protocol)**：MCP Client 调用外部服务，MCP Server 支持只读工具 + 受控写工具（仅限 run_pytest），具备完整安全链（认证→权限→速率限制→策略→沙箱）。
-- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、成本治理（timeout/budget）已落地；Dashboard P2 已上线，含证据覆盖卡片与产物审计闭环。
+- **L3 执行层 (Execution)**：集成 Playwright、Pytest 等工具，支持 subprocess 默认沙箱与 L3 Container 强隔离沙箱。**v0.20 实现了 Playwright 的容器化强制准入与资源限制。**
+- **L4 接口层 (Protocol)**：MCP Client 调用外部服务，MCP Server 支持只读工具 + 受控写工具（run_pytest/run_playwright）。具备完整安全链（认证→权限→速率限制→策略→沙箱）。
+- **L5 治理与评测层 (Governance & Evals)**：Golden Datasets 回归、成本治理（timeout/budget）已落地；**Dashboard P3 实时推送已上线，支持 SSE 事件流与运行详情同步。**
 
 > **⚠️ 存量声明 (Legacy Notice)**: 
 > 原 `run_<TS>` 系列端点已 deprecated，转为只读。主入口请统一使用 `/api/v1/orchestrations/runs`。
@@ -37,7 +37,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 
 ---
 
-## 当前状态 (main@HEAD)
+## 当前状态 (main@e88de80)
 
 ### Completed Features (Verified)
 - ✅ **需求/场景/用例管理**：支持从 NL 需求到场景、用例的全链路生成与审核，支持自动补全 `seq_id`
@@ -53,11 +53,10 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - ✅ **审计日志 (PR-C)**：完整的操作审计，记录工具执行与决策事件
 - ✅ **Premium UI 前端**：AI 工作区前端重构，支持编排可视化与运行管理
 - ✅ **L3 沙箱执行 (PR-B)**：进程隔离沙箱，policy 驱动的超时/路径/命令/环境变量控制
-- ✅ **L4 MCP Write Security (Phase 1)**：`run_pytest` 写能力 + 安全链（auth→perm→policy→sandbox），25 项安全测试
-- ✅ **L4 MCP Rate Limiting (Phase 2A)**：并发限制 + token bucket 速率限制 + 每日配额，错误码 -32008/-32009，13 项测试
-- ✅ **产物审计闭环 (v0.19)**：`artifact_collected` 事件通用化，支持 pytest + playwright，含 10 样本截断策略
-- ✅ **Dashboard 证据覆盖卡片 (v0.19)**：`EvidenceCoverageCard` 展示全局证据覆盖率与爆发风险预警
-- ✅ **Playwright 观测能力 (v0.19)**：`PlaywrightSkipReason` 标准枚举 + 前端诊断提示映射
+- ✅ **L4 MCP Write Security (Phase 1/2A)**：`run_pytest` 安全链 + 速率限制（auth→perm→rate_limit→policy→sandbox）
+- ✅ **产物审计与限额 (v0.20)**：`artifact_collected` 通用化 + `max_artifact_count/size` 熔断机制
+- ✅ **Dashboard P3 实时事件 (v0.20)**：SSE 端点实时推送任务状态，支持 `Last-Event-ID` 补发
+- ✅ **MCP Phase 2B 容器硬隔离 (v0.20)**：Playwright 强制容器模式 + 容器网络策略 (`deny`/`allowlist`)
 - ✅ **Linux CI 容器门禁 (v0.19)**：`sandbox-container` 任务确保 L3 强隔离持续验证
 
 ### Partial / In Progress
@@ -65,8 +64,8 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - 🟡 **角色权限**：UserRole 模型存在，RBAC 通过 MCP 安全链强制执行
 
 ### Not Started
-- 🔴 **MCP Write Phase 2B**：`run_playwright`、`run_shell` 等高危工具（设计文档 v0.2 已完成，实现待定）
-- 🔴 **L5 Dashboard P3**：实时推送 / webhook 通知 / 多租户
+- 🔴 **MCP Write Phase 3**：`run_shell` (极高危，目前处于 HARD BLOCK 拦截状态)
+- 🔴 **多租户支持**：后端数据库结构适配
 
 ---
 
@@ -250,16 +249,16 @@ MIT License
 
 ## 更新日志
 
-### V0.19 (2026-01-27)
+### V0.20 (2026-01-29)
 
-**审计闭环与 CI 容器门禁 (Audit Solidification & CI Gate)**
+**实时事件流与沙箱硬隔离 (Real-time Events & Sandbox Hardening)**
 
-- ✅ **产物审计通用化**：`artifact_collected` 事件现已覆盖 pytest + playwright，支持 `rel_path` 存储与 10 样本截断
-- ✅ **Dashboard 证据卡片**：新增 `EvidenceCoverageCard` 展示全局证据覆盖率与爆发风险
-- ✅ **Playwright 观测能力**：`PlaywrightSkipReason` 标准枚举 + 前端诊断提示
-- ✅ **Linux CI 容器门禁**：`sandbox-container` 任务集成 Docker 隔离验证，确保 L3 强隔离不回退
-- ✅ **lifespan 迁移**：`main.py` 启动逻辑现代化，消除 FastAPI 弃用警告
-- ✅ **测试稳定性**：`conftest.py` 依赖隔离 + API 单测 Fixture 规范化
+- ✅ **Dashboard P3 实时事件**：实现 `/api/v1/orchestrations/runs/{run_id}/events` SSE 端点，支持 `run.started`、`run.finished`、`run.decided` 实时推送与 `Last-Event-ID` 补发。
+- ✅ **MCP Phase 2B 容器硬隔离**：在 `playwright_tool.py` 中强制执行容器化执行门禁，拒绝非容器模式运行 Playwright 任务。
+- ✅ **产物熔断机制**：在 `ToolExecutionContext` 中实现 `max_artifact_count` (50) 与 `max_artifact_size_mb` (10MB) 强制熔断，防止资源泄露与过载。
+- ✅ **容器网络隔离**：`ContainerSandboxConfig` 支持 `deny`、`allowlist`、`all` 网络策略，并正确映射至 Docker `--network=none`。
+- ✅ **审计优化**：`run_events` 表纳入 Alembic 迁移管理 (Revision: `4d080a35a5a2`)，移除启动脚本中的手动建表逻辑。
+- ✅ **合规性固化**：通过 Ruff 全量静态检查并补充验证测试 `test_run_events.py` 与 `test_sandbox_hardening.py`。
 
 ### V0.14.1 (2026-01-25)
 

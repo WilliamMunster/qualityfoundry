@@ -35,6 +35,7 @@ from qualityfoundry.tools.contracts import (
     ToolRequest,
     ToolResult,
 )
+from qualityfoundry.governance import get_policy
 
 if TYPE_CHECKING:
     from qualityfoundry.execution.sandbox import SandboxConfig, SandboxResult
@@ -308,7 +309,14 @@ async def run_pytest(
     Returns:
         ToolResult: 统一的执行结果，artifacts 包含 junit.xml
     """
-    async with ToolExecutionContext(request) as ctx:
+    policy = get_policy()
+    limits = policy.artifact_limits
+
+    async with ToolExecutionContext(
+        request,
+        max_artifact_count=limits.max_count,
+        max_artifact_size_mb=limits.max_size_mb
+    ) as ctx:
         try:
             args = request.args
 

@@ -18,7 +18,9 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import func
 
-from fastapi import APIRouter, Depends, HTTPException
+import asyncio
+from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi.responses import StreamingResponse
 from qualityfoundry.api.deps.auth_deps import get_current_user, RequireOrchestrationRun, RequireOrchestrationRead
 from qualityfoundry.database.user_models import User, UserRole
 from pydantic import BaseModel, Field
@@ -36,6 +38,7 @@ from qualityfoundry.governance import (
 from qualityfoundry.services.approval_service import ApprovalService
 from qualityfoundry.tools import ToolRequest, ToolResult, ToolStatus
 from qualityfoundry.tools.registry import get_registry, ToolNotFoundError
+from qualityfoundry.services.event_service import EventService
 
 # 导入 runners 模块以自动注册工具
 import qualityfoundry.tools.runners  # noqa: F401
@@ -364,6 +367,60 @@ def list_runs(
     )
 
 
+@router.get("/runs/{run_id}/events")
+async def stream_run_events(
+    run_id: UUID,
+    last_event_id: Optional[str] = Header(None, alias="Last-Event-ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(RequireOrchestrationRead),
+):
+    """
+    SSE 事件流 (Dashboard P3 MVP)。
+    
+    支持 Last-Event-ID 补发历史事件。
+    """
+    async def event_generator():
+        service = EventService(db)
+        
+        # 记录已发送的事件 ID，避免重复
+        sent_ids = set()
+        
+        # 1. 补发历史事件
+        history = service.get_events(run_id, last_event_id)
+        for event in history:
+            yield f"id: {event.id}\nevent: {event.event_type}\ndata: {event.data or '{}'}\n\n"
+            sent_ids.add(str(event.id))
+        
+        # 2. 持续循环监听新事件 (MVP 简易实现：持续轮询 DB)
+        try:
+            while True:
+                # 检查最新事件
+                all_events = service.get_events(run_id)
+                new_events = [e for e in all_events if str(e.id) not in sent_ids]
+                
+                for event in new_events:
+                    yield f"id: {event.id}\nevent: {event.event_type}\ndata: {event.data or '{}'}\n\n"
+                    sent_ids.add(str(event.id))
+
+                # 如果 run 已经结束，且没有新事件，则退出循环
+                from qualityfoundry.database.audit_log_models import AuditLog, AuditEventType
+                is_decided = db.query(AuditLog).filter(
+                    AuditLog.run_id == run_id,
+                    AuditLog.event_type == AuditEventType.DECISION_MADE
+                ).first()
+                
+                if is_decided and not new_events:
+                    break
+                
+                # 每秒轮询一次新事件
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            # 客户端断开连接
+            pass
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 @router.get("/runs/{run_id}", response_model=RunDetail)
 def get_run_detail(
     run_id: UUID,
@@ -520,6 +577,8 @@ async def run_orchestration(
     """
     # 1. Generate run_id
     run_id = uuid4()
+    event_service = EventService(db)
+    event_service.emit_event(run_id, "run.started", {"nl_input": req.nl_input})
 
     # 2. Build tool request
     tool_request = _build_tool_request(run_id, req.nl_input, req.options)
@@ -563,6 +622,7 @@ async def run_orchestration(
 
     # Save evidence to file
     collector.save(evidence)
+    event_service.emit_event(run_id, "run.finished")
 
     # 5. Gate decision
     gate_result = evaluate_gate_with_hitl(evidence)
@@ -578,6 +638,7 @@ async def run_orchestration(
         actor="orchestrator",
         details={"reason": gate_result.reason},
     )
+    event_service.emit_event(run_id, "run.decided", {"decision": gate_result.decision.value})
 
     # 6. Create approval if NEED_HITL
     approval_id = None

@@ -1,8 +1,8 @@
 # QualityFoundry 进度基线
 
-> **版本锚点**: `main@39d3c24` (2026-01-27)
-> **最后验证**: 2026-01-27
-> **Git 标签**: `v0.19-audit-solidification`
+> **版本锚点**: `main@c38a7e3` (2026-01-29)
+> **最后验证**: 2026-01-29
+> **Git 标签**: `v0.20-realtime-hardened`
 > **验证方式**: `ruff check` + `pytest -q --tb=short` + `npm run build`
 
 本文档是项目进度的**唯一真实来源**。所有声明均可通过下文命令验证。
@@ -35,14 +35,17 @@
 | **L2** | 重试/短路 | ✅ | — | `GovernanceBudget` + 条件边 |
 | **L3** | 工具契约 + 注册表 | ✅ | — | `tools/contracts.py`, `tools/registry.py` |
 | **L3** | 沙箱 (subprocess) | ✅ | — | `execution/sandbox.py` (319 行) |
-| **L3** | 容器沙箱 (run_pytest) | ✅ | — | `execution/container_sandbox.py` (265 行) |
-| **L3** | 策略驱动沙箱 | ✅ | — | 12+ 集成测试通过 |
+| **L3** | 容器沙箱 (run_pytest/playwright) | ✅ | — | `execution/container_sandbox.py` (265 行) |
+| **L3** | Playwright 强制容器化 | ✅ | — | `playwright_tool.py` 安全门禁通过 |
+| **L3** | 产物熔断 (Count/Size) | ✅ | — | `ToolExecutionContext` 熔断验证 |
+| **L3** | 策略驱动沙箱 | ✅ | — | 15+ 集成测试通过 (含网络隔离设计) |
 | **L4** | MCP 客户端 | ✅ | — | `protocol/mcp/client.py` |
 | **L4** | MCP 服务端 (write: run_pytest) | ✅ | — | `server.py` + `errors.py` + 25 测试 |
 | **L4** | MCP 速率限制 (Phase 2A) | ✅ | — | `rate_limiter.py` + 13 测试 (-32008/-32009) |
 | **L5** | 黄金数据集 | ✅ | — | `governance/golden/dataset.yaml` (5 用例) |
 | **L5** | 回归 CLI | ✅ | — | `python -m qualityfoundry.governance.evals` |
 | **L5** | 证据聚合 | ✅ | — | `evidence.json` 含 policy/repro/governance |
+| **L5** | Dashboard P3 (Real-time) | ✅ | — | SSE streaming + RunEvent model (`4d080a35a5a2`) |
 | **L5** | Dashboard P2 | ✅ | — | timeseries + filters + policy diff + risk card + csv + anomaly + contract guards |
 
 ---
@@ -90,14 +93,12 @@ NL → Plan → (HITL) → Execute → Evidence → Judgment
 
 ## 关键缺口 (待办优先级)
 
-### P0 — 收口项（本周可完成）
+### P1 — 能力跃迁
 
 | 项目 | 描述 | 状态 |
 |------|------|------|
-| **L4 MCP Write 安全 Phase 1** | `run_pytest` 写能力 + 安全链 (auth→perm→policy→sandbox) | ✅ 25 测试 |
-| **前端 Run Center 验收** | UUID orchestration runs 主路径：启动→查看→下载证据→审计链 | 1-2d |
-
-### P1 — 能力跃迁
+| **L4 MCP Write Phase 2B** | `run_playwright` (Container-only) | ✅ v0.20 已发布 |
+| **L4 MCP Write Phase 3** | `run_shell` (高危工具硬拦截) | 🔴 设计已锁定，HARD BLOCK |
 
 | 项目 | 描述 | 工作量 |
 |------|------|--------|
