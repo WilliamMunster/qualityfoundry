@@ -217,7 +217,7 @@ def get_latest_artifact_audit(db: Session, run_id: UUID) -> dict | None:
             AuditLog.run_id == run_id,
             AuditLog.event_type == AuditEventType.ARTIFACT_COLLECTED,
         )
-        .order_by(AuditLog.ts.desc())
+        .order_by(AuditLog.ts.desc(), AuditLog.id.desc())
         .first()
     )
     if event and event.details:

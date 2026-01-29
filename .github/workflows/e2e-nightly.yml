@@ -171,6 +171,20 @@ jobs:
           kill $FRONTEND_PID 2>/dev/null || true
           echo "Cleanup complete"
 
+      # ========== 11. 生成运行报告摘要 ==========
+      - name: Generate Job Summary
+        if: always()
+        run: |
+          echo "### 🚀 E2E Nightly Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | ${{ job.status == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit SHA** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Workflow Run** | [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the **Artifacts** section for \`evidence.json\` and Playwright reports." >> $GITHUB_STEP_SUMMARY
+
   # ========== 测试结果通知 ==========
   notify:
     name: Notify test results

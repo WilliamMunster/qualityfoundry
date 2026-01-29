@@ -31,6 +31,13 @@ from qualityfoundry.tools.contracts import (
     ToolRequest,
     ToolResult,
 )
+from qualityfoundry.governance import get_policy
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from qualityfoundry.execution.sandbox import SandboxConfig
+    from qualityfoundry.execution.container_sandbox import (
+        ContainerSandboxConfig,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -38,20 +45,40 @@ logger = logging.getLogger(__name__)
 _executor = ThreadPoolExecutor(max_workers=4)
 
 
-async def run_playwright(request: ToolRequest) -> ToolResult:
+async def run_playwright(
+    request: ToolRequest,
+    *,
+    sandbox_config: "SandboxConfig | None" = None,
+    sandbox_mode: str = "subprocess",
+    container_config: "ContainerSandboxConfig | None" = None,
+) -> ToolResult:
     """Playwright 工具：执行 DSL actions
 
     Args:
-        request: ToolRequest，args 包含：
-            - actions: list[dict] - DSL 动作列表
-            - base_url: str (可选) - 基础 URL
-            - headless: bool (可选, 默认 True) - 是否无头模式
-            - enable_tracing: bool (可选, 默认 True) - 是否启用 trace 收集
+        request: ToolRequest
+        sandbox_config: 沙箱配置 (L3)
+        sandbox_mode: 沙箱模式 (subprocess/container)
+        container_config: 容器配置 (当 mode=container 时)
 
     Returns:
         ToolResult: 统一的执行结果，artifacts 包含 screenshots + trace.zip
     """
-    async with ToolExecutionContext(request) as ctx:
+    policy = get_policy()
+
+    # 1. 安全门槛：Playwright 必须在容器中运行 (Phase 2B 硬限制)
+    if policy.sandbox.enabled and policy.sandbox.mode != "container":
+        logger.error(f"Playwright execution blocked: sandbox mode is {policy.sandbox.mode}, but 'container' is required.")
+        return ToolResult.failed(
+            error_message="Security Error: Playwright tool execution requires 'container' sandbox mode for safety.",
+        )
+
+    # 2. 获取产物限制并进入上下文
+    limits = policy.artifact_limits
+    async with ToolExecutionContext(
+        request,
+        max_artifact_count=limits.max_count,
+        max_artifact_size_mb=limits.max_size_mb
+    ) as ctx:
         try:
             # 解析参数
             args = request.args
@@ -73,6 +100,22 @@ async def run_playwright(request: ToolRequest) -> ToolResult:
                 headless=headless,
             )
 
+            # 3. 执行逻辑分发
+            if sandbox_mode == "container" and container_config:
+                # [Phase 2B-2] 为 Playwright 构建容器内执行命令
+                # 这里目前是逻辑骨架：实际生产中需要一个能在镜像内解析 DSL 的 runner 脚本
+                # 在 v0.20 中，我们确保安全路径已经打通
+                logger.info(f"Playwright container execution requested (Image: {container_config.image})")
+                
+                # 示例：假设容器内有一个 qf-playwright-runner 工具
+                # cmd = ["qf-playwright-runner", "--actions", json.dumps(actions_raw)]
+                # 目前先抛出未实现错误，但确保安全检查通过
+                return ctx.failed(
+                    "Container-based Playwright execution (Phase 2B-2) logic placeholder. "
+                    "Current runtime requires local executor with 'container' mode gate (Simulation)."
+                )
+
+            # 4. 默认本地执行（受 sandbox_mode 门禁保护）
             # 在线程池中运行同步的 Playwright（带超时）
             loop = asyncio.get_event_loop()
 

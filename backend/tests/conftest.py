@@ -9,19 +9,19 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from qualityfoundry.database.config import Base, get_db
-from qualityfoundry.database import models  # noqa: F401 - 注册主模型
-from qualityfoundry.database import user_models  # noqa: F401 - 注册用户模型
-from qualityfoundry.database import ai_config_models  # noqa: F401 - 注册 AI 配置模型
-from qualityfoundry.database import system_config_models  # noqa: F401 - 注册系统配置模型
-from qualityfoundry.database import audit_log_models  # noqa: F401 - 注册审计日志模型
-from qualityfoundry.database import token_models  # noqa: F401 - 注册 Token 模型
+from qualityfoundry.database import *  # noqa: F401, F403 - 注册所有模型
 from qualityfoundry.database.user_models import User, UserRole
 from qualityfoundry.api.deps.auth_deps import get_current_user
 from qualityfoundry.main import app
+from sqlalchemy.pool import StaticPool
 
-# 使用文件数据库进行测试（内存数据库有连接隔离问题）
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# 使用内存数据库进行测试，使用 StaticPool 保证连接共享同一内存空间
+SQLALCHEMY_DATABASE_URL = "sqlite://"
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, 
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -69,16 +69,15 @@ app.dependency_overrides[get_current_user] = override_get_current_user
 @pytest.fixture(autouse=True)
 def apply_overrides():
     """每个测试自动应用依赖覆盖，并在结束后清理"""
-    # 先保存原始状态（如果需要）
+    # 先保存原始状态
     old_overrides = app.dependency_overrides.copy()
     
-    # 强制重新设置覆盖（防止被其他测试清理）
+    # 强制重新设置覆盖
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
     
     yield
     
-    # 恢复状态，但不建议直接 clear()，因为可能影响并行
     app.dependency_overrides = old_overrides
 
 

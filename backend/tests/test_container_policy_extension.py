@@ -33,7 +33,7 @@ class TestPolicyLoaderContainerFields:
         """ContainerPolicy 有稳定默认值"""
         container = ContainerPolicy()
         assert container.image == "python:3.11-slim"
-        assert container.network_disabled is True
+        assert container.network_policy == "deny"
 
     def test_sandbox_policy_includes_container(self):
         """SandboxPolicy 包含 container 子配置"""
@@ -58,12 +58,12 @@ sandbox:
   mode: container
   container:
     image: "python:3.12-alpine"
-    network_disabled: false
+    network_policy: all
 """)
         config = load_policy(policy_file)
         assert config.sandbox.mode == "container"
         assert config.sandbox.container.image == "python:3.12-alpine"
-        assert config.sandbox.container.network_disabled is False
+        assert config.sandbox.container.network_policy == "all"
 
     def test_load_policy_without_container_uses_defaults(self, tmp_path: Path):
         """无 container 段时使用默认值"""

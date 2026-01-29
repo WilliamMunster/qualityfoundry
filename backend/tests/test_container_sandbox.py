@@ -41,7 +41,7 @@ class TestContainerSandbox:
     @pytest.mark.asyncio
     async def test_network_isolation(self, tmp_path):
         """测试禁网 (--network none)"""
-        config = ContainerSandboxConfig(image="python:3.11-slim", timeout_s=30, network_disabled=True)
+        config = ContainerSandboxConfig(image="python:3.11-slim", timeout_s=30, network_policy="deny")
         workspace = tmp_path / "workspace"
         workspace.mkdir()
         output = tmp_path / "output"
