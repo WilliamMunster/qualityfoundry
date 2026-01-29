@@ -198,6 +198,8 @@ class ToolExecutionContext:
         self,
         request: ToolRequest,
         artifact_root: Path | None = None,
+        max_artifact_count: int = 50,
+        max_artifact_size_mb: int = 10,
     ):
         self.request = request
         self.artifact_root = artifact_root or get_artifacts_root()
@@ -206,6 +208,8 @@ class ToolExecutionContext:
         self._started_at: datetime | None = None
         self._ended_at: datetime | None = None
         self._metrics = ToolMetrics()
+        self.max_artifact_count = max_artifact_count
+        self.max_artifact_size_mb = max_artifact_size_mb
 
     @property
     def artifact_dir(self) -> Path:
@@ -246,7 +250,22 @@ class ToolExecutionContext:
         return False  # 不抑制异常
 
     def add_artifact(self, artifact: ArtifactRef) -> None:
-        """添加 artifact"""
+        """添加 artifact (带数量与大小限制)"""
+        # 1. 数量限制
+        if len(self._artifacts) >= self.max_artifact_count:
+            logger.warning(
+                f"超过产物数量限制 ({self.max_artifact_count}), 略过: {artifact.path}"
+            )
+            return
+
+        # 2. 大小限制
+        max_bytes = self.max_artifact_size_mb * 1024 * 1024
+        if artifact.size > max_bytes:
+            logger.warning(
+                f"产物大小超过限制 ({artifact.size} > {max_bytes} bytes), 略过: {artifact.path}"
+            )
+            return
+
         self._artifacts.append(artifact)
 
     def add_artifacts(self, artifacts: list[ArtifactRef]) -> None:

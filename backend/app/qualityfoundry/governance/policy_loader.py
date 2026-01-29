@@ -54,6 +54,26 @@ class ToolsPolicy(BaseModel):
         default_factory=list,
         description="允许执行的工具列表（空列表表示允许所有）"
     )
+    playwright: PlaywrightPolicy = Field(
+        default_factory=lambda: PlaywrightPolicy(),
+        description="Playwright 特定策略"
+    )
+
+
+class ArtifactLimits(BaseModel):
+    """产物限制配置 (Phase 2B)"""
+    max_count: int = Field(default=50, ge=1, description="单次运行最大产物数")
+    max_size_mb: int = Field(default=10, ge=1, description="单个产物最大大小 (MB)")
+
+
+class PlaywrightPolicy(BaseModel):
+    """Playwright 特定策略 (Phase 2B)"""
+    network: str = Field(
+        default="deny",
+        pattern="^(deny|allowlist|all)$",
+        description="网络策略: deny (禁用), allowlist (仅白名单), all (完全开放)"
+    )
+    allowlist: list[str] = Field(default_factory=list, description="域名白名单")
 
 
 class ContainerPolicy(BaseModel):
@@ -68,7 +88,12 @@ class ContainerPolicy(BaseModel):
     memory_mb: int = Field(default=512, ge=64, description="内存限制（MB）")
     cpus: float = Field(default=1.0, ge=0.1, description="CPU 核数限制")
     pids_limit: int = Field(default=100, ge=10, description="进程数限制")
-    network_disabled: bool = Field(default=True, description="禁用网络")
+    network_policy: str = Field(
+        default="deny",
+        pattern="^(deny|allowlist|all)$",
+        description="网络策略: deny (禁用), allowlist (允许白名单), all (完全开放)"
+    )
+    network_allowlist: list[str] = Field(default_factory=list, description="域名/IP 白名单")
     readonly_workspace: bool = Field(default=True, description="workspace 只读挂载")
 
 
@@ -149,6 +174,10 @@ class PolicyConfig(BaseModel):
     sandbox: SandboxPolicy = Field(
         default_factory=SandboxPolicy,
         description="沙箱策略配置"
+    )
+    artifact_limits: ArtifactLimits = Field(
+        default_factory=ArtifactLimits,
+        description="产物大小与数量限制"
     )
 
 

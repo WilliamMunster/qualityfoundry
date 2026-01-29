@@ -28,8 +28,7 @@ ToolFunction: TypeAlias = Callable[[ToolRequest], Awaitable[ToolResult]]
 # 这些工具在 policy.sandbox.enabled 时会接收 sandbox_config 参数
 SANDBOXABLE_TOOLS: frozenset[str] = frozenset({
     "run_pytest",
-    # 注意：run_playwright 使用浏览器进程，不适用 subprocess 沙箱
-    # 未来如需隔离 Playwright，需另行实现 browser sandbox
+    "run_playwright",
 })
 
 
@@ -174,7 +173,8 @@ class ToolRegistry:
                         memory_mb=policy.sandbox.container.memory_mb,
                         cpus=policy.sandbox.container.cpus,
                         pids_limit=policy.sandbox.container.pids_limit,
-                        network_disabled=policy.sandbox.container.network_disabled,
+                        network_policy=policy.sandbox.container.network_policy,
+                        network_allowlist=policy.sandbox.container.network_allowlist,
                         readonly_workspace=policy.sandbox.container.readonly_workspace,
                     )
             else:

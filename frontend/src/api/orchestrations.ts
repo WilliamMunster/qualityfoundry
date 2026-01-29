@@ -37,8 +37,8 @@ export interface PolicyMeta {
 
 export interface ReproMeta {
     git_sha?: string;
-    branch?: string;
-    dirty: boolean;
+    git_branch?: string;
+    git_dirty?: boolean;
     deps_fingerprint?: string;
 }
 

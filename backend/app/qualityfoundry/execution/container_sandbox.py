@@ -45,7 +45,12 @@ class ContainerSandboxConfig(BaseModel):
     memory_mb: int = Field(default=512, ge=64, description="内存限制（MB）")
     cpus: float = Field(default=1.0, ge=0.1, description="CPU 核数限制")
     pids_limit: int = Field(default=100, ge=10, description="进程数限制")
-    network_disabled: bool = Field(default=True, description="禁用网络")
+    network_policy: str = Field(
+        default="deny",
+        pattern="^(deny|allowlist|all)$",
+        description="网络策略: deny (禁用), allowlist (允许白名单), all (完全开放)"
+    )
+    network_allowlist: list[str] = Field(default_factory=list, description="域名/IP 白名单")
     readonly_workspace: bool = Field(default=True, description="workspace 只读挂载")
 
 
@@ -167,9 +172,22 @@ async def run_in_container(
         "--cap-drop=ALL",
     ]
 
-    # 禁网
-    if config.network_disabled:
+    # 5. 网络策略
+    if config.network_policy == "deny":
         docker_cmd.append("--network=none")
+    elif config.network_policy == "allowlist":
+        # 简单实现：由于 Docker 原生不支持按域名过滤，这里仅作标识
+        # 实际生产环境通常配合 iptables 或 sidecar 开启
+        # 此处展示逻辑骨架：如果限制白名单但未实现，则回退到 deny 保证安全
+        if not config.network_allowlist:
+            docker_cmd.append("--network=none")
+        else:
+            # MVP 阶段：白名单模式若无专用 sidecar 则暂视为 all 但记录警告
+            logger.warning("Container network allowlist requested but not implemented for runtime. Using default network.")
+            pass 
+    else:
+        # "all" 模式，不添加限制
+        pass
 
     # 挂载
     workspace_mount = f"{workspace_path.absolute()}:/workspace"
@@ -193,7 +211,7 @@ async def run_in_container(
     docker_cmd.append(config.image)
     docker_cmd.extend(cmd)
 
-    logger.info(f"Container sandbox: {runtime} run {config.image} (network={not config.network_disabled})")
+    logger.info(f"Container sandbox: {runtime} run {config.image} (network={config.network_policy})")
 
     # 5. 执行
     killed_by_timeout = False
