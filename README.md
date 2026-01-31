@@ -4,7 +4,7 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
-> **最新版本**: `v0.20-realtime-hardened` (`main@c38a7e3`) — 实时事件流 (Dashboard P3) + 容器硬隔离 (MCP Phase 2B)
+> **最新版本**: `v0.21-ai-review` (`main@HEAD`) — AI 评审系统 (多模型 + Policy + Gate + Evidence)
 >
 > **进度基线**: 详见 [docs/status/progress_baseline.md](docs/status/progress_baseline.md)
 
@@ -58,6 +58,7 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - ✅ **Dashboard P3 实时事件 (v0.20)**：SSE 端点实时推送任务状态，支持 `Last-Event-ID` 补发
 - ✅ **MCP Phase 2B 容器硬隔离 (v0.20)**：Playwright 强制容器模式 + 容器网络策略 (`deny`/`allowlist`)
 - ✅ **Linux CI 容器门禁 (v0.19)**：`sandbox-container` 任务确保 L3 强隔离持续验证
+- ✅ **AI 评审系统 (v0.21)**：多模型投票引擎 + Policy 配置 + Gate 决策集成 + Evidence 链持久化 + API 端点
 
 ### Partial / In Progress
 - 🟡 **用户认证**：基于 token 的简单认证（非 JWT，待升级）

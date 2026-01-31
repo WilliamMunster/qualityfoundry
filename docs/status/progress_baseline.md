@@ -1,9 +1,9 @@
 # QualityFoundry 进度基线
 
-> **版本锚点**: `main@c38a7e3` (2026-01-29)
-> **最后验证**: 2026-01-29
+> **版本锚点**: `main@HEAD` (2026-01-31)
+> **最后验证**: 2026-01-31 19:10
 > **Git 标签**: `v0.20-realtime-hardened`
-> **验证方式**: `ruff check` + `pytest -q --tb=short` + `npm run build`
+> **验证方式**: `ruff check` + `pytest -v --tb=short` + `npm run build`
 
 本文档是项目进度的**唯一真实来源**。所有声明均可通过下文命令验证。
 
@@ -58,7 +58,7 @@
 | **可复现性** | ✅ | `ReproMeta`: git_sha, branch, dirty, deps_fingerprint |
 | **最小权限** | ✅ | RBAC + 白名单 + MCP write 安全链 (auth→perm→rate_limit→policy→sandbox) |
 | **成本治理** | ✅ | timeout + max_retries + 预算短路 + evidence.governance |
-| **混合质量** | 🟡 | 确定性检查强；AI 评审/多模型评估待定 |
+| **混合质量** | ✅ | 确定性检查 + AI 评审 (多模型评估、Policy 集成、Gate/Evidence 链) |
 
 ---
 
@@ -109,7 +109,7 @@ NL → Plan → (HITL) → Execute → Evidence → Judgment
 | 项目 | 描述 |
 |------|------|
 | **L3 强隔离深化** | 多租户支持与禁网策略动态下发 |
-| **混合质量 (AI 评审)** | 多模型评审资产、主观评估体系 |
+| **混合质量 (AI 评审)** | ✅ 已完成：多模型评审 + Policy/Gate/Evidence 集成 |
 
 ---
 
@@ -130,6 +130,8 @@ NL → Plan → (HITL) → Execute → Evidence → Judgment
 | MCP 错误码 | `backend/app/qualityfoundry/protocol/mcp/errors.py` |
 | MCP 速率限制 | `backend/app/qualityfoundry/protocol/mcp/rate_limiter.py` |
 | MCP 安全测试 | `backend/tests/test_mcp_write_security.py` (11 测试) |
+| AI 评审引擎 | `backend/app/qualityfoundry/governance/ai_review/` |
+| AI 评审预研 | `docs/designs/ai-review-research.md` |
 | MCP 速率测试 | `backend/tests/test_mcp_rate_limiter.py` (13 测试) |
 | Phase 2B 设计 | `docs/designs/mcp-write-phase2b.md` v0.2 |
 
@@ -178,6 +180,8 @@ cd backend && python -m pytest -q --tb=short
  
 ## 文档历史
 
+| 2026-01-31 | Claude (Antigravity) + Kimi | v0.21: **AI 评审系统完整交付** — 多模型 PoC + Policy + Gate + Evidence + API (8 任务/61 测试/1100 行) |
+| 2026-01-29 | Claude (Antigravity) | v0.20 正式版收官：CI 回归修复（Table Registration/Schema Sync/Token Test/Audit Order）完成，全量 453+ 测试通过。 |
 | 2026-01-27 | Claude (Antigravity) | 审计标准化 (Option 1) 完成：一致性口径、Playback 跳过诊断映射；Linux CI 容器门禁 (Option 2) 已建立。 |
 | 2026-01-27 | Claude (Antigravity) | Artifact audit 已通用化：pytest + playwright 均覆盖；payload bounded & sanitized (rel_path / samples<=10 / boundary) |
 | 2026-01-26 | Claude (Antigravity) | MCP Phase 2A 速率限制 + Phase 2B 设计文档 v0.2 |

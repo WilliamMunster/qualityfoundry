@@ -387,6 +387,97 @@
       "type": "string",
       "format": "date-time",
       "description": "证据收集时间（ISO 8601 UTC）"
+    },
+    "ai_review": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "AI 评审结果（可选，当 policy.ai_review.enabled=true 时填充）",
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "NEEDS_HITL",
+            "FAIL"
+          ],
+          "description": "AI 评审裁决"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "置信度分数"
+        },
+        "reasoning": {
+          "type": "string",
+          "description": "评审理由"
+        },
+        "hitl_triggered": {
+          "type": "boolean",
+          "description": "是否触发人工介入"
+        },
+        "model_votes": {
+          "type": "array",
+          "description": "各模型投票明细",
+          "items": {
+            "type": "object",
+            "properties": {
+              "model": {
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "verdict": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "number"
+              },
+              "reasoning": {
+                "type": "string"
+              },
+              "duration_ms": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "description": "审计元数据",
+          "properties": {
+            "review_id": {
+              "type": "string"
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "prompt_hash": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "strategy": {
+              "type": "string"
+            },
+            "total_duration_ms": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": true
     }
   },
   "additionalProperties": false
