@@ -98,6 +98,7 @@ def test_run_detail_artifact_audit_structure(client: TestClient, db_session: Ses
 
 def test_run_detail_artifact_audit_last_win(client: TestClient, db_session: Session, admin_user: User):
     """(P0.5) 验证多条 ARTIFACT_COLLECTED 记录时，API 返回最新的一条"""
+    import time
     run_id = uuid4()
     
     # 第一条（旧）
@@ -114,6 +115,9 @@ def test_run_detail_artifact_audit_last_win(client: TestClient, db_session: Sess
         created_by_user_id=admin_user.id
     ))
     db_session.commit()
+    
+    # 确保第二条 timestamp 晚于第一条（Windows CI 时间精度问题）
+    time.sleep(0.05)
     
     # 第二条（新）
     db_session.add(AuditLog(
