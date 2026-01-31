@@ -112,7 +112,7 @@ class Evidence(BaseModel):
     
     Schema: https://qualityfoundry.ai/schemas/evidence.v1.schema.json
     """
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")  # 允许扩展字段（如 ai_review）
 
     run_id: str
     input_nl: str
@@ -122,6 +122,7 @@ class Evidence(BaseModel):
     summary: EvidenceSummary | None = None
     repro: ReproMeta | None = None
     governance: GovernanceEvidence | None = None
+    ai_review: dict[str, Any] | None = None  # AI 评审结果（Phase 2）
     collected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     schema_ref: str = Field(default=EVIDENCE_SCHEMA_V1.schema_uri, alias="$schema")
     
@@ -167,6 +168,7 @@ class TraceCollector:
         self.environment = environment or {}
         self.artifact_root = artifact_root or get_artifacts_root()
         self._tool_results: list[tuple[str, ToolResult]] = []
+        self._ai_review_result: dict[str, Any] | None = None
 
     def add_tool_result(self, tool_name: str, result: ToolResult) -> None:
         """添加工具执行结果"""
@@ -175,6 +177,14 @@ class TraceCollector:
     def add_tool_results(self, results: list[tuple[str, ToolResult]]) -> None:
         """批量添加工具执行结果"""
         self._tool_results.extend(results)
+
+    def set_ai_review_result(self, ai_review_result: dict[str, Any]) -> None:
+        """设置 AI 评审结果
+        
+        Args:
+            ai_review_result: AIReviewResult.to_evidence_format()["ai_review"]
+        """
+        self._ai_review_result = ai_review_result
 
     def collect(self) -> Evidence:
         """收集并生成 Evidence 对象"""
@@ -207,7 +217,7 @@ class TraceCollector:
         repro = get_repro_meta(self.artifact_root.parent if self.artifact_root else None)
 
         # 5. 构建 Evidence
-        return Evidence(
+        evidence = Evidence(
             run_id=self.run_id,
             input_nl=self.input_nl,
             environment=self.environment,
@@ -222,8 +232,10 @@ class TraceCollector:
                     "retries_used_total": 0,  # TODO: 从 ToolResult 提取
                 },
                 short_circuited=False,
-            )
+            ),
+            ai_review=self._ai_review_result,
         )
+        return evidence
 
     def _generate_summary(self, junit_paths: list[Path]) -> EvidenceSummary:
         """生成测试摘要

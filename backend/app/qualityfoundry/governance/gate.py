@@ -20,6 +20,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from qualityfoundry.governance.tracing.collector import Evidence
 from qualityfoundry.governance.policy_loader import PolicyConfig, get_policy
+from qualityfoundry.governance.ai_review import (
+    AIReviewConfig,
+    AIReviewEngine,
+    StrategyType,
+    ModelConfig as AIModelConfig,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +61,7 @@ class GateResult(BaseModel):
     approval_id: UUID | None = None
     triggered_rules: list[str] = Field(default_factory=list)
     evidence_summary: dict[str, Any] | None = None
+    ai_review_result: dict[str, Any] | None = None  # AI 评审结果
 
     @property
     def passed(self) -> bool:
@@ -168,6 +175,122 @@ def evaluate_gate(
         triggered_rules=triggered_rules,
         evidence_summary=evidence_summary,
     )
+
+
+def _build_review_content(evidence: Evidence) -> str:
+    """构建 AI 评审内容
+
+    将证据转换为可供 AI 评审的文本格式。
+
+    Args:
+        evidence: 证据对象
+
+    Returns:
+        评审内容文本
+    """
+    content_parts = []
+
+    if evidence.input_nl:
+        content_parts.append(f"User Request: {evidence.input_nl}")
+
+    if evidence.summary:
+        content_parts.append(
+            f"Test Results: {evidence.summary.tests} tests, "
+            f"{evidence.summary.failures} failures, "
+            f"{evidence.summary.errors} errors"
+        )
+
+    if evidence.tool_calls:
+        tool_summary = []
+        for tc in evidence.tool_calls:
+            status = "✓" if tc.status == "success" else "✗"
+            tool_summary.append(f"{status} {tc.tool_name}")
+        content_parts.append(f"Tool Executions: {', '.join(tool_summary)}")
+
+    return "\n".join(content_parts) if content_parts else "No evidence available"
+
+
+def evaluate_gate_with_ai_review(
+    evidence: Evidence,
+    policy: PolicyConfig | None = None,
+) -> GateResult:
+    """评估门禁（含 AI 评审）
+
+    在标准门禁评估基础上，如果 policy.ai_review.enabled=True，
+    则启用 AI 评审作为额外决策因子。
+
+    Args:
+        evidence: 证据对象
+        policy: 策略配置（可选）
+
+    Returns:
+        GateResult: 门禁决策结果（含 ai_review_result）
+    """
+    # 先执行标准门禁评估
+    result = evaluate_gate(evidence, policy)
+
+    # 加载策略
+    if policy is None:
+        policy = get_policy()
+
+    # 如果 AI 评审未启用，直接返回标准结果
+    if not policy.ai_review.enabled:
+        return result
+
+    # AI 评审已启用，执行评审
+    try:
+        # 构建 AI 评审配置
+        ai_config = AIReviewConfig(
+            enabled=True,
+            models=[
+                AIModelConfig(
+                    name=m.name,
+                    provider=m.provider,
+                    weight=m.weight,
+                    temperature=m.temperature,
+                )
+                for m in policy.ai_review.models
+            ],
+            strategy=StrategyType(policy.ai_review.strategy),
+            pass_threshold=policy.ai_review.thresholds.pass_confidence,
+            hitl_threshold=policy.ai_review.thresholds.hitl_confidence,
+            max_retries=policy.ai_review.max_retries,
+            timeout_seconds=policy.ai_review.timeout_seconds,
+        )
+
+        # 创建引擎并执行评审
+        engine = AIReviewEngine(ai_config)
+        review_content = _build_review_content(evidence)
+        ai_result = engine.review(review_content)
+
+        # 将 AI 评审结果附加到 GateResult
+        result.ai_review_result = ai_result.to_evidence_format().get("ai_review")
+
+        # AI 评审触发 HITL 的情况
+        if ai_result.hitl_triggered or ai_result.verdict.value == "NEEDS_HITL":
+            # 如果已有 NEED_HITL，保留原决策但添加 AI 评审信息
+            if result.decision != GateDecision.NEED_HITL:
+                result.decision = GateDecision.NEED_HITL
+                result.reason = f"[AI Review] {ai_result.reasoning}"
+                result.triggered_rules.append("ai_review_triggered_hitl")
+            else:
+                result.triggered_rules.append("ai_review_concurs")
+
+        # AI 评审FAIL的情况（除非已有更严重的决策）
+        elif ai_result.verdict.value == "FAIL" and result.decision == GateDecision.PASS:
+            result.decision = GateDecision.FAIL
+            result.reason = f"[AI Review] {ai_result.reasoning}"
+            result.triggered_rules.append("ai_review_failed")
+
+        # AI 评审通过的情况
+        elif ai_result.verdict.value == "PASS":
+            result.triggered_rules.append("ai_review_passed")
+
+    except Exception as e:
+        logger.warning(f"AI review failed, falling back to standard gate: {e}")
+        result.triggered_rules.append("ai_review_error")
+
+    return result
 
 
 def _check_high_risk(

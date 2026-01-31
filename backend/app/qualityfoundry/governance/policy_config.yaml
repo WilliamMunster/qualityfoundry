@@ -120,3 +120,26 @@ sandbox:
   container:
     image: "python:3.11-slim"
     network_disabled: true
+
+# AI Review Configuration (Phase 2)
+# 多模型评审系统配置
+ai_review:
+  enabled: false  # 默认禁用，需显式开启
+  models:
+    - name: "gpt-4"
+      provider: "openai"
+      weight: 1.0
+      temperature: 0.0
+    - name: "claude-3-sonnet"
+      provider: "anthropic"
+      weight: 1.0
+      temperature: 0.0
+  strategy: "majority_vote"  # majority_vote | weighted_ensemble | cascade
+  thresholds:
+    pass_confidence: 0.8      # 通过的最小置信度
+    hitl_confidence: 0.5      # 低于此值触发人工介入
+  dimensions:
+    - "correctness"
+    - "safety"
+  max_retries: 2
+  timeout_seconds: 30

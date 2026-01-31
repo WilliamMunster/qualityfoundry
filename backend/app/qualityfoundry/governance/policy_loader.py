@@ -66,6 +66,48 @@ class ArtifactLimits(BaseModel):
     max_size_mb: int = Field(default=10, ge=1, description="单个产物最大大小 (MB)")
 
 
+class AIReviewModelConfig(BaseModel):
+    """AI 评审模型配置"""
+    name: str = Field(..., description="模型名称，如 gpt-4, claude-3-sonnet")
+    provider: str = Field(..., description="提供商: openai, anthropic, deepseek, local")
+    weight: float = Field(default=1.0, ge=0.0, description="加权投票时的权重")
+    temperature: float = Field(default=0.0, ge=0.0, le=2.0, description="温度参数")
+
+
+class AIReviewThresholds(BaseModel):
+    """AI 评审阈值配置"""
+    pass_confidence: float = Field(default=0.8, ge=0.0, le=1.0, description="通过的最小置信度")
+    hitl_confidence: float = Field(default=0.5, ge=0.0, le=1.0, description="触发人工介入的置信度")
+
+
+class AIReviewPolicy(BaseModel):
+    """AI 评审策略配置 (Phase 2)
+    
+    多模型评审系统集成配置。
+    默认禁用，需显式开启。
+    """
+    enabled: bool = Field(default=False, description="是否启用 AI 评审")
+    models: list[AIReviewModelConfig] = Field(
+        default_factory=list,
+        description="多模型配置列表"
+    )
+    strategy: str = Field(
+        default="majority_vote",
+        pattern="^(majority_vote|weighted_ensemble|cascade)$",
+        description="评审策略: majority_vote, weighted_ensemble, cascade"
+    )
+    thresholds: AIReviewThresholds = Field(
+        default_factory=AIReviewThresholds,
+        description="评审阈值配置"
+    )
+    dimensions: list[str] = Field(
+        default_factory=lambda: ["correctness"],
+        description="评审维度列表"
+    )
+    max_retries: int = Field(default=2, ge=0, description="单个模型最大重试次数")
+    timeout_seconds: int = Field(default=30, ge=1, description="单次评审超时时间")
+
+
 class PlaywrightPolicy(BaseModel):
     """Playwright 特定策略 (Phase 2B)"""
     network: str = Field(
@@ -178,6 +220,10 @@ class PolicyConfig(BaseModel):
     artifact_limits: ArtifactLimits = Field(
         default_factory=ArtifactLimits,
         description="产物大小与数量限制"
+    )
+    ai_review: AIReviewPolicy = Field(
+        default_factory=AIReviewPolicy,
+        description="AI 评审策略配置"
     )
 
 
