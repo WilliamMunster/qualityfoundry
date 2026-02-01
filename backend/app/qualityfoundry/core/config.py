@@ -51,6 +51,19 @@ class Settings(BaseSettings):
     # 环境变量：QF_TOKEN_CLEANUP_RETENTION_DAYS
     TOKEN_CLEANUP_RETENTION_DAYS: int = 7
 
+    # ---------- JWT 配置 ----------
+    # JWT 签名密钥（生产环境必须通过环境变量设置强密钥）
+    # 环境变量：QF_JWT_SECRET_KEY
+    JWT_SECRET_KEY: str = "qf_default_jwt_secret_change_in_production"
+    
+    # JWT 算法
+    # 环境变量：QF_JWT_ALGORITHM
+    JWT_ALGORITHM: str = "HS256"
+    
+    # JWT Token 过期时间（小时）
+    # 环境变量：QF_JWT_EXPIRE_HOURS
+    JWT_EXPIRE_HOURS: int = 24
+
 
 # 全局单例：直接 import settings 使用
 settings = Settings()

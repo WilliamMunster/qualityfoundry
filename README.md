@@ -4,7 +4,7 @@
 
 QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gate）工具链。我们的核心哲学是 **Hybrid Quality**：确定性检查（assert）优先，辅以 AI 评测与 Trace 证据链。
 
-> **最新版本**: `v0.21-ai-review` (`main@HEAD`) — AI 评审系统 (多模型 + Policy + Gate + Evidence)
+> **最新版本**: `v0.24-tenant-api` (`main@HEAD`) — JWT 标准化认证 + 多租户基础 API
 >
 > **进度基线**: 详见 [docs/status/progress_baseline.md](docs/status/progress_baseline.md)
 
@@ -61,12 +61,16 @@ QualityFoundry 是一个 **Python-first** 的测试与质量闸门（Quality Gat
 - ✅ **AI 评审系统 (v0.21)**：多模型投票引擎 + Policy 配置 + Gate 决策集成 + Evidence 链持久化 + API 端点
 
 ### Partial / In Progress
-- 🟡 **用户认证**：基于 token 的简单认证（非 JWT，待升级）
-- 🟡 **角色权限**：UserRole 模型存在，RBAC 通过 MCP 安全链强制执行
+- 🟡 **多租户支持 (v0.24)**：Tenant/Membership 模型 + TenantContext 中间件 + CRUD API (Phase 2 完成，Phase 3-4 待做)
+
+### Completed (v0.22-v0.24)
+- ✅ **JWT 认证 (v0.22)**：标准化 JWT 认证，双模式兼容（向后兼容 opaque token）
+- ✅ **用户角色**：UserRole 模型，RBAC 通过 MCP 安全链强制执行
+- ✅ **多租户 Phase 1-2**：Tenant 模型 + TenantService CRUD + REST API + 权限控制
 
 ### Not Started
 - 🔴 **MCP Write Phase 3**：`run_shell` (极高危，目前处于 HARD BLOCK 拦截状态)
-- 🔴 **多租户支持**：后端数据库结构适配
+- 🔴 **多租户 Phase 3-4**：沙箱增强 + Migration 自动化
 
 ---
 

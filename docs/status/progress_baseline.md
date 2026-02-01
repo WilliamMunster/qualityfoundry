@@ -1,8 +1,8 @@
 # QualityFoundry 进度基线
 
-> **版本锚点**: `main@HEAD` (2026-01-31)
-> **最后验证**: 2026-01-31 19:10
-> **Git 标签**: `v0.20-realtime-hardened`
+> **版本锚点**: `main@HEAD` (2026-02-01)
+> **最后验证**: 2026-02-01 20:41
+> **Git 标签**: `v0.24-tenant-api`
 > **验证方式**: `ruff check` + `pytest -v --tb=short` + `npm run build`
 
 本文档是项目进度的**唯一真实来源**。所有声明均可通过下文命令验证。
@@ -106,10 +106,12 @@ NL → Plan → (HITL) → Execute → Evidence → Judgment
 
 ### P2 — 长期演进
 
-| 项目 | 描述 |
-|------|------|
-| **L3 强隔离深化** | 多租户支持与禁网策略动态下发 |
-| **混合质量 (AI 评审)** | ✅ 已完成：多模型评审 + Policy/Gate/Evidence 集成 |
+| 项目 | 描述 | 状态 |
+|------|------|:----:|
+| **Auth JWT 升级** | opaque→JWT 标准化认证 | ✅ v0.22 |
+| **L3 Multi-tenant Phase 1-2** | Tenant 模型 + TenantContext + API | ✅ v0.24 |
+| **L3 Multi-tenant Phase 3-4** | 沙箱增强 + Migration 自动化 | 🔴 待研究 |
+| **混合质量 (AI 评审)** | 多模型评审 + Policy/Gate/Evidence 集成 | ✅ v0.21 |
 
 ---
 
@@ -180,6 +182,9 @@ cd backend && python -m pytest -q --tb=short
  
 ## 文档历史
 
+| 2026-02-01 | Claude (Antigravity) + Kimi | v0.24: **Multi-tenant Phase 2** — TenantService CRUD + API + 成员管理 (5 任务/26 测试/~800 行) |
+| 2026-02-01 | Claude (Antigravity) + Kimi | v0.23: **Multi-tenant Phase 1a** — Tenant/Membership 模型 + JWT 扩展 + TenantContext 中间件 (6 任务/14 测试/~640 行) |
+| 2026-02-01 | Claude (Antigravity) + Kimi | v0.22: **JWT Auth 升级** — opaque→JWT 标准化认证，双模式兼容，17 测试通过 (6 任务/~400 行) |
 | 2026-01-31 | Claude (Antigravity) + Kimi | v0.21: **AI 评审系统完整交付** — 多模型 PoC + Policy + Gate + Evidence + API (8 任务/61 测试/1100 行) |
 | 2026-01-29 | Claude (Antigravity) | v0.20 正式版收官：CI 回归修复（Table Registration/Schema Sync/Token Test/Audit Order）完成，全量 453+ 测试通过。 |
 | 2026-01-27 | Claude (Antigravity) | 审计标准化 (Option 1) 完成：一致性口径、Playback 跳过诊断映射；Linux CI 容器门禁 (Option 2) 已建立。 |

@@ -27,6 +27,7 @@ from qualityfoundry.api.v1.routes_policies import router as policies_router
 from qualityfoundry.api.v1.routes_auth import router as auth_router
 from qualityfoundry.api.v1.routes_dashboard import router as dashboard_router
 from qualityfoundry.api.v1.routes_ai_review import router as ai_review_router
+from qualityfoundry.api.v1.routes_tenants import router as tenants_router
 
 # v1 统一入口：所有 v1 API 都从 /api/v1 开始
 router = APIRouter(prefix="/api/v1")
@@ -58,4 +59,5 @@ router.include_router(policies_router)
 router.include_router(auth_router)
 router.include_router(dashboard_router)
 router.include_router(ai_review_router)
+router.include_router(tenants_router)
 

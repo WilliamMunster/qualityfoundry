@@ -3,12 +3,14 @@
 认证服务
 """
 import hashlib
-import secrets
+import uuid as uuid_module
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Dict, Any
 from uuid import UUID
 
 from sqlalchemy.orm import Session
+import jwt
+from jwt.exceptions import InvalidTokenError
 
 from qualityfoundry.core.config import settings
 from qualityfoundry.database.user_models import User, UserRole
@@ -34,28 +36,161 @@ class AuthService:
         salted = token + settings.TOKEN_PEPPER
         return hashlib.sha256(salted.encode()).hexdigest()
     
+    # ========== JWT 相关方法 ==========
+    
     @staticmethod
-    def create_access_token(db: Session, user_id: UUID) -> str:
-        """创建访问令牌并存储到数据库
+    def create_jwt_token(
+        user: User,
+        tenant_id: Optional[str] = None,
+        tenant_role: Optional[str] = None
+    ) -> str:
+        """创建 JWT 令牌
+        
+        Args:
+            user: 用户对象
+            tenant_id: 可选的租户ID（多租户场景）
+            tenant_role: 可选的租户内角色（多租户场景）
+            
+        Returns:
+            JWT 令牌字符串
+        """
+        now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(hours=settings.JWT_EXPIRE_HOURS)
+        jti = str(uuid_module.uuid4())  # 用于撤销追踪的唯一ID
+        
+        payload: Dict[str, Any] = {
+            "sub": str(user.id),           # 主题：用户ID
+            "username": user.username,      # 用户名
+            "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
+            "exp": expires_at,              # 过期时间
+            "iat": now,                     # 签发时间
+            "jti": jti,                     # 令牌唯一ID
+        }
+        
+        # 多租户字段（可选）
+        if tenant_id:
+            payload["tenant_id"] = tenant_id
+        if tenant_role:
+            payload["tenant_role"] = tenant_role
+        
+        token = jwt.encode(
+            payload,
+            settings.JWT_SECRET_KEY,
+            algorithm=settings.JWT_ALGORITHM
+        )
+        return token
+    
+    @staticmethod
+    def decode_jwt_token(token: str) -> Optional[Dict[str, Any]]:
+        """解码并验证 JWT 令牌
+        
+        Args:
+            token: JWT 令牌字符串
+            
+        Returns:
+            解码后的 payload 字典，验证失败返回 None
+        """
+        try:
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM]
+            )
+            return payload
+        except InvalidTokenError:
+            return None
+    
+    @staticmethod
+    def get_tenant_from_token(token: str) -> Optional[Dict[str, str]]:
+        """从 JWT 令牌中提取租户信息
+        
+        Args:
+            token: JWT 令牌字符串
+            
+        Returns:
+            包含 tenant_id 和 tenant_role 的字典，如果没有则返回 None
+        """
+        payload = AuthService.decode_jwt_token(token)
+        if not payload:
+            return None
+        
+        tenant_id = payload.get("tenant_id")
+        if not tenant_id:
+            return None
+        
+        return {
+            "tenant_id": tenant_id,
+            "tenant_role": payload.get("tenant_role", "member"),
+        }
+    
+    @staticmethod
+    def verify_jwt_token(db: Session, token: str) -> Optional[User]:
+        """验证 JWT 令牌并返回用户
+        
+        支持 stateless 验证，如需检查撤销状态可扩展。
         
         Args:
             db: 数据库会话
-            user_id: 用户 ID
+            token: JWT 令牌字符串
             
         Returns:
-            原始 token（返回给客户端）
+            有效则返回 User，无效返回 None
         """
-        token = secrets.token_urlsafe(32)
-        token_hash = AuthService._hash_token(token)
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.TOKEN_EXPIRE_HOURS)
+        payload = AuthService.decode_jwt_token(token)
+        if not payload:
+            return None
         
-        db_token = UserToken(
-            token_hash=token_hash,
-            user_id=user_id,
-            expires_at=expires_at,
-        )
-        db.add(db_token)
-        db.commit()
+        # 获取用户ID
+        user_id_str = payload.get("sub")
+        if not user_id_str:
+            return None
+        
+        try:
+            user_id = UUID(user_id_str)
+        except ValueError:
+            return None
+        
+        # 查询用户
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.is_active:
+            return None
+        
+        return user
+    
+    @staticmethod
+    def create_access_token(db: Session, user: User) -> str:
+        """创建访问令牌（JWT 格式）
+        
+        创建 JWT 令牌并可选存储到数据库用于撤销追踪。
+        
+        Args:
+            db: 数据库会话
+            user: 用户对象
+            
+        Returns:
+            JWT 令牌字符串
+        """
+        # 创建 JWT 令牌
+        token = AuthService.create_jwt_token(user)
+        
+        # 解析 jti 用于数据库记录（支持撤销）
+        payload = AuthService.decode_jwt_token(token)
+        if payload:
+            jti = payload.get("jti")
+            expires_at = payload.get("exp")
+            if expires_at:
+                expires_at = datetime.fromtimestamp(expires_at, tz=timezone.utc)
+            else:
+                expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.JWT_EXPIRE_HOURS)
+            
+            # 使用 jti 作为 token_hash 存储（用于撤销追踪）
+            db_token = UserToken(
+                token_hash=jti,  # 存储 jti 用于撤销追踪
+                user_id=user.id,
+                expires_at=expires_at,
+            )
+            db.add(db_token)
+            db.commit()
         
         return token
     
@@ -91,13 +226,37 @@ class AuthService:
     def revoke_token(db: Session, token: str) -> bool:
         """撤销 token（用于登出）
         
+        支持撤销 JWT（通过 jti）和旧版 opaque token。
+        
         Args:
             db: 数据库会话
-            token: 原始 token
+            token: 原始 token（JWT 或旧版 opaque token）
             
         Returns:
             是否成功撤销
         """
+        # 首先尝试作为 JWT 解析
+        payload = AuthService.decode_jwt_token(token)
+        if payload:
+            # JWT 模式：使用 jti 作为查找键
+            jti = payload.get("jti")
+            if not jti:
+                return False
+            
+            db_token = db.query(UserToken).filter(
+                UserToken.token_hash == jti,
+                UserToken.revoked_at.is_(None),
+            ).first()
+            
+            if not db_token:
+                # Token 可能已过期被清理，但视为撤销成功
+                return True
+            
+            db_token.revoked_at = datetime.now(timezone.utc)
+            db.commit()
+            return True
+        
+        # 回退：旧版 opaque token 模式
         token_hash = AuthService._hash_token(token)
         
         db_token = db.query(UserToken).filter(
