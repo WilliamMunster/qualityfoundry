@@ -24,6 +24,7 @@ dependencies = [
   "python-multipart>=0.0.9",
   "orjson>=3.10",
   "jsonschema>=4.21",
+  "pyjwt>=2.8",
 ]
 
 [project.scripts]

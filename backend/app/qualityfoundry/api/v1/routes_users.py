@@ -30,8 +30,8 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     
-    # 生成访问令牌并存储到数据库
-    access_token = AuthService.create_access_token(db, user.id)
+    # 生成 JWT 访问令牌
+    access_token = AuthService.create_access_token(db, user)
     
     return TokenResponse(
         access_token=access_token,

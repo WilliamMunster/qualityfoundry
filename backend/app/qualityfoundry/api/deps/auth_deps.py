@@ -17,7 +17,11 @@ async def get_current_user(
     authorization: Optional[str] = Header(default=None, alias="Authorization"),
     db: Session = Depends(get_db),
 ) -> User:
-    """从 Authorization header 解析当前用户（走真实 token 校验）
+    """从 Authorization header 解析当前用户（支持 JWT 和旧版 token）
+    
+    双模式验证：
+    1. 首先尝试 JWT 验证（stateless）
+    2. JWT 失败则回退到旧版 opaque token 数据库查询
     
     Args:
         authorization: Authorization header (Bearer token)
@@ -45,7 +49,13 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 验证 token
+    # 首先尝试 JWT 验证（stateless）
+    user = AuthService.verify_jwt_token(db, token)
+    
+    if user:
+        return user
+    
+    # 回退：旧版 opaque token 数据库查询（向后兼容）
     user = AuthService.verify_token(db, token)
     
     if not user:
